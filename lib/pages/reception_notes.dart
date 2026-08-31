@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:edugest/models/grade.dart';
+import 'package:edugest/service/api_service.dart';
+import 'package:edugest/service/export_service.dart';
 import '../components/app_colors.dart';
 
 class ReceptionNotes extends StatefulWidget {
@@ -9,116 +12,220 @@ class ReceptionNotes extends StatefulWidget {
 }
 
 class _ReceptionNotesState extends State<ReceptionNotes> {
-  String selectedClasse = 'Terminale S1';
-  String selectedSemestre = 'Semestre 1';
+  String selectedClasse = 'Toutes';
+  List<Exam> _exams = [];
+  bool _isLoading = true;
+
+  final List<String> _classes = ['Toutes', '6eme', '5eme', '4eme', '3eme', '2nd', '1ere', 'Terminale'];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExams();
+  }
+
+  Future<void> _fetchExams() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await ApiService.getExams(
+        className: selectedClasse == 'Toutes' ? null : selectedClasse,
+      );
+      if (mounted) {
+        setState(() {
+          _exams = data;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Réception des Notes",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Réception & Validation des Notes",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: AppColors.primary),
+              onPressed: _fetchExams,
+            ),
+          ],
         ),
         const SizedBox(height: 20),
 
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            children: [
-              _buildFilterLabel("Classe", selectedClasse, ['6ème A', '3ème A', 'Terminale S1'], (val) => setState(() => selectedClasse = val!)),
-              _buildFilterLabel("Période", selectedSemestre, ['Semestre 1', 'Semestre 2'], (val) => setState(() => selectedSemestre = val!)),
-            ],
+        // Filtre de classe
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _classes.map((c) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: ChoiceChip(
+                  label: Text(c),
+                  selected: selectedClasse == c,
+                  onSelected: (selected) {
+                    if (selected) {
+                      setState(() => selectedClasse = c);
+                      _fetchExams();
+                    }
+                  },
+                ),
+              );
+            }).toList(),
           ),
         ),
-
         const SizedBox(height: 25),
-        const Text("Soumissions reçues", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 2,
-          itemBuilder: (context, index) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: ListTile(
-                leading: const Icon(Icons.assignment_turned_in, color: AppColors.primary),
-                title: Text(index == 0 ? "M. Diallo (Maths)" : "Mme. Sow (Anglais)", 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                subtitle: Text("Envoyé le 12/10 • $selectedClasse"),
-                trailing: const Icon(Icons.open_in_new, size: 20, color: AppColors.primary),
-                onTap: () => _showGradesTable(context, index == 0 ? "M. Diallo" : "Mme. Sow"),
-              ),
-            );
-          },
-        ),
+
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_exams.isEmpty)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Text("Aucune soumission d'examen trouvée pour cette classe."),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _exams.length,
+            itemBuilder: (context, index) {
+              final exam = _exams[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.primaryPale,
+                    child: Icon(Icons.assignment_turned_in, color: AppColors.primary),
+                  ),
+                  title: Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("Matière: ${exam.subject} • Classe: ${exam.className}"),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showGradesTable(context, exam),
+                ),
+              );
+            },
+          ),
       ],
     );
   }
 
-  void _showGradesTable(BuildContext context, String prof) {
+  void _showGradesTable(BuildContext context, Exam exam) async {
+    // Show loading dialog
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Notes : $prof - $selectedClasse"),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowColor: MaterialStateProperty.all(AppColors.primaryPale),
-                columns: const [
-                  DataColumn(label: Text('Élève', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Note/20', style: TextStyle(fontWeight: FontWeight.bold))),
-                  DataColumn(label: Text('Observation', style: TextStyle(fontWeight: FontWeight.bold))),
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final grades = await ApiService.getGradesByExam(exam.id);
+      final students = await ApiService.getStudents(className: exam.className);
+      
+      if (!context.mounted) return;
+      Navigator.pop(context); // Remove loading
+
+      final studentMap = {for (var s in students) s.id: s.fullName};
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: Text("Bordereau : ${exam.title}")),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                    onPressed: () => ExportService.generatePdf(
+                      exam: exam,
+                      grades: grades,
+                      students: students,
+                    ),
+                    tooltip: "Télécharger PDF",
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.table_view, color: Colors.green),
+                    onPressed: () => ExportService.generateExcel(
+                      exam: exam,
+                      grades: grades,
+                      students: students,
+                    ),
+                    tooltip: "Télécharger Excel",
+                  ),
                 ],
-                rows: List.generate(8, (index) => DataRow(cells: [
-                  DataCell(Text("Élève Nom ${index + 1}")),
-                  DataCell(Text("${10 + index}.00")),
-                  DataCell(Text(index < 5 ? "Admis" : "Échec", style: TextStyle(color: index < 5 ? Colors.green : Colors.red, fontWeight: FontWeight.bold))),
-                ])),
+              )
+            ],
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          content: SizedBox(
+            width: 600,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("Matière : ${exam.subject} | Classe : ${exam.className}"),
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  Table(
+                    border: TableBorder.all(color: AppColors.border, width: 1, borderRadius: BorderRadius.circular(8)),
+                    columnWidths: const {
+                      0: FlexColumnWidth(3),
+                      1: FixedColumnWidth(60),
+                    },
+                    children: [
+                      const TableRow(
+                        decoration: BoxDecoration(color: AppColors.bg),
+                        children: [
+                          Padding(padding: EdgeInsets.all(8), child: Text("Élève", style: TextStyle(fontWeight: FontWeight.bold))),
+                          Padding(padding: EdgeInsets.all(8), child: Text("Note", style: TextStyle(fontWeight: FontWeight.bold))),
+                        ],
+                      ),
+                      ...grades.map((g) => TableRow(
+                        children: [
+                          Padding(padding: const EdgeInsets.all(8), child: Text(studentMap[g.studentId] ?? "Inconnu (${g.studentId})")),
+                          Padding(padding: const EdgeInsets.all(8), child: Text(g.score.toStringAsFixed(1))),
+                        ],
+                      )),
+                    ],
+                  ),
+                  if (grades.isEmpty)
+                    const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("Aucune note enregistrée."))),
+                ],
               ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Fermer"),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Fermer")),
-          ElevatedButton(onPressed: () {}, style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary), child: const Text("Valider", style: TextStyle(color: Colors.white))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterLabel(String label, String value, List<String> items, Function(String?) onChange) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-        DropdownButton<String>(
-          value: value,
-          isDense: true,
-          underline: const SizedBox(),
-          items: items.map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13)))).toList(),
-          onChanged: onChange,
-        ),
-      ],
-    );
+      );
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Remove loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur lors du chargement des notes: $e")),
+        );
+      }
+    }
   }
 }

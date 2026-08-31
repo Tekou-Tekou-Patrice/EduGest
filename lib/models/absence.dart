@@ -4,7 +4,7 @@ class Absence {
   final String studentName;
   final String className;
   final DateTime date;
-  final String period; // ex: "08:00 - 10:00"
+  final String period;
   final String reason;
   final bool isJustified;
 
@@ -21,7 +21,7 @@ class Absence {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id.isNotEmpty && id != '0') 'id': int.tryParse(id) ?? id,
       'studentId': studentId,
       'studentName': studentName,
       'className': className,
@@ -29,19 +29,21 @@ class Absence {
       'period': period,
       'reason': reason,
       'isJustified': isJustified,
+      'justified': isJustified,
     };
   }
 
   factory Absence.fromMap(Map<String, dynamic> map) {
+    final justified = map['isJustified'] ?? map['justified'] ?? false;
     return Absence(
-      id: map['id'],
-      studentId: map['studentId'],
-      studentName: map['studentName'],
-      className: map['className'],
-      date: DateTime.parse(map['date']),
-      period: map['period'],
-      reason: map['reason'],
-      isJustified: map['isJustified'] ?? false,
+      id: map['id']?.toString() ?? '',
+      studentId: map['studentId']?.toString() ?? '',
+      studentName: map['studentName']?.toString() ?? '',
+      className: map['className']?.toString() ?? '',
+      date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
+      period: map['period']?.toString() ?? '',
+      reason: map['reason']?.toString() ?? '',
+      isJustified: justified == true,
     );
   }
 }

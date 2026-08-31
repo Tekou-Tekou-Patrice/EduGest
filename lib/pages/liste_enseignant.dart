@@ -1,5 +1,7 @@
 import 'package:edugest/components/my_textfield.dart';
-import 'package:edugest/models/teacher.dart'; // Import du modèle
+import 'package:edugest/models/teacher.dart';
+import 'package:edugest/models/subject.dart';
+import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
@@ -12,68 +14,98 @@ class ListeEnseignant extends StatefulWidget {
 }
 
 class _ListeEnseignantState extends State<ListeEnseignant> {
-  String selectedSubject = 'Tous';
-  final TextEditingController _nomController = TextEditingController();
-  final TextEditingController _prenomController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
-  String _tempSpeciality = 'Mathématiques';
+  String selectedSubjectName = 'Tous';
+  String searchQuery = "";
+  List<Teacher> _allTeachers = [];
+  List<Subject> _availableSubjects = [];
+  bool _isLoading = true;
 
-  final List<String> subjects = [
-    'Tous', 'Mathématiques', 'Français', 'Anglais', 'Physique-Chimie', 'SVT', 'Histoire-Géo', 'EPS'
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  // Liste utilisant le modèle Teacher
-  final List<Teacher> _allTeachers = [
-    Teacher(id: 'T001', firstName: 'Amadou', lastName: 'Diallo', speciality: 'Mathématiques', email: 'a.diallo@edugest.com'),
-    Teacher(id: 'T002', firstName: 'Fatoumata', lastName: 'Sow', speciality: 'Français', email: 'f.sow@edugest.com'),
-  ];
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    await _fetchSubjects();
+    await _fetchTeachers();
+    setState(() => _isLoading = false);
+  }
 
-  void _showTeacherDialog({int? index}) {
-    if (index != null) {
-      final t = _allTeachers[index];
-      _nomController.text = t.lastName;
-      _prenomController.text = t.firstName;
-      _emailController.text = t.email ?? '';
-      _phoneController.text = t.phone ?? '';
-      _tempSpeciality = t.speciality;
-    } else {
-      _nomController.clear();
-      _prenomController.clear();
-      _emailController.clear();
-      _phoneController.clear();
-      _tempSpeciality = 'Mathématiques';
+  Future<void> _fetchSubjects() async {
+    try {
+      final data = await ApiService.getSubjects();
+      setState(() {
+        _availableSubjects = data;
+      });
+    } catch (e) {
+      debugPrint("Erreur chargement matières: $e");
+    }
+  }
+
+  Future<void> _fetchTeachers() async {
+    try {
+      final data = await ApiService.getTeachers(query: searchQuery.isEmpty ? null : searchQuery);
+      setState(() {
+        _allTeachers = data;
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erreur lors du chargement des enseignants")),
+      );
+    }
+  }
+
+  void _showTeacherDialog({Teacher? teacher}) {
+    final nomController = TextEditingController(text: teacher?.lastName ?? '');
+    final prenomController = TextEditingController(text: teacher?.firstName ?? '');
+    final emailController = TextEditingController(text: teacher?.email ?? '');
+    final passwordController = TextEditingController();
+    String? selectedSpec = teacher?.speciality;
+    
+    // Si la spécialité du prof n'est pas dans la liste (ex: nouvelle base), on reset
+    if (selectedSpec != null && !_availableSubjects.any((s) => s.name == selectedSpec)) {
+      selectedSpec = null;
     }
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(index == null ? "Recruter un enseignant" : "Modifier l'enseignant"),
+          title: Text(teacher == null ? "Recruter Enseignant" : "Modifier Enseignant"),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                MyTextfield(controller: _prenomController, hintText: "Prénom", icon: Icons.person_outline),
+                MyTextfield(controller: prenomController, hintText: "Prénom", icon: Icons.person_outline),
                 const SizedBox(height: 16),
-                MyTextfield(controller: _nomController, hintText: "Nom", icon: Icons.person),
-                const SizedBox(height: 16),
-                MyTextfield(controller: _emailController, hintText: "Email", icon: Icons.email_outlined),
-                const SizedBox(height: 16),
-                MyTextfield(controller: _phoneController, hintText: "Téléphone", icon: Icons.phone_android),
+                MyTextfield(controller: nomController, hintText: "Nom", icon: Icons.person),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _tempSpeciality,
+                  value: selectedSpec,
+                  hint: const Text("Spécialité (Matière)"),
                   decoration: InputDecoration(
-                    labelText: "Spécialité",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    filled: true,
+                    fillColor: AppColors.bg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.book, color: AppColors.primary),
                   ),
-                  items: subjects.where((s) => s != 'Tous').map((s) {
-                    return DropdownMenuItem(value: s, child: Text(s));
-                  }).toList(),
-                  onChanged: (val) => setDialogState(() => _tempSpeciality = val!),
+                  items: _availableSubjects.map((s) => DropdownMenuItem(value: s.name, child: Text(s.name))).toList(),
+                  onChanged: (val) => setDialogState(() => selectedSpec = val),
                 ),
+                const SizedBox(height: 16),
+                MyTextfield(controller: emailController, hintText: "Email (Identifiant)", icon: Icons.email_outlined),
+                if (teacher == null) ...[
+                  const SizedBox(height: 16),
+                  MyTextfield(
+                    controller: passwordController,
+                    hintText: "Mot de passe temporaire",
+                    icon: Icons.lock_outline,
+                    obscureText: true,
+                  ),
+                ],
               ],
             ),
           ),
@@ -81,26 +113,28 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              onPressed: () {
-                setState(() {
-                  final newTeacher = Teacher(
-                    id: index == null ? 'T00${_allTeachers.length + 1}' : _allTeachers[index].id,
-                    firstName: _prenomController.text,
-                    lastName: _nomController.text,
-                    speciality: _tempSpeciality,
-                    email: _emailController.text,
-                    phone: _phoneController.text,
+              onPressed: () async {
+                if (prenomController.text.isEmpty || nomController.text.isEmpty || emailController.text.isEmpty || selectedSpec == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Veuillez remplir tous les champs")),
                   );
+                  return;
+                }
 
-                  if (index == null) {
-                    _allTeachers.add(newTeacher);
-                  } else {
-                    _allTeachers[index] = newTeacher;
-                  }
-                });
-                Navigator.pop(context);
+                final newTeacher = Teacher(
+                  id: teacher?.id ?? '',
+                  firstName: prenomController.text.trim(),
+                  lastName: nomController.text.trim(),
+                  speciality: selectedSpec!,
+                  email: emailController.text.trim(),
+                  password: passwordController.text.isNotEmpty ? passwordController.text : null,
+                );
+                
+                await ApiService.saveTeacher(newTeacher);
+                _fetchTeachers();
+                if (mounted) Navigator.pop(context);
               },
-              child: Text(index == null ? "Recruter" : "Mettre à jour", style: const TextStyle(color: Colors.white)),
+              child: const Text("Valider", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -110,30 +144,51 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredTeachers = _allTeachers.where((t) => selectedSubject == 'Tous' || t.speciality == selectedSubject).toList();
+    final filteredTeachers = _allTeachers.where((t) => selectedSubjectName == 'Tous' || t.speciality == selectedSubjectName).toList();
+    final filterTabs = ['Tous', ..._availableSubjects.map((s) => s.name)];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 16, runSpacing: 10,
           children: [
             const Text("Corps Enseignant", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            SizedBox(
-              width: 150,
-              child: MyButton(icon: Icons.person_add_alt_1, text: "Recruter", onTap: () => _showTeacherDialog()),
-            ),
+            MyButton(icon: Icons.person_add_alt_1, text: "Recruter", onTap: () => _showTeacherDialog()),
           ],
+        ),
+        const SizedBox(height: 20),
+
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: TextField(
+            onChanged: (val) {
+              searchQuery = val;
+              _fetchTeachers();
+            },
+            decoration: const InputDecoration(
+              hintText: "Rechercher un professeur...",
+              prefixIcon: Icon(Icons.search),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(vertical: 15),
+            ),
+          ),
         ),
         const SizedBox(height: 20),
 
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: subjects.map((subject) {
-              final isSelected = selectedSubject == subject;
+            children: filterTabs.map((subjectName) {
+              final isSelected = selectedSubjectName == subjectName;
               return GestureDetector(
-                onTap: () => setState(() => selectedSubject = subject),
+                onTap: () => setState(() => selectedSubjectName = subjectName),
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -143,7 +198,7 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                     border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
                   ),
                   child: Text(
-                    subject,
+                    subjectName,
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppColors.text,
                       fontSize: 12,
@@ -158,44 +213,64 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
 
         const SizedBox(height: 32),
 
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: filteredTeachers.length,
-          itemBuilder: (context, index) {
-            final teacher = filteredTeachers[index];
-            final actualIndex = _allTeachers.indexOf(teacher);
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppColors.primaryPale,
-                  child: const Icon(Icons.person, color: AppColors.primary),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (filteredTeachers.isEmpty)
+          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucun enseignant trouvé.")))
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: filteredTeachers.length,
+            itemBuilder: (context, index) {
+              final teacher = filteredTeachers[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: AppColors.border),
                 ),
-                title: Text("${teacher.firstName} ${teacher.lastName}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("Spécialité: ${teacher.speciality}"),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
-                      onPressed: () => _showTeacherDialog(index: actualIndex),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                      onPressed: () => setState(() => _allTeachers.removeAt(actualIndex)),
-                    ),
-                  ],
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.primaryPale,
+                    child: const Icon(Icons.person, color: AppColors.primary),
+                  ),
+                  title: Text("${teacher.firstName} ${teacher.lastName}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("Spécialité: ${teacher.speciality} | ${teacher.email ?? ''}"),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                        onPressed: () => _showTeacherDialog(teacher: teacher),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                        onPressed: () async {
+                          bool? confirm = await showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text("Supprimer"),
+                              content: const Text("Voulez-vous vraiment supprimer cet enseignant et son compte ?"),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Non")),
+                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Oui")),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await ApiService.deleteTeacher(teacher.id);
+                            _fetchTeachers();
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
       ],
     );
   }

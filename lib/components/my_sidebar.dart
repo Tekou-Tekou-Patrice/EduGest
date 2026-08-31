@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/school_info.dart';
+import '../service/school_notifier.dart';
 import 'app_colors.dart';
 
 class SidebarItem {
@@ -58,7 +60,7 @@ class MySidebar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ...sections.map((section) => _buildSection(section)),
-                    if (bottomTip != null) bottomTip!,
+                    ?bottomTip,
                   ],
                 ),
               ),
@@ -71,44 +73,74 @@ class MySidebar extends StatelessWidget {
   }
 
   Widget _buildBrand() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withOpacity(0.06)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.circular(10),
+    // Déclenche le chargement si non initialisé
+    if (currentSchoolNotifier.value == null) {
+      currentSchoolNotifier.fetchSchoolInfo();
+    }
+
+    return ValueListenableBuilder<SchoolInfo?>(
+      valueListenable: currentSchoolNotifier,
+      builder: (context, school, _) {
+        final schoolName = (school?.name.isNotEmpty == true) ? school!.name : "EduGest";
+        final yearLabel = (school?.currentYearId.isNotEmpty == true) 
+            ? "Année ${school!.currentYearId}" 
+            : "Système de Gestion";
+        final isWaiting = school?.waitingForNewYear == true;
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 28, 20, 18),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
             ),
-            child: const Icon(Icons.school, color: Colors.white, size: 20),
           ),
-          const SizedBox(width: 10),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Text(
-                "EduGest",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: isWaiting ? Colors.orange : AppColors.primary,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  isWaiting ? Icons.hourglass_empty : Icons.school, 
+                  color: Colors.white, 
+                  size: 20,
                 ),
               ),
-              Text(
-                "Collège de la Réussite",
-                style: TextStyle(color: Colors.white54, fontSize: 11),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      schoolName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      yearLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: isWaiting ? Colors.orangeAccent : Colors.white54, 
+                        fontSize: 11,
+                        fontWeight: isWaiting ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -125,7 +157,7 @@ class MySidebar extends StatelessWidget {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withOpacity(0.35),
+                color: Colors.white.withValues(alpha: 0.35),
                 letterSpacing: 1,
               ),
             ),
@@ -140,18 +172,21 @@ class MySidebar extends StatelessWidget {
     if (item.locked) {
       return Opacity(
         opacity: 0.4,
-        child: ListTile(
-          dense: true,
-          leading: Icon(item.icon, color: Colors.white70, size: 18),
-          title: Text(
-            item.label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w500,
+        child: Material(
+          color: Colors.transparent,
+          child: ListTile(
+            dense: true,
+            leading: Icon(item.icon, color: Colors.white70, size: 18),
+            title: Text(
+              item.label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+              ),
             ),
+            trailing: const Icon(Icons.lock, color: Colors.white38, size: 13),
           ),
-          trailing: const Icon(Icons.lock, color: Colors.white38, size: 13),
         ),
       );
     }
@@ -162,20 +197,23 @@ class MySidebar extends StatelessWidget {
         color: item.active ? AppColors.primary : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: ListTile(
-        onTap: item.onTap,
-        dense: true,
-        leading: Icon(
-          item.icon,
-          color: item.active ? Colors.white : Colors.white70,
-          size: 18,
-        ),
-        title: Text(
-          item.label,
-          style: TextStyle(
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          onTap: item.onTap,
+          dense: true,
+          leading: Icon(
+            item.icon,
             color: item.active ? Colors.white : Colors.white70,
-            fontSize: 13.5,
-            fontWeight: FontWeight.w500,
+            size: 18,
+          ),
+          title: Text(
+            item.label,
+            style: TextStyle(
+              color: item.active ? Colors.white : Colors.white70,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ),
@@ -189,7 +227,7 @@ class MySidebar extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.06)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
         ),
       ),
       child: Row(
@@ -198,7 +236,7 @@ class MySidebar extends StatelessWidget {
             width: 34,
             height: 34,
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.white.withOpacity(0.2)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
               borderRadius: BorderRadius.circular(17),
             ),
             child: Icon(
@@ -216,7 +254,7 @@ class MySidebar extends StatelessWidget {
                 Text(
                   userName ?? "Non connecté",
                   style: TextStyle(
-                    color: isConnected ? Colors.white : Colors.white.withOpacity(0.4),
+                    color: isConnected ? Colors.white : Colors.white.withValues(alpha: 0.4),
                     fontSize: 12,
                     fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal,
                   ),

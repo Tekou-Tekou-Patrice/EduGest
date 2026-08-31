@@ -1,8 +1,97 @@
+import 'package:edugest/components/my_button.dart';
+import 'package:edugest/components/my_textfield.dart';
+import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
 import '../components/app_colors.dart';
+import '../models/app_user.dart';
 
 class Profil extends StatelessWidget {
-  const Profil({super.key});
+  final AppUser user;
+  const Profil({super.key, required this.user});
+
+  void _showChangePasswordDialog(BuildContext context) {
+    final oldPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Changer le mot de passe"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MyTextfield(
+              controller: oldPasswordController,
+              hintText: "Ancien mot de passe",
+              icon: Icons.lock_outline,
+              obscureText: true,
+            ),
+            const SizedBox(height: 16),
+            MyTextfield(
+              controller: newPasswordController,
+              hintText: "Nouveau mot de passe",
+              icon: Icons.lock_reset,
+              obscureText: true,
+            ),
+            const SizedBox(height: 16),
+            MyTextfield(
+              controller: confirmPasswordController,
+              hintText: "Confirmer le mot de passe",
+              icon: Icons.lock_reset,
+              obscureText: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              if (oldPasswordController.text.isEmpty ||
+                  newPasswordController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Veuillez remplir tous les champs")),
+                );
+                return;
+              }
+              if (newPasswordController.text != confirmPasswordController.text) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Les mots de passe ne correspondent pas")),
+                );
+                return;
+              }
+
+              try {
+                await ApiService.changePassword(
+                  userId: user.id,
+                  oldPassword: oldPasswordController.text,
+                  newPassword: newPasswordController.text,
+                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Mot de passe modifié avec succès")),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
+            },
+            child: const Text("Valider", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +104,6 @@ class Profil extends StatelessWidget {
         ),
         const SizedBox(height: 24),
 
-        // Carte d'en-tête du profil sécurisée
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -25,25 +113,25 @@ class Profil extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 35,
                 backgroundColor: AppColors.primaryPale,
-                child: Icon(Icons.person, size: 35, color: AppColors.primary),
+                child: Text(user.initials, style: const TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 16),
-              Expanded( // Utilisation d'Expanded pour éviter l'overflow horizontal
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Utilisateur EduGest",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Text(
+                      user.name,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       overflow: TextOverflow.ellipsis,
                     ),
+                    const SizedBox(height: 6),
                     Text(
-                      "Administrateur Système",
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                      overflow: TextOverflow.ellipsis,
+                      user.displayRole,
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                     ),
                   ],
                 ),
@@ -54,7 +142,6 @@ class Profil extends StatelessWidget {
 
         const SizedBox(height: 32),
 
-        // Détails du compte
         _buildSectionTitle("Informations personnelles"),
         const SizedBox(height: 12),
         Container(
@@ -66,12 +153,24 @@ class Profil extends StatelessWidget {
           ),
           child: Column(
             children: [
-              _buildInfoRow(Icons.email_outlined, "Email", "contact@edugest.com"),
+              _buildInfoRow(Icons.email_outlined, "Email", user.email),
               const Divider(height: 24),
-              _buildInfoRow(Icons.phone_outlined, "Téléphone", "+221 77 000 00 00"),
+              _buildInfoRow(Icons.person_outline, "Utilisateur", user.name),
               const Divider(height: 24),
-              _buildInfoRow(Icons.location_on_outlined, "Adresse", "Dakar, Sénégal"),
+              _buildInfoRow(Icons.badge_outlined, "Rôle", user.displayRole),
             ],
+          ),
+        ),
+
+        const SizedBox(height: 32),
+        _buildSectionTitle("Sécurité"),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: MyButton(
+            icon: Icons.lock_reset,
+            text: "Changer le mot de passe",
+            onTap: () => _showChangePasswordDialog(context),
           ),
         ),
       ],
@@ -96,7 +195,7 @@ class Profil extends StatelessWidget {
             children: [
               Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
               Text(
-                value, 
+                value,
                 style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 overflow: TextOverflow.ellipsis,
               ),

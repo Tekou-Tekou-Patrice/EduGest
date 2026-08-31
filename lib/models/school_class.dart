@@ -1,35 +1,53 @@
 class SchoolClass {
   final String id;
-  final String name; // ex: "6ème A"
-  final String level; // ex: "6ème"
-  final String? mainTeacherId; // ID de l'enseignant principal
-  final int? roomNumber;
+  final String name;
+  final String level;
+  final int capacity;
+  final String? description;
+  final String? teacherId;
+  final String? teacherName;
+  final int studentCount;
+  final double tuitionFee;
 
   SchoolClass({
     required this.id,
     required this.name,
     required this.level,
-    this.mainTeacherId,
-    this.roomNumber,
+    this.capacity = 40,
+    this.description,
+    this.teacherId,
+    this.teacherName,
+    this.studentCount = 0,
+    this.tuitionFee = 0,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id.isNotEmpty && id != '0') 'id': int.tryParse(id) ?? id,
       'name': name,
       'level': level,
-      'mainTeacherId': mainTeacherId,
-      'roomNumber': roomNumber,
+      'capacity': capacity,
+      'description': description,
+      'tuitionFee': tuitionFee,
+      if (teacherId != null && teacherId!.isNotEmpty) 'teacherId': int.tryParse(teacherId!) ?? teacherId,
     };
   }
 
   factory SchoolClass.fromMap(Map<String, dynamic> map) {
     return SchoolClass(
-      id: map['id'],
-      name: map['name'],
-      level: map['level'],
-      mainTeacherId: map['mainTeacherId'],
-      roomNumber: map['roomNumber'],
+      id: map['id']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
+      level: map['level']?.toString() ?? '',
+      capacity: map['capacity'] is int ? map['capacity'] as int : int.tryParse('${map['capacity']}') ?? 40,
+      description: map['description']?.toString(),
+      teacherId: map['teacherId']?.toString(),
+      teacherName: map['teacherName']?.toString(),
+      studentCount: map['studentCount'] is int
+          ? map['studentCount'] as int
+          : int.tryParse('${map['studentCount']}') ?? 0,
+      tuitionFee: map['tuitionFee'] is num
+          ? (map['tuitionFee'] as num).toDouble()
+          : double.tryParse('${map['tuitionFee']}') ?? 0,
     );
   }
 }

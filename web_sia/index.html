@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduGest Super Admin — Plateforme SaaS & Abonnements Écoles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-badge">🎓</div>
+      <div class="logo-text">
+        <h1>EduGest SaaS</h1>
+        <span>Master Admin Console</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Pilotage Plateforme</div>
+      <a class="nav-item active" data-tab="dashboard">
+        <span class="icon">📊</span>
+        <span>Tableau de Bord</span>
+      </a>
+      <a class="nav-item" data-tab="schools">
+        <span class="icon">🏫</span>
+        <span>Écoles & Abonnements</span>
+        <span class="badge-count" id="nav-schools-count">0</span>
+      </a>
+
+      <div class="nav-section-title">Finances & Monétisation</div>
+      <a class="nav-item" data-tab="payments-config">
+        <span class="icon">💳</span>
+        <span>Numéros MTN & Orange</span>
+      </a>
+      <a class="nav-item" data-tab="promotions">
+        <span class="icon">🎁</span>
+        <span>Promotions & Offres</span>
+        <span class="badge-count" id="nav-promos-count">0</span>
+      </a>
+      <a class="nav-item" data-tab="invoices">
+        <span class="icon">📄</span>
+        <span>Reçus & Factures SaaS</span>
+      </a>
+
+      <div class="nav-section-title">Communication</div>
+      <a class="nav-item" data-tab="whatsapp-center">
+        <span class="icon">💬</span>
+        <span>Relances WhatsApp</span>
+        <span class="badge-count" id="nav-alerts-count" style="background: rgba(239, 68, 68, 0.4); color: #fff;">0</span>
+      </a>
+
+      <div class="nav-section-title">Paramètres</div>
+      <a class="nav-item" data-tab="settings">
+        <span class="icon">⚙️</span>
+        <span>Système & Sauvegarde</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="admin-profile-badge">
+        <div class="admin-avatar">👑</div>
+        <div class="admin-info">
+          <div class="admin-name">Super Administrateur</div>
+          <div class="admin-role">Propriétaire SaaS EduGest</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-icon mobile-menu-btn" id="mobile-menu-toggle" title="Menu">☰</button>
+        <div class="breadcrumb">
+          <span>EduGest Platform</span>
+          <span>/</span>
+          <span class="active" id="breadcrumb-current-tab">Tableau de Bord</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <!-- Quick Alert Button -->
+        <button class="btn btn-warning btn-sm" id="top-alerts-btn" onclick="filterExpiringSchools()" style="display: none;">
+          ⚠️ <span id="top-alerts-text">0 école(s) à relancer</span>
+        </button>
+
+        <!-- Server status pill -->
+        <div class="server-status-pill" id="server-status-pill" onclick="openModal('modal-api-config')" title="Cliquez pour configurer l'URL de l'API">
+          <div class="status-dot offline" id="server-status-dot"></div>
+          <span id="server-status-text">Mode Autonome</span>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="btn-icon" id="theme-toggle-btn" title="Basculer le thème clair/sombre">🌓</button>
+
+        <!-- Refresh Button -->
+        <button class="btn-icon" id="refresh-all-btn" title="Recharger les données">🔄</button>
+      </div>
+    </header>
+
+    <!-- Page Content Container -->
+    <div class="page-container">
+
+      <!-- ================= 1. TAB: DASHBOARD ================= -->
+      <section class="tab-pane active" id="pane-dashboard">
+        <!-- Hero Banner -->
+        <div class="hero-banner">
+          <div class="hero-content">
+            <h3>Bienvenue sur votre Console Super Admin EduGest</h3>
+            <p>Supervisez vos écoles clientes, gérez les abonnements mensuels, activez ou suspendez les accès et relancez les fondateurs directement via WhatsApp.</p>
+          </div>
+          <div class="hero-stats-badge">
+            <div>
+              <div class="hero-stats-number" id="hero-schools-count">0</div>
+              <div style="font-size: 11px; color: var(--text-muted); font-weight: 700;">ÉCOLES INSCRITES</div>
+            </div>
+            <button class="btn btn-primary" onclick="openModal('modal-add-school')">➕ Inscrire une École</button>
+          </div>
+        </div>
+
+        <!-- Urgent Alert Box -->
+        <div class="urgent-alert-box" id="urgent-alert-banner" style="display: none;">
+          <div class="urgent-alert-content">
+            <div class="urgent-alert-icon">⚠️</div>
+            <div class="urgent-alert-text">
+              <h4 id="urgent-alert-title">Attention : Des abonnements nécessitent votre action</h4>
+              <p id="urgent-alert-desc">Certaines écoles ont leur abonnement expiré ou suspendu. Relancez les fondateurs pour régulariser les paiements.</p>
+            </div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="switchTab('schools'); setSchoolFilter('unpaid');">Voir les écoles à relancer ➔</button>
+        </div>
+
+        <!-- Global SaaS KPI Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card" style="--card-accent: #4361ee; --card-bg-accent: rgba(67, 97, 238, 0.14);">
+            <div class="stat-icon-wrapper">🏫</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-schools-count">0</div>
+              <div class="stat-label">Total Établissements</div>
+              <div class="stat-badge pill pill-info">Parc Clients</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #10b981; --card-bg-accent: rgba(16, 185, 129, 0.14);">
+            <div class="stat-icon-wrapper">🟢</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-active-schools-count">0</div>
+              <div class="stat-label">Écoles Actives</div>
+              <div class="stat-badge pill pill-success">Accès Ouvert</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #ef4444; --card-bg-accent: rgba(239, 68, 68, 0.14);">
+            <div class="stat-icon-wrapper">🔴</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-suspended-schools-count">0</div>
+              <div class="stat-label">Écoles Suspendues</div>
+              <div class="stat-badge pill pill-danger">Accès Bloqué</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #f59e0b; --card-bg-accent: rgba(245, 158, 11, 0.14);">
+            <div class="stat-icon-wrapper">⏰</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-expiring-count">0</div>
+              <div class="stat-label">Échéances Proches (&le; 7j)</div>
+              <div class="stat-badge pill pill-warning">À relancer</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #8b5cf6; --card-bg-accent: rgba(139, 92, 246, 0.14);">
+            <div class="stat-icon-wrapper">💰</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-monthly-revenue">0 FCFA</div>
+              <div class="stat-label">Revenus Abonnements / Mois</div>
+              <div class="stat-badge pill pill-info">Chiffre d'affaires</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #ec4899; --card-bg-accent: rgba(236, 72, 153, 0.14);">
+            <div class="stat-icon-wrapper">🎁</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-active-promos-count">0</div>
+              <div class="stat-label">Promotions Actives</div>
+              <div class="stat-badge pill pill-orange">Offres Commerciales</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Payment Info & WhatsApp Summary -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+          <!-- Payment numbers reminder -->
+          <div class="stat-card" style="flex-direction: column; align-items: stretch; gap: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <h4 style="font-size: 15px; font-weight: 700;">💳 Vos Numéros de Paiement Actifs</h4>
+              <button class="btn btn-secondary btn-sm" onclick="switchTab('payments-config')">Modifier ➔</button>
+            </div>
+            <div id="dash-payment-numbers-preview" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Dynamic payment items -->
+            </div>
+          </div>
+
+          <!-- Quick WhatsApp Broadcast card -->
+          <div class="stat-card" style="flex-direction: column; align-items: stretch; gap: 14px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <h4 style="font-size: 15px; font-weight: 700;">💬 Relance WhatsApp Rapide</h4>
+              <button class="btn btn-secondary btn-sm" onclick="switchTab('whatsapp-center')">Modèles ➔</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted);">
+              Sélectionnez une école pour ouvrir une conversation WhatsApp avec le fondateur et lui envoyer un message contenant le montant dû et vos numéros Orange/MTN.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-whatsapp btn-sm" onclick="switchTab('schools'); setSchoolFilter('unpaid');">
+                💬 Relancer les impayés
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="switchTab('promotions')">
+                📢 Diffuser une Promo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schools Quick Overview Section -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="page-header">
+            <div class="page-title">
+              <h2>Aperçu des Écoles Partenaires</h2>
+              <p>Activez, suspendez ou renouvelez les accès en 1 clic.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="switchTab('schools')">Voir toutes les écoles ➔</button>
+          </div>
+
+          <div class="schools-grid" id="dash-schools-grid">
+            <div class="table-empty">Chargement des établissements...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. TAB: GESTION DES ÉCOLES & ABONNEMENTS ================= -->
+      <section class="tab-pane" id="pane-schools">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Gestion des Écoles & Abonnements SaaS</h2>
+            <p>Contrôlez l'accès de chaque établissement : activez ceux qui ont payé, suspendez les impayés et relancez les fondateurs sur WhatsApp.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-secondary" onclick="exportSchoolsCsv()">📥 Exporter CSV</button>
+            <button class="btn btn-primary" onclick="openModal('modal-add-school')">➕ Inscrire une École</button>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="search-input" id="search-schools" placeholder="Rechercher par école, ville, fondateur, téléphone...">
+            </div>
+            <select class="filter-select" id="filter-schools-status" onchange="renderSchools()">
+              <option value="all">Tous les statuts</option>
+              <option value="active">🟢 Actives uniquement</option>
+              <option value="suspended">🔴 Suspendues uniquement</option>
+              <option value="expiring">⏰ Échéance proche (&le; 7 jours)</option>
+            </select>
+            <select class="filter-select" id="filter-schools-pack" onchange="renderSchools()">
+              <option value="all">Toutes les formules</option>
+              <option value="Basic">Pack Basic</option>
+              <option value="Standard">Pack Standard</option>
+              <option value="Premium">Pack Premium</option>
+              <option value="Pro">Pack Pro VIP</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <span style="font-size: 13px; color: var(--text-muted);">
+              Total affiché : <strong style="color: var(--text-main);" id="schools-total-count">0</strong> école(s)
+            </span>
+          </div>
+        </div>
+
+        <!-- Schools Cards Grid -->
+        <div class="schools-grid" id="schools-grid-container">
+          <div class="table-empty">
+            <div style="font-size: 36px; margin-bottom: 8px;">🏫</div>
+            <p>Chargement des écoles...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 3. TAB: NUMEROS DE PAIEMENT (MTN & ORANGE) ================= -->
+      <section class="tab-pane" id="pane-payments-config">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Paramétrage des Numéros de Réception des Paiements</h2>
+            <p>Définissez les numéros MTN Mobile Money et Orange Money officiels sur lesquels les écoles doivent vous payer l'abonnement. Ils seront automatiquement insérés dans les messages de relance WhatsApp et sur les factures.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-success" onclick="savePaymentMethodsConfig()">💾 Enregistrer les Paramètres</button>
+          </div>
+        </div>
+
+        <div class="payment-methods-grid">
+          <!-- Orange Money Card -->
+          <div class="payment-config-card orange">
+            <div class="payment-config-header">
+              <div class="payment-logo-badge">
+                <div class="payment-logo-icon orange">🟠</div>
+                <div>
+                  <h3 style="font-size: 16px; font-weight: 700;">Orange Money</h3>
+                  <span style="font-size: 12px; color: var(--text-muted);">Paiement mobile Afrique de l'Ouest / Centrale</span>
+                </div>
+              </div>
+              <label class="switch-container">
+                <div class="switch">
+                  <input type="checkbox" id="cfg-orange-active" checked>
+                  <span class="slider"></span>
+                </div>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label>Numéro de téléphone Orange Money *</label>
+              <input type="text" class="form-control" id="cfg-orange-number" placeholder="Ex: +221 77 123 45 67 ou +237 69X XX XX XX">
+            </div>
+
+            <div class="form-group">
+              <label>Nom du titulaire du compte Orange Money *</label>
+              <input type="text" class="form-control" id="cfg-orange-holder" placeholder="Ex: EDUGEST SAS / M. NOM">
+            </div>
+
+            <div class="form-group">
+              <label>Code Marchand ou Instructions</label>
+              <input type="text" class="form-control" id="cfg-orange-instructions" placeholder="Ex: Mentionner le nom de l'école dans le motif du transfert">
+            </div>
+          </div>
+
+          <!-- MTN Mobile Money Card -->
+          <div class="payment-config-card mtn">
+            <div class="payment-config-header">
+              <div class="payment-logo-badge">
+                <div class="payment-logo-icon mtn">🟡</div>
+                <div>
+                  <h3 style="font-size: 16px; font-weight: 700;">MTN Mobile Money (MoMo)</h3>
+                  <span style="font-size: 12px; color: var(--text-muted);">Paiement mobile MTN Afrique</span>
+                </div>
+              </div>
+              <label class="switch-container">
+                <div class="switch">
+                  <input type="checkbox" id="cfg-mtn-active" checked>
+                  <span class="slider"></span>
+                </div>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label>Numéro MTN Mobile Money *</label>
+              <input type="text" class="form-control" id="cfg-mtn-number" placeholder="Ex: +221 76 654 32 10 ou +237 67X XX XX XX">
+            </div>
+
+            <div class="form-group">
+              <label>Nom du titulaire du compte MTN *</label>
+              <input type="text" class="form-control" id="cfg-mtn-holder" placeholder="Ex: EDUGEST SERVICES">
+            </div>
+
+            <div class="form-group">
+              <label>Code Marchand ou Instructions</label>
+              <input type="text" class="form-control" id="cfg-mtn-instructions" placeholder="Ex: Tapez *126# puis composez le code marchand...">
+            </div>
+          </div>
+
+          <!-- Other Payment Option (Wave / Moov / Bank) -->
+          <div class="payment-config-card other">
+            <div class="payment-config-header">
+              <div class="payment-logo-badge">
+                <div class="payment-logo-icon other">🔵</div>
+                <div>
+                  <h3 style="font-size: 16px; font-weight: 700;">Moyen Secondaire (Wave / Moov / Virement)</h3>
+                  <span style="font-size: 12px; color: var(--text-muted);">Optionnel</span>
+                </div>
+              </div>
+              <label class="switch-container">
+                <div class="switch">
+                  <input type="checkbox" id="cfg-other-active">
+                  <span class="slider"></span>
+                </div>
+              </label>
+            </div>
+
+            <div class="form-group">
+              <label>Nom du service (Wave, Moov, Banque)</label>
+              <input type="text" class="form-control" id="cfg-other-label" placeholder="Ex: Wave Money ou Virement UBA">
+            </div>
+
+            <div class="form-group">
+              <label>Numéro ou RIB / Compte</label>
+              <input type="text" class="form-control" id="cfg-other-number" placeholder="Ex: +221 70 XXX XX XX ou RIB bancaire">
+            </div>
+
+            <div class="form-group">
+              <label>Titulaire & Instructions</label>
+              <input type="text" class="form-control" id="cfg-other-holder" placeholder="Ex: EDUGEST / M. DIRECTEUR">
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Preview of Payment Text -->
+        <div class="table-card" style="padding: 22px;">
+          <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 10px;">📋 Aperçu du bloc de paiement généré dans les messages :</h4>
+          <pre id="payment-text-live-preview" style="background: var(--bg-input); padding: 16px; border-radius: var(--radius-md); font-family: 'Fira Code', monospace; font-size: 13px; color: var(--text-main); white-space: pre-wrap; border: 1px solid var(--border-color);"></pre>
+        </div>
+      </section>
+
+      <!-- ================= 4. TAB: PROMOTIONS & OFFRES ================= -->
+      <section class="tab-pane" id="pane-promotions">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Gestion des Promotions & Offres Commerciales</h2>
+            <p>Créez des offres spéciales (ex: 1 mois offert, -20% sur paiement annuel) et diffusez-les directement aux fondateurs d'écoles via WhatsApp.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-promo')">➕ Créer une Promotion</button>
+          </div>
+        </div>
+
+        <div class="promotions-grid" id="promotions-grid-container">
+          <!-- Dynamic Promo Cards -->
+        </div>
+      </section>
+
+      <!-- ================= 5. TAB: CENTRE DE RELANCES WHATSAPP ================= -->
+      <section class="tab-pane" id="pane-whatsapp-center">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Centre de Relances & Modèles WhatsApp</h2>
+            <p>Personnalisez les messages automatiques envoyés aux fondateurs d'écoles pour les relances de paiement, avis de suspension ou réactivations.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-success" onclick="saveWhatsAppTemplates()">💾 Enregistrer les Modèles</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <!-- Templates Selection & Editor -->
+          <div class="table-card" style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+              <label>Sélectionner le modèle à éditer</label>
+              <select class="form-control" id="wa-template-selector" onchange="loadSelectedTemplate()">
+                <option value="reminder">1. Rappel d'échéance amical (Avant expiration)</option>
+                <option value="urgent">2. Avis de suspension imminente (Jour J)</option>
+                <option value="suspended">3. Notification de suspension effective (Accès bloqué)</option>
+                <option value="renewed">4. Confirmation de réactivation & Reçu</option>
+                <option value="promo">5. Offre promotionnelle spéciale</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Contenu du Message WhatsApp (Variables : <code>{FONDATEUR}</code>, <code>{ECOLE}</code>, <code>{MONTANT}</code>, <code>{DATE_ECHEANCE}</code>, <code>{PAIEMENTS}</code>)</label>
+              <textarea class="form-control" id="wa-template-content" rows="10" style="font-family: inherit; font-size: 13.5px;"></textarea>
+            </div>
+
+            <div style="font-size: 12px; color: var(--text-dim);">
+              💡 <strong>Astuce :</strong> Les variables entre accolades seront automatiquement remplacées par les données réelles de l'école et vos numéros MTN/Orange lors du clic sur le bouton WhatsApp.
+            </div>
+          </div>
+
+          <!-- Live Preview Box -->
+          <div class="table-card" style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <h4 style="font-size: 15px; font-weight: 700;">📱 Aperçu en direct (Exemple)</h4>
+              <span class="pill pill-success">WhatsApp</span>
+            </div>
+
+            <div class="form-group">
+              <label>Tester avec une école :</label>
+              <select class="form-control" id="wa-preview-school-select" onchange="updateWhatsAppPreview()">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <div style="background: #075e54; padding: 14px; border-radius: var(--radius-md); color: #fff;">
+              <div style="font-size: 12px; opacity: 0.8; margin-bottom: 6px;">💬 Conversation avec le Fondateur :</div>
+              <div id="wa-live-preview-box" style="background: #dcf8c6; color: #111827; padding: 14px; border-radius: var(--radius-md); font-size: 13px; line-height: 1.5; white-space: pre-wrap;"></div>
+            </div>
+
+            <button class="btn btn-whatsapp" onclick="testSendWhatsApp()">
+              🚀 Tester l'envoi WhatsApp en direct
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 6. TAB: FACTURES & RECUS SAAS ================= -->
+      <section class="tab-pane" id="pane-invoices">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Générateur de Reçus & Factures d'Abonnement SaaS</h2>
+            <p>Générez des factures proforma ou des reçus officiels de paiement d'abonnement pour les fondateurs d'écoles, imprimables ou partageables.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="printInvoice()">🖨️ Imprimer / Exporter PDF</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 340px 1fr; gap: 20px;">
+          <!-- Controls -->
+          <div class="table-card" style="padding: 22px; display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+              <label>Sélectionner l'école *</label>
+              <select class="form-control" id="inv-school-select" onchange="renderInvoicePreview()">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Période d'abonnement</label>
+              <select class="form-control" id="inv-period-select" onchange="renderInvoicePreview()">
+                <option value="1">1 Mois d'abonnement</option>
+                <option value="3">3 Mois (Trimestre)</option>
+                <option value="6">6 Mois (Semestre)</option>
+                <option value="12">12 Mois (Année Scolaire complète)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Mode de règlement</label>
+              <select class="form-control" id="inv-payment-method" onchange="renderInvoicePreview()">
+                <option value="Orange Money">Orange Money</option>
+                <option value="MTN Mobile Money">MTN Mobile Money</option>
+                <option value="Espèces / Cash">Espèces (Cash)</option>
+                <option value="Virement Bancaire">Virement Bancaire</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Statut de la facture</label>
+              <select class="form-control" id="inv-status-select" onchange="renderInvoicePreview()">
+                <option value="PAID">✅ PAYÉ / ACQUITTÉ (Reçu officiel)</option>
+                <option value="PROFORMA">⏳ PROFORMA / EN ATTENTE (Facture)</option>
+              </select>
+            </div>
+
+            <button class="btn btn-whatsapp" onclick="sendInvoiceWhatsApp()">
+              💬 Envoyer le reçu sur WhatsApp
+            </button>
+          </div>
+
+          <!-- Printable Invoice Preview -->
+          <div class="table-card" style="padding: 24px; background: #fff;">
+            <div class="invoice-paper" id="printable-invoice">
+              <div class="invoice-header">
+                <div>
+                  <div class="invoice-title">EduGest Platform</div>
+                  <div style="font-size: 13px; color: #64748b;">Système de Gestion Scolaire SaaS</div>
+                  <div style="font-size: 12px; color: #64748b;" id="inv-date-now">Date : 30/08/2026</div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="font-size: 16px; font-weight: 800; color: #4361ee;" id="inv-ref-number">FACT-2026-001</div>
+                  <div class="pill pill-success" id="inv-badge-status" style="margin-top: 6px;">ACQUITTÉ</div>
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; font-size: 13px;">
+                <div>
+                  <div style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 11px;">Facturé à :</div>
+                  <div style="font-weight: 800; font-size: 15px; color: #0f172a;" id="inv-client-school">École de l'Excellence</div>
+                  <div id="inv-client-founder">Fondateur : M. Ibrahima Diop</div>
+                  <div id="inv-client-phone">Téléphone : +221 77 123 45 67</div>
+                  <div id="inv-client-city">Ville : Dakar</div>
+                </div>
+                <div style="text-align: right;">
+                  <div style="font-weight: 700; color: #64748b; text-transform: uppercase; font-size: 11px;">Fournisseur SaaS :</div>
+                  <div style="font-weight: 800; font-size: 14px; color: #0f172a;">EduGest Solutions Tech</div>
+                  <div>Plateforme de Gestion Éducative</div>
+                  <div id="inv-payment-details">Règlement : Orange Money / MTN MoMo</div>
+                </div>
+              </div>
+
+              <table class="invoice-table">
+                <thead>
+                  <tr>
+                    <th>Description du Service</th>
+                    <th>Formule</th>
+                    <th>Période</th>
+                    <th style="text-align: right;">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <strong>Abonnement Logiciel Scolaire EduGest</strong>
+                      <div style="font-size: 12px; color: #64748b;">Accès complet aux modules notes, scolarité, emploi du temps, staff et discipline.</div>
+                    </td>
+                    <td id="inv-table-pack">Premium</td>
+                    <td id="inv-table-period">1 Mois</td>
+                    <td style="text-align: right; font-weight: 700;" id="inv-table-price">35 000 FCFA</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="invoice-total">
+                <span>Total Net : <span id="inv-total-amount" style="color: #4361ee;">35 000 FCFA</span></span>
+              </div>
+
+              <div style="margin-top: 30px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; text-align: center;">
+                Merci de votre confiance. EduGest — Votre partenaire numérique éducatif.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 7. TAB: SYSTEME & PARAMETRES ================= -->
+      <section class="tab-pane" id="pane-settings">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Paramètres Système & Sauvegarde</h2>
+            <p>Sauvegardez vos données d'écoles, importez des sauvegardes ou connectez-vous au backend Spring Boot.</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+          <div class="table-card" style="padding: 22px; display: flex; flex-direction: column; gap: 14px;">
+            <h3 style="font-size: 16px; font-weight: 700;">💾 Exportation & Sauvegarde</h3>
+            <p style="font-size: 13px; color: var(--text-muted);">
+              Téléchargez l'ensemble de votre base de données écoles, fondateurs, numéros de paiement et promotions sous forme de fichier JSON sécurisé.
+            </p>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-primary" onclick="exportFullBackup()">📦 Télécharger Sauvegarde JSON</button>
+              <button class="btn btn-secondary" onclick="exportSchoolsCsv()">📥 Exporter CSV</button>
+            </div>
+          </div>
+
+          <div class="table-card" style="padding: 22px; display: flex; flex-direction: column; gap: 14px;">
+            <h3 style="font-size: 16px; font-weight: 700;">📥 Restauration</h3>
+            <p style="font-size: 13px; color: var(--text-muted);">
+              Chargez un fichier de sauvegarde JSON pour restaurer toutes vos données instantanément.
+            </p>
+            <input type="file" id="import-backup-file" accept=".json" style="display: none;" onchange="handleImportBackup(event)">
+            <button class="btn btn-secondary" onclick="document.getElementById('import-backup-file').click()">
+              📂 Importer un Fichier JSON
+            </button>
+          </div>
+
+          <div class="table-card" style="padding: 22px; display: flex; flex-direction: column; gap: 14px;">
+            <h3 style="font-size: 16px; font-weight: 700;">🔄 Réinitialiser les données</h3>
+            <p style="font-size: 13px; color: var(--text-muted);">
+              Recharger les données de démonstration avec exemples d'écoles actives, suspendues et numéros Orange/MTN.
+            </p>
+            <button class="btn btn-danger btn-sm" onclick="resetToDemoData()">
+              ⚠️ Réinitialiser aux données par défaut
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ==========================================================================
+     MODALS
+     ========================================================================== -->
+
+<!-- Modal: Inscrire / Modifier une École -->
+<div class="modal-backdrop" id="modal-add-school">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3 id="modal-school-title">🏫 Inscription d'un Nouvel Établissement</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-school')">✕</button>
+    </div>
+    <form id="form-add-school" onsubmit="handleSaveSchool(event)">
+      <div class="modal-body">
+        <input type="hidden" id="school-id-hidden">
+        
+        <div class="form-group">
+          <label>Nom de l'école / Établissement *</label>
+          <input type="text" class="form-control" id="school-name-input" required placeholder="Ex: Groupe Scolaire Excellence">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Ville / Région *</label>
+            <input type="text" class="form-control" id="school-city-input" required placeholder="Ex: Dakar, Douala, Abidjan...">
+          </div>
+          <div class="form-group">
+            <label>Code d'accès de l'école *</label>
+            <input type="text" class="form-control" id="school-code-input" required placeholder="Ex: EXCELLENCE-2026" style="text-transform: uppercase;">
+          </div>
+        </div>
+
+        <div style="padding: 12px; background: var(--bg-input); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 13px; font-weight: 700; color: var(--accent);">👤 Coordonnées du Fondateur / Décideur</div>
+          
+          <div class="form-group">
+            <label>Nom et Prénom du Fondateur *</label>
+            <input type="text" class="form-control" id="school-founder-name" required placeholder="Ex: M. Ibrahima Diop">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Téléphone d'appel *</label>
+              <input type="tel" class="form-control" id="school-founder-phone" required placeholder="Ex: +221 77 123 45 67">
+            </div>
+            <div class="form-group">
+              <label>Numéro WhatsApp (avec indicatif) *</label>
+              <input type="tel" class="form-control" id="school-founder-whatsapp" required placeholder="Ex: +221 77 123 45 67">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Formule d'Abonnement</label>
+            <select class="form-control" id="school-pack-select" onchange="updateDefaultPackPrice()">
+              <option value="Basic">Pack Basic (20 000 FCFA/mois)</option>
+              <option value="Standard" selected>Pack Standard (30 000 FCFA/mois)</option>
+              <option value="Premium">Pack Premium (45 000 FCFA/mois)</option>
+              <option value="Pro">Pack Pro VIP (60 000 FCFA/mois)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tarif Mensuel Négocié (FCFA) *</label>
+            <input type="number" class="form-control" id="school-price-input" required value="30000" min="0">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date d'échéance de l'abonnement *</label>
+            <input type="date" class="form-control" id="school-expiry-input" required>
+          </div>
+          <div class="form-group">
+            <label>Statut Initial</label>
+            <select class="form-control" id="school-status-select">
+              <option value="active">🟢 Actif (Accès autorisé)</option>
+              <option value="suspended">🔴 Suspendu (Accès bloqué)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-school')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer l'Établissement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Renouveler un Abonnement -->
+<div class="modal-backdrop" id="modal-renew-school">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>🔄 Renouveler l'Abonnement de l'École</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-renew-school')">✕</button>
+    </div>
+    <form id="form-renew-school" onsubmit="handleRenewSubscription(event)">
+      <div class="modal-body">
+        <input type="hidden" id="renew-school-id">
+        <div class="form-group">
+          <label>Établissement</label>
+          <input type="text" class="form-control" id="renew-school-name" readonly disabled style="font-weight: 700;">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Durée du renouvellement *</label>
+            <select class="form-control" id="renew-duration-select" onchange="calculateRenewTotal()">
+              <option value="1">1 Mois (+30 jours)</option>
+              <option value="3">3 Mois (Trimestre)</option>
+              <option value="6">6 Mois (Semestre)</option>
+              <option value="12">12 Mois (1 An)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Moyen de paiement reçu *</label>
+            <select class="form-control" id="renew-payment-method">
+              <option value="Orange Money">🟠 Orange Money</option>
+              <option value="MTN Mobile Money">🟡 MTN Mobile Money</option>
+              <option value="Wave / Moov">🔵 Wave / Moov</option>
+              <option value="Espèces / Cash">💵 Espèces (Cash)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="background: var(--bg-input); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
+            <span>Nouvelle date d'expiration calculée :</span>
+            <strong id="renew-new-date" style="color: var(--success);">-</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 800;">
+            <span>Montant total encaissé :</span>
+            <span id="renew-total-amount" style="color: var(--primary);">0 FCFA</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-renew-school')">Annuler</button>
+        <button type="submit" class="btn btn-success">Valider le Renouvellement & Réactiver</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Créer / Modifier une Promotion -->
+<div class="modal-backdrop" id="modal-add-promo">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3 id="modal-promo-title">🎁 Créer une Nouvelle Promotion</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-promo')">✕</button>
+    </div>
+    <form id="form-add-promo" onsubmit="handleSavePromo(event)">
+      <div class="modal-body">
+        <input type="hidden" id="promo-id-hidden">
+        
+        <div class="form-group">
+          <label>Titre de l'Offre Promotionnelle *</label>
+          <input type="text" class="form-control" id="promo-title-input" required placeholder="Ex: Offre Spéciale Rentrée 2026">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Code Promo (Optionnel)</label>
+            <input type="text" class="form-control" id="promo-code-input" placeholder="Ex: RENTREE2026" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group">
+            <label>Avantage / Réduction *</label>
+            <input type="text" class="form-control" id="promo-discount-input" required placeholder="Ex: -25% ou 1 mois offert">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Description & Avantages pour l'école *</label>
+          <textarea class="form-control" id="promo-desc-input" rows="3" required placeholder="Ex: Pour tout paiement de 3 mois d'avance, profitez de 1 mois supplémentaire offert gratuitement."></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Date de fin de validité</label>
+            <input type="date" class="form-control" id="promo-expiry-input">
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select class="form-control" id="promo-status-select">
+              <option value="active">Active (Disponible)</option>
+              <option value="inactive">Désactivée</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-promo')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer la Promotion</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Configurer l'API Spring Boot -->
+<div class="modal-backdrop" id="modal-api-config">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>⚙️ Configuration Backend Spring Boot</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-api-config')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>URL de Base du Serveur Backend</label>
+        <input type="text" class="form-control" id="config-api-base-url" value="http://localhost:8003">
+        <small style="color: var(--text-dim); font-size: 11px;">Port par défaut de votre projet Spring Boot : <code>http://localhost:8003</code></small>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted);">
+        Si le backend Spring Boot n'est pas démarré, le site fonctionne automatiquement en <strong>Mode Autonome</strong> avec sauvegarde locale intégrée.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modal-api-config')">Fermer</button>
+      <button type="button" class="btn btn-primary" onclick="saveApiBaseUrl()">Tester & Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

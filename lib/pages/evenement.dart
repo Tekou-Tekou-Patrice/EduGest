@@ -1,6 +1,8 @@
 import 'package:edugest/components/app_colors.dart';
 import 'package:edugest/components/my_button.dart';
 import 'package:edugest/components/my_textfield.dart';
+import 'package:edugest/models/event.dart';
+import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -12,84 +14,87 @@ class Evenement extends StatefulWidget {
 }
 
 class _EvenementState extends State<Evenement> {
-  final List<Map<String, dynamic>> _allEvents = [
-    {
-      'title': 'Conseil de classe 3ème',
-      'date': DateTime.now().add(const Duration(days: 1)),
-      'time': const TimeOfDay(hour: 14, minute: 0),
-      'category': 'Conseil',
-      'color': Colors.blue
-    },
-    {
-      'title': 'Examen de Mathématiques',
-      'date': DateTime.now().add(const Duration(days: 3)),
-      'time': const TimeOfDay(hour: 8, minute: 30),
-      'category': 'Examen',
-      'color': Colors.red
-    },
-  ];
-
-  String _searchQuery = "";
+  List<Event> _events = [];
+  bool _isLoading = true;
   String _selectedCategory = "Tous";
   final List<String> _categories = ["Tous", "Conseil", "Examen", "Réunion", "Cérémonie"];
 
-  final TextEditingController _titleController = TextEditingController();
-  DateTime _tempDate = DateTime.now();
-  TimeOfDay _tempTime = TimeOfDay.now();
-  String _tempCategory = "Réunion";
-
-  List<Map<String, dynamic>> get _filteredEvents {
-    return _allEvents.where((event) {
-      final matchesCategory = _selectedCategory == "Tous" || event['category'] == _selectedCategory;
-      final matchesSearch = event['title'].toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    _fetchEvents();
   }
 
-  void _showAddEventDialog() {
+  Future<void> _fetchEvents() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await ApiService.getEvents();
+      if (!mounted) return;
+      setState(() {
+        _events = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erreur lors du chargement des événements")),
+      );
+    }
+  }
+
+  void _showEventDialog({Event? event}) {
+    final titleController = TextEditingController(text: event?.title ?? '');
+    DateTime tempDate = event?.date ?? DateTime.now();
+    TimeOfDay tempTime = event?.time ?? TimeOfDay.now();
+    String tempCategory = event?.category ?? "Réunion";
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Nouvel Événement"),
+          title: Text(event == null ? "Nouvel Événement" : "Modifier l'événement"),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                MyTextfield(
-                  controller: _titleController,
-                  hintText: "Titre",
-                  icon: Icons.title,
-                ),
+                MyTextfield(controller: titleController, hintText: "Titre", icon: Icons.title),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _tempCategory,
-                  isExpanded: true,
+                  initialValue: tempCategory,
                   decoration: InputDecoration(
                     labelText: "Catégorie",
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                   ),
-                  items: _categories.where((c) => c != "Tous").map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                  onChanged: (val) => setDialogState(() => _tempCategory = val!),
+                  items: _categories
+                      .where((c) => c != "Tous")
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (val) => setDialogState(() => tempCategory = val!),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text("Date: ${DateFormat('dd/MM/yyyy').format(_tempDate)}", style: const TextStyle(fontSize: 13)),
-                  trailing: const Icon(Icons.calendar_today, color: AppColors.primary, size: 20),
+                  title: Text("Date: ${DateFormat('dd/MM/yyyy').format(tempDate)}"),
+                  trailing: const Icon(Icons.calendar_today, color: AppColors.primary),
                   onTap: () async {
-                    final picked = await showDatePicker(context: context, initialDate: _tempDate, firstDate: DateTime.now(), lastDate: DateTime(2101));
-                    if (picked != null) setDialogState(() => _tempDate = picked);
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: tempDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) setDialogState(() => tempDate = picked);
                   },
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text("Heure: ${_tempTime.format(context)}", style: const TextStyle(fontSize: 13)),
-                  trailing: const Icon(Icons.access_time, color: AppColors.primary, size: 20),
+                  title: Text("Heure: ${tempTime.format(context)}"),
+                  trailing: const Icon(Icons.access_time, color: AppColors.primary),
                   onTap: () async {
-                    final picked = await showTimePicker(context: context, initialTime: _tempTime);
-                    if (picked != null) setDialogState(() => _tempTime = picked);
+                    final picked = await showTimePicker(context: context, initialTime: tempTime);
+                    if (picked != null) setDialogState(() => tempTime = picked);
                   },
                 ),
               ],
@@ -99,22 +104,28 @@ class _EvenementState extends State<Evenement> {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-              onPressed: () {
-                if (_titleController.text.isNotEmpty) {
-                  setState(() {
-                    _allEvents.add({
-                      'title': _titleController.text,
-                      'date': _tempDate,
-                      'time': _tempTime,
-                      'category': _tempCategory,
-                      'color': _tempCategory == 'Examen' ? Colors.red : Colors.blue,
-                    });
-                    _titleController.clear();
-                  });
-                  Navigator.pop(context);
+              onPressed: () async {
+                if (titleController.text.isEmpty) return;
+                final newEvent = Event(
+                  id: event?.id ?? '',
+                  title: titleController.text.trim(),
+                  date: tempDate,
+                  time: tempTime,
+                  category: tempCategory,
+                );
+                try {
+                  await ApiService.saveEvent(newEvent);
+                  if (context.mounted) Navigator.pop(context);
+                  await _fetchEvents();
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Erreur lors de l'enregistrement")),
+                    );
+                  }
                 }
               },
-              child: const Text("Ajouter", style: TextStyle(color: Colors.white)),
+              child: const Text("Enregistrer", style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
@@ -124,119 +135,86 @@ class _EvenementState extends State<Evenement> {
 
   @override
   Widget build(BuildContext context) {
+    final filteredEvents =
+        _events.where((e) => _selectedCategory == "Tous" || e.category == _selectedCategory).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header flexible pour éviter l'overflow
         Wrap(
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 16,
           runSpacing: 10,
           children: [
-            const Text(
-              "Planning & Événements",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(
-              width: 140,
-              child: MyButton(
-                icon: Icons.add,
-                text: "Ajouter",
-                onTap: _showAddEventDialog,
-              ),
-            ),
+            const Text("Événements", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            MyButton(icon: Icons.add, text: "Ajouter", onTap: () => _showEventDialog()),
           ],
         ),
-        const SizedBox(height: 20),
-        
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: TextField(
-            onChanged: (val) => setState(() => _searchQuery = val),
-            decoration: const InputDecoration(
-              hintText: "Rechercher...",
-              prefixIcon: Icon(Icons.search, size: 20),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 12),
-            ),
-          ),
-        ),
         const SizedBox(height: 16),
-
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: _categories.map((cat) {
-              final isSelected = _selectedCategory == cat;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedCategory = cat),
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
-                  ),
-                  child: Text(
-                    cat,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : AppColors.text,
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
+            children: _categories.map((c) {
+              final selected = _selectedCategory == c;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(c),
+                  selected: selected,
+                  onSelected: (_) => setState(() => _selectedCategory = c),
                 ),
               );
             }).toList(),
           ),
         ),
-
-        const SizedBox(height: 24),
-
-        _filteredEvents.isEmpty
-            ? const Center(child: Padding(padding: EdgeInsets.only(top: 40), child: Text("Aucun événement")))
-            : ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _filteredEvents.length,
-                itemBuilder: (context, index) {
-                  final event = _filteredEvents[index];
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      leading: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: (event['color'] as Color).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(Icons.event, color: event['color'], size: 20),
-                      ),
-                      title: Text(
-                        event['title'],
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        "${DateFormat('dd/MM').format(event['date'])} à ${event['time'].format(context)}",
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  );
-                },
-              ),
+        const SizedBox(height: 20),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (filteredEvents.isEmpty)
+          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucun événement")))
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: filteredEvents.length,
+            itemBuilder: (context, index) {
+              final e = filteredEvents[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.primaryPale,
+                    child: Icon(Icons.event, color: AppColors.primary),
+                  ),
+                  title: Text(e.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    "${e.category} • ${DateFormat('dd/MM/yyyy').format(e.date)} à ${e.time.format(context)}",
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () async {
+                      try {
+                        await ApiService.deleteEvent(e.id);
+                        await _fetchEvents();
+                      } catch (_) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Suppression impossible")),
+                        );
+                      }
+                    },
+                  ),
+                  onTap: () => _showEventDialog(event: e),
+                ),
+              );
+            },
+          ),
       ],
     );
   }

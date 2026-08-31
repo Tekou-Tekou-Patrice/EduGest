@@ -15,7 +15,7 @@ class Grade {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id.isNotEmpty && id != '0') 'id': int.tryParse(id) ?? id,
       'studentId': studentId,
       'examId': examId,
       'score': score,
@@ -25,11 +25,13 @@ class Grade {
 
   factory Grade.fromMap(Map<String, dynamic> map) {
     return Grade(
-      id: map['id'],
-      studentId: map['studentId'],
-      examId: map['examId'],
-      score: map['score'].toDouble(),
-      observations: map['observations'],
+      id: map['id']?.toString() ?? '',
+      studentId: map['studentId']?.toString() ?? '',
+      examId: map['examId']?.toString() ?? '',
+      score: map['score'] is num
+          ? (map['score'] as num).toDouble()
+          : double.tryParse('${map['score']}') ?? 0,
+      observations: map['observations']?.toString(),
     );
   }
 }
@@ -41,6 +43,7 @@ class Exam {
   final String className;
   final DateTime date;
   final double coefficient;
+  final bool editable;
 
   Exam({
     required this.id,
@@ -49,11 +52,12 @@ class Exam {
     required this.className,
     required this.date,
     this.coefficient = 1.0,
+    this.editable = true,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id.isNotEmpty && id != '0') 'id': int.tryParse(id) ?? id,
       'title': title,
       'subject': subject,
       'className': className,
@@ -64,12 +68,15 @@ class Exam {
 
   factory Exam.fromMap(Map<String, dynamic> map) {
     return Exam(
-      id: map['id'],
-      title: map['title'],
-      subject: map['subject'],
-      className: map['className'],
-      date: DateTime.parse(map['date']),
-      coefficient: map['coefficient']?.toDouble() ?? 1.0,
+      id: map['id']?.toString() ?? '',
+      title: map['title']?.toString() ?? '',
+      subject: map['subject']?.toString() ?? '',
+      className: map['className']?.toString() ?? '',
+      date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
+      coefficient: map['coefficient'] is num
+          ? (map['coefficient'] as num).toDouble()
+          : double.tryParse('${map['coefficient']}') ?? 1.0,
+      editable: map['editable'] != false,
     );
   }
 }

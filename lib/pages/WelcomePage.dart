@@ -1,5 +1,6 @@
 import 'package:edugest/components/my_button.dart';
 import 'package:edugest/components/app_colors.dart';
+import 'package:edugest/localization/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 
@@ -25,7 +26,7 @@ class Welcomepage extends StatelessWidget {
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
+                      color: AppColors.primary.withValues(alpha: 0.3),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -40,10 +41,10 @@ class Welcomepage extends StatelessWidget {
               const SizedBox(height: 40),
 
               // Titre de bienvenue
-              const Text(
-                "Welcome On EduGest",
+              Text(
+                AppLocalizations.of(context).translate('welcomeTitle'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 30,
                   color: AppColors.text,
                   fontWeight: FontWeight.bold,
@@ -52,12 +53,12 @@ class Welcomepage extends StatelessWidget {
               const SizedBox(height: 16),
 
               // Description
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: Text(
-                  'An app permitting you to manage all data in your school, making management easy.',
+                  AppLocalizations.of(context).translate('welcomeDescription'),
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 15,
                     color: AppColors.textMuted,
                     height: 1.5,
@@ -69,7 +70,7 @@ class Welcomepage extends StatelessWidget {
               // Bouton Get Started
               MyButton(
                 icon: Icons.arrow_right_alt,
-                text: "Get Started",
+                text: AppLocalizations.of(context).translate('getStarted'),
                 onTap: () {
                   Navigator.push(
                     context,

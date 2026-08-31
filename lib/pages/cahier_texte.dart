@@ -1,10 +1,13 @@
+import 'package:edugest/models/app_user.dart';
+import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
 import '../components/my_textfield.dart';
 
 class CahierTexte extends StatefulWidget {
-  const CahierTexte({super.key});
+  final AppUser? currentUser;
+  const CahierTexte({super.key, this.currentUser});
 
   @override
   State<CahierTexte> createState() => _CahierTexteState();
@@ -16,37 +19,59 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
   final TextEditingController _contentController = TextEditingController();
   String _selectedClasse = 'Terminale S1';
   bool _isEditing = false;
-
-  // Historique des leçons envoyées par cet enseignant
-  final List<Map<String, String>> _myHistory = [
-    {
-      'date': '12/10/2023',
-      'classe': 'Terminale S1',
-      'matiere': 'Mathématiques',
-      'titre': 'Dérivées et Continuité',
-      'contenu': 'Introduction aux limites et continuité des fonctions numériques.'
-    },
-    {
-      'date': '10/10/2023',
-      'classe': '3ème A',
-      'matiere': 'Mathématiques',
-      'titre': 'Théorème de Thalès',
-      'contenu': 'Application du théorème dans le triangle.'
-    },
-  ];
+  String? _editingId;
+  
+  List<Map<String, dynamic>> _myHistory = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchMyHistory();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _titleController.dispose();
-    _contentController.dispose();
-    super.dispose();
+  Future<void> _fetchMyHistory() async {
+    if (widget.currentUser == null) return;
+    setState(() => _isLoading = true);
+    try {
+      final data = await ApiService.getMyLessons(widget.currentUser!.id);
+      setState(() {
+        _myHistory = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _publishLesson() async {
+    if (_titleController.text.isEmpty || _contentController.text.isEmpty) return;
+
+    final lessonData = {
+      if (_editingId != null) 'id': _editingId,
+      'title': _titleController.text.trim(),
+      'content': _contentController.text.trim(),
+      'className': _selectedClasse,
+      'subject': 'Mathématiques', // À dynamiser selon le prof
+      'date': DateTime.now().toIso8601String(),
+      'teacherId': widget.currentUser?.id,
+    };
+
+    try {
+      await ApiService.saveLesson(lessonData);
+      _titleController.clear();
+      _contentController.clear();
+      setState(() {
+        _isEditing = false;
+        _editingId = null;
+      });
+      _fetchMyHistory();
+      _tabController.animateTo(1);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cahier de texte mis à jour !")));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erreur lors de l'enregistrement")));
+    }
   }
 
   @override
@@ -63,17 +88,7 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
         TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textMuted,
           indicatorColor: AppColors.primary,
-          onTap: (index) {
-            if (index == 0 && !_isEditing) {
-              setState(() {
-                _titleController.clear();
-                _contentController.clear();
-              });
-            }
-            if (index == 0) setState(() => _isEditing = false);
-          },
           tabs: const [
             Tab(text: "Saisie"),
             Tab(text: "Mes Publications"),
@@ -101,41 +116,10 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_isEditing)
-            Container(
-              padding: const EdgeInsets.all(10),
-              margin: const EdgeInsets.only(bottom: 15),
-              decoration: BoxDecoration(color: Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-              child: const Row(
-                children: [
-                  Icon(Icons.edit, color: Colors.orange, size: 18),
-                  SizedBox(width: 10),
-                  Text("Mode Modification", style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          const Text("Classe concernée", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(10)),
-            child: DropdownButton<String>(
-              value: _selectedClasse,
-              isExpanded: true,
-              underline: const SizedBox(),
-              items: ['6ème A', '3ème A', 'Terminale S1'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (val) => setState(() => _selectedClasse = val!),
-            ),
-          ),
+          _buildDropdown("Classe", _selectedClasse, ['6ème A', '3ème A', 'Terminale S1'], (val) => setState(() => _selectedClasse = val!)),
           const SizedBox(height: 20),
-          MyTextfield(
-            controller: _titleController,
-            hintText: "Titre de la leçon",
-            icon: Icons.title,
-          ),
+          MyTextfield(controller: _titleController, hintText: "Titre de la leçon", icon: Icons.title),
           const SizedBox(height: 20),
-          const Text("Contenu détaillé", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-          const SizedBox(height: 8),
           TextField(
             controller: _contentController,
             maxLines: 5,
@@ -150,14 +134,9 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
           SizedBox(
             width: double.infinity,
             child: MyButton(
-              icon: _isEditing ? Icons.update : Icons.send,
+              icon: Icons.send,
               text: _isEditing ? "Mettre à jour" : "Publier la leçon",
-              onTap: () {
-                setState(() => _isEditing = false);
-                _titleController.clear();
-                _contentController.clear();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Leçon enregistrée avec succès !")));
-              },
+              onTap: _publishLesson,
             ),
           ),
         ],
@@ -166,35 +145,56 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
   }
 
   Widget _buildHistoryView() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_myHistory.isEmpty) return const Center(child: Text("Aucune leçon publiée."));
+
     return ListView.builder(
       itemCount: _myHistory.length,
       itemBuilder: (context, index) {
-        final lecon = _myHistory[index];
+        final lesson = _myHistory[index];
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppColors.border),
-          ),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: AppColors.border)),
           child: ListTile(
-            title: Text(lecon['titre']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            subtitle: Text("${lecon['classe']} • ${lecon['date']}"),
+            title: Text(lesson['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("${lesson['className']} • ${lesson['date'].toString().substring(0,10)}"),
             trailing: IconButton(
               icon: const Icon(Icons.edit_note, color: AppColors.primary),
               onPressed: () {
                 setState(() {
                   _isEditing = true;
-                  _selectedClasse = lecon['classe']!;
-                  _titleController.text = lecon['titre']!;
-                  _contentController.text = lecon['contenu']!;
-                  _tabController.animateTo(0); 
+                  _editingId = lesson['id'].toString();
+                  _selectedClasse = lesson['className'];
+                  _titleController.text = lesson['title'];
+                  _contentController.text = lesson['content'];
+                  _tabController.animateTo(0);
                 });
               },
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildDropdown(String label, String val, List<String> items, Function(String?) onChange) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(8)),
+          child: DropdownButton<String>(
+            value: val,
+            isExpanded: true,
+            underline: const SizedBox(),
+            items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: onChange,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,4 +1,6 @@
+import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 
 class ReceptionCahierTexte extends StatefulWidget {
@@ -9,10 +11,52 @@ class ReceptionCahierTexte extends StatefulWidget {
 }
 
 class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
-  String selectedClasse = 'Terminale S1';
+  List<Map<String, dynamic>> _lessons = [];
+  bool _isLoading = true;
+  String? selectedClasse;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLessons();
+  }
+
+  Future<void> _fetchLessons() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = selectedClasse != null && selectedClasse!.isNotEmpty
+          ? await ApiService.getLessonsByClass(selectedClasse!)
+          : await ApiService.getAllLessons();
+      if (!mounted) return;
+      setState(() {
+        _lessons = data;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erreur de chargement des cahiers de texte")),
+      );
+    }
+  }
+
+  String _formatDate(dynamic raw) {
+    if (raw == null) return '';
+    final dt = DateTime.tryParse(raw.toString());
+    if (dt == null) return raw.toString();
+    return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final classes = _lessons
+        .map((l) => l['className']?.toString() ?? '')
+        .where((c) => c.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -21,71 +65,65 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
         ),
         const SizedBox(height: 20),
-
-        // Filtre par classe
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: Colors.white, 
-            borderRadius: BorderRadius.circular(10), 
-            border: Border.all(color: AppColors.border)
+        if (classes.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: DropdownButton<String>(
+              value: selectedClasse,
+              hint: const Text("Toutes les classes"),
+              isExpanded: true,
+              underline: const SizedBox(),
+              items: [
+                const DropdownMenuItem(value: null, child: Text("Toutes les classes")),
+                ...classes.map((c) => DropdownMenuItem(value: c, child: Text("Classe : $c"))),
+              ],
+              onChanged: (val) {
+                setState(() => selectedClasse = val);
+                _fetchLessons();
+              },
+            ),
           ),
-          child: DropdownButton<String>(
-            value: selectedClasse,
-            isExpanded: true,
-            underline: const SizedBox(),
-            items: ['6ème A', '3ème A', 'Terminale S1'].map((c) => DropdownMenuItem(value: c, child: Text("Classe : $c"))).toList(),
-            onChanged: (val) => setState(() => selectedClasse = val!),
-          ),
-        ),
-
         const SizedBox(height: 25),
-
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 2,
-          itemBuilder: (context, index) {
-            final lessons = [
-              {'prof': 'M. Diallo', 'matiere': 'Mathématiques', 'titre': 'Les Intégrales', 'date': 'Aujourd\'hui'},
-              {'prof': 'Mme. Sow', 'matiere': 'Anglais', 'titre': 'Business English', 'date': 'Hier'},
-            ];
-            final item = lessons[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 15),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(item['prof']!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      Text(item['date']!, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                    ],
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_lessons.isEmpty)
+          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucune leçon publiée")))
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _lessons.length,
+            itemBuilder: (context, index) {
+              final lesson = _lessons[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppColors.primaryPale,
+                    child: Icon(Icons.menu_book, color: AppColors.primary),
                   ),
-                  const SizedBox(height: 8),
-                  Text("${item['matiere']} • $selectedClasse", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 10),
-                  Text(
-                    "Titre : ${item['titre']}",
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  title: Text(
+                    lesson['title']?.toString() ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "Résumé : Application des méthodes d'intégration par parties et exercices pratiques en classe.",
-                    style: TextStyle(fontSize: 13, color: AppColors.text),
+                  subtitle: Text(
+                    "${lesson['subject'] ?? ''} • ${lesson['className'] ?? ''}\n${_formatDate(lesson['date'])}",
                   ),
-                ],
-              ),
-            );
-          },
-        ),
+                  isThreeLine: true,
+                ),
+              );
+            },
+          ),
       ],
     );
   }

@@ -2,7 +2,7 @@ class Sanction {
   final String id;
   final String studentId;
   final String studentName;
-  final String type; // Avertissement, Blâme, Exclusion, etc.
+  final String type;
   final String reason;
   final DateTime date;
 
@@ -17,7 +17,7 @@ class Sanction {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id.isNotEmpty && id != '0') 'id': int.tryParse(id) ?? id,
       'studentId': studentId,
       'studentName': studentName,
       'type': type,
@@ -28,12 +28,12 @@ class Sanction {
 
   factory Sanction.fromMap(Map<String, dynamic> map) {
     return Sanction(
-      id: map['id'],
-      studentId: map['studentId'],
-      studentName: map['studentName'],
-      type: map['type'],
-      reason: map['reason'],
-      date: DateTime.parse(map['date']),
+      id: map['id']?.toString() ?? '',
+      studentId: map['studentId']?.toString() ?? '',
+      studentName: map['studentName']?.toString() ?? '',
+      type: map['type']?.toString() ?? '',
+      reason: map['reason']?.toString() ?? '',
+      date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
     );
   }
 }

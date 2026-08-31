@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduGuest SIA — Système d'Information & Gestion Multi-Écoles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app-wrapper">
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-badge">🎓</div>
+      <div class="logo-text">
+        <h1>EduGuest SIA</h1>
+        <span>Système d'Info & Admin</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-title">Principal</div>
+      <a class="nav-item active" data-tab="dashboard">
+        <span class="icon">📊</span>
+        <span>Tableau de Bord</span>
+      </a>
+      <a class="nav-item" data-tab="schools">
+        <span class="icon">🏫</span>
+        <span>Gestion des Écoles</span>
+        <span class="badge-count" id="nav-schools-count">0</span>
+      </a>
+      <a class="nav-item" data-tab="subscriptions">
+        <span class="icon">💼</span>
+        <span>Abonnements & Promotions</span>
+      </a>
+
+      <div class="nav-section-title">Pédagogie & Scolarité</div>
+      <a class="nav-item" data-tab="students">
+        <span class="icon">👨‍🎓</span>
+        <span>Élèves & Inscriptions</span>
+        <span class="badge-count" id="nav-students-count">0</span>
+      </a>
+      <a class="nav-item" data-tab="teachers">
+        <span class="icon">👨‍🏫</span>
+        <span>Enseignants</span>
+        <span class="badge-count" id="nav-teachers-count">0</span>
+      </a>
+      <a class="nav-item" data-tab="classrooms">
+        <span class="icon">🏛️</span>
+        <span>Classes & Salles</span>
+        <span class="badge-count" id="nav-classes-count">0</span>
+      </a>
+
+      <div class="nav-section-title">Gestion & Vie Scolaire</div>
+      <a class="nav-item" data-tab="finances">
+        <span class="icon">💳</span>
+        <span>Finances & Trésorerie</span>
+      </a>
+      <a class="nav-item" data-tab="discipline">
+        <span class="icon">📋</span>
+        <span>Discipline & Présences</span>
+      </a>
+      <a class="nav-item" data-tab="users">
+        <span class="icon">👥</span>
+        <span>Utilisateurs & Accès</span>
+        <span class="badge-count" id="nav-users-count">0</span>
+      </a>
+
+      <div class="nav-section-title">Technique</div>
+      <a class="nav-item" data-tab="api-console">
+        <span class="icon">⚡</span>
+        <span>Console API & Diagnostic</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="current-school-badge">
+        <div class="school-indicator" id="sidebar-indicator"></div>
+        <div style="min-width: 0; flex: 1;">
+          <div class="school-info-label">Établissement actif</div>
+          <div class="school-name-active" id="sidebar-active-school-name">Toutes les écoles</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="btn-icon mobile-menu-btn" id="mobile-menu-toggle" title="Menu">☰</button>
+        <div class="breadcrumb">
+          <span>EduGuest</span>
+          <span>/</span>
+          <span class="active" id="breadcrumb-current-tab">Tableau de Bord</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <!-- School Selector -->
+        <select class="school-selector-select" id="header-school-select" title="Filtrer par établissement">
+          <option value="">🌐 Toutes les écoles</option>
+        </select>
+
+        <!-- Server status pill -->
+        <div class="server-status-pill" id="server-status-pill" title="Cliquez pour tester ou modifier l'URL du Backend">
+          <div class="status-dot offline" id="server-status-dot"></div>
+          <span id="server-status-text">Connexion...</span>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="btn-icon" id="theme-toggle-btn" title="Basculer le thème clair/sombre">🌓</button>
+
+        <!-- Refresh Button -->
+        <button class="btn-icon" id="refresh-all-btn" title="Recharger les données">🔄</button>
+      </div>
+    </header>
+
+    <!-- Page Content Container -->
+    <div class="page-container">
+
+      <!-- ================= 1. TAB: DASHBOARD ================= -->
+      <section class="tab-pane active" id="pane-dashboard">
+        <!-- Hero Available Schools Banner -->
+        <div class="hero-banner">
+          <div class="hero-content">
+            <h3>Portail d'Administration Multi-Établissements</h3>
+            <p>Supervisez l'ensemble des écoles disponibles sur votre backend Spring Boot, gérez les effectifs, enseignants, classes et flux financiers en temps réel.</p>
+          </div>
+          <div class="hero-stats-badge">
+            <div>
+              <div class="hero-stats-number" id="hero-schools-count">0</div>
+              <div style="font-size: 12px; color: var(--text-muted); font-weight: 600;">ÉCOLES DISPONIBLES</div>
+            </div>
+            <button class="btn btn-primary" onclick="openModal('modal-add-school')">➕ Créer une école</button>
+          </div>
+        </div>
+
+        <!-- Global KPI Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card" style="--card-accent: #4361ee; --card-bg-accent: rgba(67, 97, 238, 0.12);">
+            <div class="stat-icon-wrapper">🏫</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-schools-count">0</div>
+              <div class="stat-label">Établissements Enregistrés</div>
+              <div class="stat-badge pill pill-success" id="dash-active-schools-badge">0 Actifs</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #10b981; --card-bg-accent: rgba(16, 185, 129, 0.12);">
+            <div class="stat-icon-wrapper">👨‍🎓</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-students-count">0</div>
+              <div class="stat-label">Élèves Inscrits</div>
+              <div class="stat-badge pill pill-info">Effectif Total</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #f59e0b; --card-bg-accent: rgba(245, 158, 11, 0.12);">
+            <div class="stat-icon-wrapper">👨‍🏫</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-teachers-count">0</div>
+              <div class="stat-label">Enseignants & Profs</div>
+              <div class="stat-badge pill pill-warning">Corps professoral</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #8b5cf6; --card-bg-accent: rgba(139, 92, 246, 0.12);">
+            <div class="stat-icon-wrapper">🏛️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-classrooms-count">0</div>
+              <div class="stat-label">Salles & Classes</div>
+              <div class="stat-badge pill pill-muted">Niveaux actifs</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #06b6d4; --card-bg-accent: rgba(6, 182, 212, 0.12);">
+            <div class="stat-icon-wrapper">👥</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-users-count">0</div>
+              <div class="stat-label">Comptes Utilisateurs</div>
+              <div class="stat-badge pill pill-info">Accès système</div>
+            </div>
+          </div>
+
+          <div class="stat-card" style="--card-accent: #ec4899; --card-bg-accent: rgba(236, 72, 153, 0.12);">
+            <div class="stat-icon-wrapper">💳</div>
+            <div class="stat-info">
+              <div class="stat-value" id="dash-payments-count">0</div>
+              <div class="stat-label">Paiements Reçus</div>
+              <div class="stat-badge pill pill-success" id="dash-revenue-badge">Trésorerie</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schools Quick Overview Section -->
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="page-header">
+            <div class="page-title">
+              <h2>Aperçu des Établissements Disponibles</h2>
+              <p>Sélectionnez une école pour filtrer vos données ou accédez à la gestion complète.</p>
+            </div>
+            <button class="btn btn-secondary" onclick="switchTab('schools')">Voir toutes les écoles ➔</button>
+          </div>
+
+          <div class="schools-grid" id="dash-schools-grid">
+            <div class="table-empty">Chargement des établissements...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. TAB: GESTION DES ÉCOLES ================= -->
+      <section class="tab-pane" id="pane-schools">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Gestion des Écoles & Établissements</h2>
+            <p>Consultez la liste des écoles disponibles, leur code d'accès, créez de nouveaux établissements ou modifiez leurs paramètres.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-school')">➕ Ajouter un Établissement</button>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="search-input" id="search-schools" placeholder="Rechercher par nom ou code...">
+            </div>
+            <select class="filter-select" id="filter-schools-status">
+              <option value="all">Tous les statuts</option>
+              <option value="active">Actives uniquement</option>
+              <option value="inactive">Inactives uniquement</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <span style="font-size: 13px; color: var(--text-muted);">
+              Total : <strong style="color: var(--text-main);" id="schools-total-count">0</strong> école(s)
+            </span>
+          </div>
+        </div>
+
+        <!-- Schools Cards Grid -->
+        <div class="schools-grid" id="schools-grid-container">
+          <div class="table-empty">
+            <div class="empty-icon">🏫</div>
+            <p>Chargement des écoles...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 3. TAB: ABONNEMENTS & PROMOTIONS ================= -->
+      <section class="tab-pane" id="pane-subscriptions">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Portail Admin SaaS & Abonnements</h2>
+            <p>Activez ou suspendre les établissements, gérez les numéros de paiement MTN/Orange et pilotez les promotions.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-admin-promotion')">➕ Ajouter une Promotion</button>
+          </div>
+        </div>
+
+        <div class="admin-panel-grid">
+          <div class="admin-metric-card primary">
+            <span class="admin-metric-label">Écoles actives</span>
+            <strong id="admin-active-schools-count">0</strong>
+          </div>
+          <div class="admin-metric-card success">
+            <span class="admin-metric-label">Suspendues</span>
+            <strong id="admin-suspended-schools-count">0</strong>
+          </div>
+          <div class="admin-metric-card info">
+            <span class="admin-metric-label">Moyens de paiement</span>
+            <strong id="admin-payment-methods-count">0</strong>
+          </div>
+          <div class="admin-metric-card warning">
+            <span class="admin-metric-label">Promotions</span>
+            <strong id="admin-promotion-count">0</strong>
+          </div>
+        </div>
+
+        <div class="subscription-grid">
+          <div class="admin-section-panel">
+            <div class="section-panel-header">
+              <h3>Écoles & statut d’abonnement</h3>
+            </div>
+            <div id="admin-schools-list"></div>
+          </div>
+
+          <div class="admin-section-panel">
+            <div class="section-panel-header">
+              <h3>Numéros de paiement</h3>
+            </div>
+            <div id="admin-payment-methods-list"></div>
+          </div>
+
+          <div class="admin-section-panel full-width">
+            <div class="section-panel-header">
+              <h3>Promotions de l’admin</h3>
+            </div>
+            <div id="admin-promotions-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 3. TAB: ÉLÈVES & INSCRIPTIONS ================= -->
+      <section class="tab-pane" id="pane-students">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Scolarité & Élèves Inscrits</h2>
+            <p>Consultez et gérez les inscriptions des élèves, filtres par classe et contacts des tuteurs.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-student')">➕ Inscrire un Élève</button>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-group">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="search-input" id="search-students" placeholder="Rechercher par nom ou prénom...">
+            </div>
+            <select class="filter-select" id="filter-students-class">
+              <option value="">Toutes les classes</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span style="font-size: 13px; color: var(--text-muted);">
+              Effectif : <strong style="color: var(--text-main);" id="students-total-count">0</strong> élève(s)
+            </span>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom & Prénom</th>
+                  <th>Classe</th>
+                  <th>Parent / Tuteur</th>
+                  <th>Téléphone Parent</th>
+                  <th>Email Parent</th>
+                  <th>Date Inscription</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="students-table-body">
+                <tr><td colspan="8" class="table-empty">Chargement des élèves...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 4. TAB: ENSEIGNANTS ================= -->
+      <section class="tab-pane" id="pane-teachers">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Corps Enseignant & Personnel</h2>
+            <p>Annuaire des professeurs, spécialités académiques et coordonnées.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-teacher')">➕ Ajouter un Enseignant</button>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-group">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="search-input" id="search-teachers" placeholder="Rechercher un professeur ou matière...">
+            </div>
+          </div>
+          <div class="filter-group">
+            <span style="font-size: 13px; color: var(--text-muted);">
+              Total : <strong style="color: var(--text-main);" id="teachers-total-count">0</strong> enseignant(s)
+            </span>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom & Prénom</th>
+                  <th>Matière / Spécialité</th>
+                  <th>Téléphone</th>
+                  <th>Email</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="teachers-table-body">
+                <tr><td colspan="6" class="table-empty">Chargement des enseignants...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 5. TAB: CLASSES ================= -->
+      <section class="tab-pane" id="pane-classrooms">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Salles & Classes</h2>
+            <p>Structure pédagogique, niveaux, séries et capacités d'accueil.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-classroom')">➕ Nouvelle Classe</button>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom de la classe</th>
+                  <th>Niveau / Description</th>
+                  <th>Capacité</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="classrooms-table-body">
+                <tr><td colspan="5" class="table-empty">Chargement des classes...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 6. TAB: FINANCES ================= -->
+      <section class="tab-pane" id="pane-finances">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Finances & Trésorerie</h2>
+            <p>Suivi des encaissements de scolarité, paiements et dépenses de fonctionnement.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-payment')">➕ Encaisser un Paiement</button>
+            <button class="btn btn-secondary" onclick="openModal('modal-add-expense')">➕ Enregistrer une Dépense</button>
+          </div>
+        </div>
+
+        <!-- Financial KPI Cards -->
+        <div class="stats-grid">
+          <div class="stat-card" style="--card-accent: #10b981; --card-bg-accent: rgba(16, 185, 129, 0.12);">
+            <div class="stat-icon-wrapper">💰</div>
+            <div class="stat-info">
+              <div class="stat-value" id="fin-total-revenue">0 FCFA</div>
+              <div class="stat-label">Total Recettes Encaissées</div>
+            </div>
+          </div>
+          <div class="stat-card" style="--card-accent: #ef4444; --card-bg-accent: rgba(239, 68, 68, 0.12);">
+            <div class="stat-icon-wrapper">📉</div>
+            <div class="stat-info">
+              <div class="stat-value" id="fin-total-expenses">0 FCFA</div>
+              <div class="stat-label">Total Dépenses Réalisées</div>
+            </div>
+          </div>
+          <div class="stat-card" style="--card-accent: #4361ee; --card-bg-accent: rgba(67, 97, 238, 0.12);">
+            <div class="stat-icon-wrapper">📊</div>
+            <div class="stat-info">
+              <div class="stat-value" id="fin-net-balance">0 FCFA</div>
+              <div class="stat-label">Solde Net de Trésorerie</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-card" style="margin-top: 10px;">
+          <div style="padding: 18px; border-bottom: 1px solid var(--border-color); font-weight: 700;">
+            Historique des Paiements de Scolarité
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>ID / Nom Élève</th>
+                  <th>Montant</th>
+                  <th>Type / Motif</th>
+                  <th>Mode de Paiement</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody id="payments-table-body">
+                <tr><td colspan="6" class="table-empty">Chargement des paiements...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="table-card" style="margin-top: 20px;">
+          <div style="padding: 18px; border-bottom: 1px solid var(--border-color); font-weight: 700;">
+            Historique des Dépenses
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Titre / Description</th>
+                  <th>Catégorie</th>
+                  <th>Montant</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="expenses-table-body">
+                <tr><td colspan="6" class="table-empty">Chargement des dépenses...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 7. TAB: DISCIPLINE ================= -->
+      <section class="tab-pane" id="pane-discipline">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Discipline & Vie Scolaire</h2>
+            <p>Registres des absences et sanctions disciplinaires.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-absence')">➕ Déclarer une Absence</button>
+            <button class="btn btn-secondary" onclick="openModal('modal-add-sanction')">➕ Ajouter une Sanction</button>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div style="padding: 18px; border-bottom: 1px solid var(--border-color); font-weight: 700;">
+            Registre des Absences
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>ID / Nom Élève</th>
+                  <th>Date</th>
+                  <th>Période / Heures</th>
+                  <th>Statut</th>
+                  <th>Motif</th>
+                </tr>
+              </thead>
+              <tbody id="absences-table-body">
+                <tr><td colspan="6" class="table-empty">Chargement des absences...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="table-card" style="margin-top: 20px;">
+          <div style="padding: 18px; border-bottom: 1px solid var(--border-color); font-weight: 700;">
+            Registre des Sanctions
+          </div>
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>ID / Nom Élève</th>
+                  <th>Type de sanction</th>
+                  <th>Motif</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="sanctions-table-body">
+                <tr><td colspan="6" class="table-empty">Chargement des sanctions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 8. TAB: UTILISATEURS ================= -->
+      <section class="tab-pane" id="pane-users">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Comptes Utilisateurs & Droits d'Accès</h2>
+            <p>Gestion des profils administratifs, fondateurs, enseignants et parents enregistrés.</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary" onclick="openModal('modal-add-user')">➕ Créer un Compte</button>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-responsive">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nom Complet</th>
+                  <th>Identifiant / Login</th>
+                  <th>Email</th>
+                  <th>Téléphone</th>
+                  <th>Rôle</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-table-body">
+                <tr><td colspan="7" class="table-empty">Chargement des utilisateurs...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 9. TAB: CONSOLE API ================= -->
+      <section class="tab-pane" id="pane-api-console">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Console API & Diagnostic Backend</h2>
+            <p>Testez directement les endpoints Spring Boot REST et inspectez les réponses JSON brutes.</p>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-group" style="flex: 1;">
+            <select class="filter-select" id="api-test-method" style="width: 110px;">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+            </select>
+            <input type="text" class="search-input" id="api-test-endpoint" value="/api/schools/stats" style="flex: 1;" placeholder="Endpoint (ex: /api/schools)">
+            <button class="btn btn-primary" id="api-test-send-btn">🚀 Envoyer la Requête</button>
+          </div>
+        </div>
+
+        <div class="console-card">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
+            <span>Statut HTTP : <strong id="api-response-status" style="color: var(--success);">-</strong></span>
+            <span>Temps de réponse : <strong id="api-response-time" style="color: var(--accent);">- ms</strong></span>
+          </div>
+          <pre class="json-output" id="api-response-json">// Cliquez sur "Envoyer la Requête" pour tester l'API...</pre>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- ==========================================================================
+     MODALS
+     ========================================================================== -->
+
+<!-- Modal: Ajouter une École -->
+<div class="modal-backdrop" id="modal-add-school">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>🏫 Créer un Nouvel Établissement</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-school')">✕</button>
+    </div>
+    <form id="form-add-school" onsubmit="handleCreateSchool(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nom de l'école / Établissement *</label>
+          <input type="text" class="form-control" id="school-name-input" required placeholder="Ex: Collège & Lycée Bilingue Excellence">
+        </div>
+        <div class="form-group">
+          <label>Code d'accès de l'école *</label>
+          <input type="text" class="form-control" id="school-code-input" required placeholder="Ex: EXCELLENCE-2026" style="text-transform: uppercase;">
+          <small style="color: var(--text-dim); font-size: 11px;">Ce code permettra aux enseignants et directeurs de rejoindre l'établissement.</small>
+        </div>
+        <div class="form-group">
+          <label>ID du Fondateur (Optionnel)</label>
+          <select class="form-control" id="school-founder-select">
+            <option value="">Aucun ou créer sans fondateur direct</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-school')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer l'École</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Modifier le code d'une école -->
+<div class="modal-backdrop" id="modal-edit-school-code">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>🔑 Modifier le Code d'Accès</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-edit-school-code')">✕</button>
+    </div>
+    <form id="form-edit-school-code" onsubmit="handleUpdateSchoolCode(event)">
+      <div class="modal-body">
+        <input type="hidden" id="edit-code-school-id">
+        <div class="form-group">
+          <label>Établissement</label>
+          <input type="text" class="form-control" id="edit-code-school-name" readonly disabled>
+        </div>
+        <div class="form-group">
+          <label>Nouveau Code d'Accès *</label>
+          <input type="text" class="form-control" id="edit-code-new-code" required placeholder="Ex: NOUVEAU-CODE-2026" style="text-transform: uppercase;">
+        </div>
+        <div class="form-group">
+          <label>ID Utilisateur Fondateur *</label>
+          <input type="number" class="form-control" id="edit-code-user-id" value="1" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-school-code')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Mettre à Jour le Code</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Inscrire un Élève -->
+<div class="modal-backdrop" id="modal-add-student">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>👨‍🎓 Inscription d'un Élève</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-student')">✕</button>
+    </div>
+    <form id="form-add-student" onsubmit="handleCreateStudent(event)">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Prénom *</label>
+            <input type="text" class="form-control" id="student-first-name" required placeholder="Ex: Jean">
+          </div>
+          <div class="form-group">
+            <label>Nom de famille *</label>
+            <input type="text" class="form-control" id="student-last-name" required placeholder="Ex: Dupont">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Classe *</label>
+            <select class="form-control" id="student-classroom-select" required>
+              <option value="">Sélectionner une classe</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date de naissance</label>
+            <input type="date" class="form-control" id="student-birth-date">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Nom du Parent / Tuteur</label>
+          <input type="text" class="form-control" id="student-parent-name" placeholder="Ex: M. Paul Dupont">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Téléphone Parent</label>
+            <input type="tel" class="form-control" id="student-parent-phone" placeholder="Ex: +237 600000000">
+          </div>
+          <div class="form-group">
+            <label>Email Parent</label>
+            <input type="email" class="form-control" id="student-parent-email" placeholder="Ex: parent@gmail.com">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-student')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Valider l'Inscription</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Ajouter un Enseignant -->
+<div class="modal-backdrop" id="modal-add-teacher">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>👨‍🏫 Ajouter un Enseignant</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-teacher')">✕</button>
+    </div>
+    <form id="form-add-teacher" onsubmit="handleCreateTeacher(event)">
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Prénom *</label>
+            <input type="text" class="form-control" id="teacher-first-name" required placeholder="Ex: Sarah">
+          </div>
+          <div class="form-group">
+            <label>Nom *</label>
+            <input type="text" class="form-control" id="teacher-last-name" required placeholder="Ex: Kamga">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Matière / Spécialité *</label>
+          <input type="text" class="form-control" id="teacher-speciality" required placeholder="Ex: Mathématiques / Physique">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Téléphone</label>
+            <input type="tel" class="form-control" id="teacher-phone" placeholder="Ex: +237 699000000">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" class="form-control" id="teacher-email" placeholder="Ex: prof@eduguest.com">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-teacher')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer le Professeur</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Ajouter une Classe -->
+<div class="modal-backdrop" id="modal-add-classroom">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>🏛️ Créer une Classe / Salle</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-classroom')">✕</button>
+    </div>
+    <form id="form-add-classroom" onsubmit="handleCreateClassroom(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nom de la classe *</label>
+          <input type="text" class="form-control" id="classroom-name" required placeholder="Ex: 6ème A, Seconde C, Terminale D">
+        </div>
+        <div class="form-group">
+          <label>Niveau / Série / Description</label>
+          <input type="text" class="form-control" id="classroom-level" placeholder="Ex: Premier Cycle / Secondaire">
+        </div>
+        <div class="form-group">
+          <label>Capacité maximale (places)</label>
+          <input type="number" class="form-control" id="classroom-capacity" value="40">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-classroom')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Créer la Classe</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Ajouter un Paiement -->
+<div class="modal-backdrop" id="modal-add-payment">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>💳 Enregistrer un Paiement</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-payment')">✕</button>
+    </div>
+    <form id="form-add-payment" onsubmit="handleCreatePayment(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Élève concerné *</label>
+          <select class="form-control" id="payment-student-select" required>
+            <option value="">Sélectionner un élève</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Montant (FCFA) *</label>
+            <input type="number" class="form-control" id="payment-amount" required placeholder="Ex: 50000" min="1">
+          </div>
+          <div class="form-group">
+            <label>Mode de paiement</label>
+            <select class="form-control" id="payment-method">
+              <option value="Espèces">Espèces (Cash)</option>
+              <option value="Mobile Money (Orange/MTN)">Mobile Money</option>
+              <option value="Virement Bancaire">Virement Bancaire</option>
+              <option value="Chèque">Chèque</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Motif / Tranche</label>
+          <input type="text" class="form-control" id="payment-type" value="Tranche Scolarité" placeholder="Ex: Inscription, 1ère Tranche, Cantine">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-payment')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Valider l'Encaissement</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Ajouter une Dépense -->
+<div class="modal-backdrop" id="modal-add-expense">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>📉 Enregistrer une Dépense</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-expense')">✕</button>
+    </div>
+    <form id="form-add-expense" onsubmit="handleCreateExpense(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Titre / Description *</label>
+          <input type="text" class="form-control" id="expense-title" required placeholder="Ex: Fournitures scolaires, Facture électricité">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Montant (FCFA) *</label>
+            <input type="number" class="form-control" id="expense-amount" required placeholder="Ex: 25000" min="1">
+          </div>
+          <div class="form-group">
+            <label>Catégorie</label>
+            <select class="form-control" id="expense-category">
+              <option value="Fournitures">Fournitures</option>
+              <option value="Maintenance">Maintenance & Travaux</option>
+              <option value="Salaires">Salaires & Vacations</option>
+              <option value="Factures">Factures (Eau/Électricité/Net)</option>
+              <option value="Autre">Autre Dépense</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-expense')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer la Dépense</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Paramétrer un numéro de paiement -->
+<div class="modal-backdrop" id="modal-admin-payment">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>💸 Paramétrer un numéro de paiement</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-admin-payment')">✕</button>
+    </div>
+    <form id="form-admin-payment" onsubmit="handleSavePaymentMethod(event)">
+      <div class="modal-body">
+        <input type="hidden" id="payment-method-id">
+        <div class="form-group">
+          <label>Nom du moyen de paiement</label>
+          <input type="text" class="form-control" id="payment-method-label" required>
+        </div>
+        <div class="form-group">
+          <label>Numéro</label>
+          <input type="tel" class="form-control" id="payment-method-number" required>
+        </div>
+        <div class="form-group">
+          <label>Titulaire du compte</label>
+          <input type="text" class="form-control" id="payment-method-holder" required>
+        </div>
+        <div class="form-group">
+          <label>Statut</label>
+          <select class="form-control" id="payment-method-status">
+            <option value="active">Actif</option>
+            <option value="inactive">Inactif</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-admin-payment')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Ajouter une promotion -->
+<div class="modal-backdrop" id="modal-admin-promotion">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>🎁 Créer une promotion</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-admin-promotion')">✕</button>
+    </div>
+    <form id="form-admin-promotion" onsubmit="handleSavePromotion(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Titre</label>
+          <input type="text" class="form-control" id="promotion-title" required>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea class="form-control" id="promotion-description" rows="3" required></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Réduction (%)</label>
+            <input type="number" class="form-control" id="promotion-discount" value="10" min="0" max="100" required>
+          </div>
+          <div class="form-group">
+            <label>Statut</label>
+            <select class="form-control" id="promotion-status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-admin-promotion')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Ajouter un Utilisateur -->
+<div class="modal-backdrop" id="modal-add-user">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>👥 Créer un Compte Utilisateur</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-add-user')">✕</button>
+    </div>
+    <form id="form-add-user" onsubmit="handleCreateUser(event)">
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nom complet *</label>
+          <input type="text" class="form-control" id="user-fullname" required placeholder="Ex: Dr. Martin Nkoulou">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nom d'utilisateur / Login *</label>
+            <input type="text" class="form-control" id="user-username" required placeholder="Ex: martin.nkoulou">
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input type="email" class="form-control" id="user-email" required placeholder="Ex: martin@eduguest.com">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Mot de passe *</label>
+            <input type="password" class="form-control" id="user-password" required placeholder="Min 6 caractères">
+          </div>
+          <div class="form-group">
+            <label>Rôle du compte *</label>
+            <select class="form-control" id="user-role" required>
+              <option value="ADMIN">Administrateur (ADMIN)</option>
+              <option value="FONDATEUR">Fondateur (FONDATEUR)</option>
+              <option value="DIRECTEUR">Directeur / Principal</option>
+              <option value="ENSEIGNANT">Enseignant</option>
+              <option value="COMPTABLE">Comptable</option>
+              <option value="SURVEILLANT">Surveillant Général</option>
+              <option value="PARENT">Parent d'élève</option>
+              <option value="ELEVE">Élève</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Téléphone</label>
+          <input type="tel" class="form-control" id="user-phone" placeholder="Ex: +237 600000000">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-user')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Créer le Compte</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Configurer l'URL de l'API -->
+<div class="modal-backdrop" id="modal-api-config">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>⚙️ Configuration de l'API Spring Boot</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-api-config')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>URL de Base du Serveur Backend</label>
+        <input type="text" class="form-control" id="config-api-base-url" value="http://localhost:8003">
+        <small style="color: var(--text-dim); font-size: 11px;">Port par défaut de votre projet Spring Boot : <code>http://localhost:8003</code></small>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('modal-api-config')">Annuler</button>
+      <button type="button" class="btn btn-primary" onclick="saveApiBaseUrl()">Tester & Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toast-container"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -3,7 +3,11 @@ import 'package:edugest/components/my_button.dart';
 import 'package:edugest/components/my_sidebar.dart';
 import 'package:edugest/components/my_textfield.dart';
 import 'package:edugest/components/responsive_layout.dart';
-import 'package:edugest/pages/dashboard_page.dart';
+import 'package:edugest/localization/app_localizations.dart';
+import 'package:edugest/models/app_user.dart';
+import 'package:edugest/pages/school_selection_page.dart';
+import 'package:edugest/service/api_service.dart';
+import 'package:edugest/service/auth_session_service.dart';
 import 'package:flutter/material.dart';
 
 class LoginPage extends StatefulWidget {
@@ -14,30 +18,31 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  bool _isLogin = true;
+  bool _isLoading = false;
+
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  String selectedRole = 'Proviseur';
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
 
-  final List<Map<String, dynamic>> roles = [
-    {'name': 'Proviseur', 'icon': Icons.manage_accounts},
-    {'name': 'Censeur', 'icon': Icons.assignment},
-    {'name': 'Secrétaire', 'icon': Icons.folder_shared},
-    {'name': 'Comptable', 'icon': Icons.account_balance_wallet},
-    {'name': 'Enseignant', 'icon': Icons.school},
-    {'name': 'Fondateur', 'icon': Icons.visibility},
-  ];
+  void _toggleAuthMode() {
+    setState(() {
+      _isLogin = !_isLogin;
+    });
+  }
 
   List<SidebarSection> get _sidebarSections => [
-        SidebarSection(
-          title: 'EduGest Info',
-          items: [
-            SidebarItem(icon: Icons.check, label: 'Gestion de notes'),
-            SidebarItem(icon: Icons.check, label: 'Gestion de paiement'),
-            SidebarItem(icon: Icons.check, label: 'Gestion de élèves'),
-            SidebarItem(icon: Icons.check, label: 'Gestion de cours'),
-          ],
-        ),
-      ];
+    SidebarSection(
+      title: 'EduGest Info',
+      items: [
+        SidebarItem(icon: Icons.check, label: 'Gestion de notes'),
+        SidebarItem(icon: Icons.check, label: 'Gestion de paiement'),
+        SidebarItem(icon: Icons.check, label: 'Gestion de élèves'),
+        SidebarItem(icon: Icons.check, label: 'Gestion de cours'),
+      ],
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -45,98 +50,118 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: AppColors.bg,
-      drawer: isMobile ? Drawer(child: MySidebar(sections: _sidebarSections)) : null,
+      drawer: isMobile
+          ? Drawer(child: MySidebar(sections: _sidebarSections))
+          : null,
       appBar: isMobile
           ? AppBar(
               backgroundColor: AppColors.sidebarBg,
-              title: const Text("Connexion", style: TextStyle(color: Colors.white)),
+              title: Text(
+                _isLogin ? "Connexion" : "Inscription",
+                style: const TextStyle(color: Colors.white, fontSize: 18),
+              ),
               iconTheme: const IconThemeData(color: Colors.white),
             )
           : null,
       body: Row(
         children: [
           if (!isMobile) MySidebar(sections: _sidebarSections),
-          Expanded(child: _buildLoginForm(isMobile)),
+          Expanded(child: _buildAuthForm(isMobile)),
         ],
       ),
     );
   }
 
-  Widget _buildLoginForm(bool isMobile) {
+  Widget _buildAuthForm(bool isMobile) {
+    final loc = AppLocalizations.of(context);
+
     return Center(
       child: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(horizontal: isMobile ? 25 : 100),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 25 : 80),
         child: Container(
           constraints: const BoxConstraints(maxWidth: 500),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Se connecter",
-                style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: AppColors.text),
+              Text(
+                _isLogin ? loc.translate('loginTitle') : "Créer un compte",
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text,
+                ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                "Accédez à votre espace de gestion scolaire.",
-                style: TextStyle(color: AppColors.textMuted, fontSize: 16),
+              Text(
+                _isLogin
+                    ? loc.translate('loginSubtitle')
+                    : "Créez votre compte. Vous pourrez rejoindre une école avec son code.",
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 40),
+
+              if (!_isLogin) ...[
+                MyTextfield(
+                  controller: _nameController,
+                  icon: Icons.person,
+                  hintText: "Nom complet",
+                ),
+                const SizedBox(height: 20),
+                MyTextfield(
+                  controller: _phoneController,
+                  icon: Icons.phone_android,
+                  hintText: "Téléphone de contact",
+                ),
+                const SizedBox(height: 20),
+              ],
 
               MyTextfield(
                 controller: _emailController,
                 icon: Icons.mail_outline,
-                hintText: "Adresse email",
-                obscureText: false,
+                hintText: loc.translate('emailHint'),
               ),
               const SizedBox(height: 20),
               MyTextfield(
                 controller: _passwordController,
                 icon: Icons.lock_outline,
-                hintText: "Mot de passe",
+                hintText: loc.translate('passwordHint'),
                 obscureText: true,
-              ),
-
-              const SizedBox(height: 30),
-              const Text("CHOISISSEZ VOTRE RÔLE", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 15),
-
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: roles.map((role) {
-                  final bool isSelected = selectedRole == role['name'];
-                  return GestureDetector(
-                    onTap: () => setState(() => selectedRole = role['name']),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
-                      ),
-                      child: Text(
-                        role['name'],
-                        style: TextStyle(color: isSelected ? Colors.white : AppColors.text, fontWeight: FontWeight.w600, fontSize: 13),
-                      ),
-                    ),
-                  );
-                }).toList(),
               ),
 
               const SizedBox(height: 40),
 
               SizedBox(
                 width: double.infinity,
-                child: MyButton(
-                  icon: Icons.login,
-                  text: "Se connecter",
-                  onTap: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => DashboardPage(userRole: selectedRole)),
-                    );
-                  },
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : MyButton(
+                        icon: _isLogin ? Icons.login : Icons.how_to_reg,
+                        text: _isLogin
+                            ? loc.translate('connectButton')
+                            : "Créer le compte",
+                        onTap: _isLogin ? _handleLogin : _handleRegister,
+                      ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Center(
+                child: TextButton(
+                  onPressed: _toggleAuthMode,
+                  child: Text(
+                    _isLogin
+                        ? "Créer un compte"
+                        : "Déjà un compte ? Se connecter",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -144,5 +169,93 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleLogin() async {
+    if (_emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Identifiant (email ou téléphone) et mot de passe requis',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final result = await ApiService.login(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (result['success'] == true) {
+        final currentUser = result['user'] as AppUser;
+        await AuthSessionService.saveSession(currentUser);
+        await AuthSessionService.saveActiveSchool(null);
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SchoolSelectionPage(user: currentUser),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['message']?.toString() ?? 'Connexion impossible',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Serveur injoignable')));
+    }
+  }
+
+  Future<void> _handleRegister() async {
+    if (_nameController.text.trim().isEmpty ||
+        _emailController.text.trim().isEmpty ||
+        _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez remplir tous les champs')),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
+    final result = await ApiService.registerAccount(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+      phone: _phoneController.text.trim(),
+    );
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Compte créé avec succès ! Connectez-vous."),
+        ),
+      );
+      setState(() => _isLogin = true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['message']?.toString() ?? 'Erreur lors de l\'inscription',
+          ),
+        ),
+      );
+    }
   }
 }

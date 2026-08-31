@@ -11,7 +11,7 @@ class Subject {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      if (id.isNotEmpty && id != '0') 'id': int.tryParse(id) ?? id,
       'name': name,
       'coefficient': coefficient,
     };
@@ -19,9 +19,11 @@ class Subject {
 
   factory Subject.fromMap(Map<String, dynamic> map) {
     return Subject(
-      id: map['id'],
-      name: map['name'],
-      coefficient: map['coefficient']?.toDouble() ?? 1.0,
+      id: map['id']?.toString() ?? '',
+      name: map['name']?.toString() ?? '',
+      coefficient: map['coefficient'] is num
+          ? (map['coefficient'] as num).toDouble()
+          : double.tryParse(map['coefficient']?.toString() ?? '1.0') ?? 1.0,
     );
   }
 }

@@ -1,120 +1,216 @@
+import 'package:edugest/models/app_user.dart';
+import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
+import '../components/my_textfield.dart';
 
-class Depenses extends StatelessWidget {
-  const Depenses({super.key});
+class Depenses extends StatefulWidget {
+  final AppUser currentUser;
+  const Depenses({super.key, required this.currentUser});
+
+  @override
+  State<Depenses> createState() => _DepensesState();
+}
+
+class _DepensesState extends State<Depenses> {
+  List<Map<String, dynamic>> _expenses = [];
+  bool _isLoading = true;
+  double _total = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchExpenses();
+  }
+
+  Future<void> _fetchExpenses() async {
+    setState(() => _isLoading = true);
+    try {
+      final data = await ApiService.getExpenses();
+      if (!mounted) return;
+      setState(() {
+        _expenses = data;
+        _total = data.fold(0.0, (sum, e) {
+          final amount = e['amount'];
+          if (amount is num) return sum + amount.toDouble();
+          return sum + (double.tryParse('$amount') ?? 0);
+        });
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Erreur lors du chargement des dépenses")),
+      );
+    }
+  }
+
+  void _showAddDialog() {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    String category = 'Charges';
+    final categories = ['Charges', 'Fournitures', 'Services', 'Achat', 'Autre'];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text("Nouvelle dépense"),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                MyTextfield(controller: titleCtrl, hintText: "Libellé", icon: Icons.receipt),
+                const SizedBox(height: 12),
+                MyTextfield(controller: amountCtrl, hintText: "Montant", icon: Icons.payments),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: category,
+                  decoration: InputDecoration(
+                    labelText: "Catégorie",
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) => setDialogState(() => category = v!),
+                ),
+                const SizedBox(height: 12),
+                MyTextfield(controller: descCtrl, hintText: "Description (optionnel)", icon: Icons.notes),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () async {
+                final amount = double.tryParse(amountCtrl.text.replaceAll(',', '.'));
+                if (titleCtrl.text.isEmpty || amount == null) return;
+                try {
+                  await ApiService.saveExpense({
+                    'title': titleCtrl.text.trim(),
+                    'category': category,
+                    'amount': amount,
+                    'date': DateTime.now().toIso8601String(),
+                    'description': descCtrl.text.trim(),
+                    'recordedById': widget.currentUser.id,
+                  });
+                  if (context.mounted) Navigator.pop(context);
+                  await _fetchExpenses();
+                } catch (_) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Erreur d'enregistrement")),
+                    );
+                  }
+                }
+              },
+              child: const Text("Enregistrer", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(dynamic raw) {
+    if (raw == null) return '';
+    final dt = DateTime.tryParse(raw.toString());
+    if (dt == null) return raw.toString();
+    return DateFormat('dd/MM/yyyy').format(dt);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header flexible avec Wrap
         Wrap(
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
           spacing: 16,
           runSpacing: 12,
           children: [
-            const Text(
-              "Gestion des Dépenses",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
-            ),
-            MyButton(
-              icon: Icons.add_shopping_cart,
-              text: "Ajouter",
-              onTap: () {},
-            ),
+            const Text("Gestion des Dépenses", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            MyButton(icon: Icons.add_shopping_cart, text: "Ajouter", onTap: _showAddDialog),
           ],
         ),
-        const SizedBox(height: 24),
-        
-        // Carte de résumé sécurisée avec LayoutBuilder
+        const SizedBox(height: 16),
         Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.red.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.red.withOpacity(0.1)),
+            color: Colors.orange.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
           ),
-          child: LayoutBuilder(builder: (context, constraints) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
+          child: Row(
+            children: [
+              const Icon(Icons.account_balance_wallet, color: Colors.orange),
+              const SizedBox(width: 12),
+              Text(
+                "Total dépenses : ${_total.toStringAsFixed(0)} FCFA",
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_expenses.isEmpty)
+          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucune dépense enregistrée")))
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _expenses.length,
+            itemBuilder: (context, index) {
+              final item = _expenses[index];
+              final amount = item['amount'];
+              final amountLabel = amount is num
+                  ? amount.toStringAsFixed(0)
+                  : amount?.toString() ?? '0';
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.receipt_long)),
+                  title: Text(item['title']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Dépenses du mois", 
-                        style: TextStyle(fontSize: 13, color: AppColors.textMuted),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      const FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          "845,000 FCFA", 
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.red),
-                        ),
+                      Text("${item['category'] ?? ''} • ${_formatDate(item['date'])}"),
+                      if (item['recordedByName'] != null)
+                        Text("Effectuée par: ${item['recordedByName']}", style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppColors.textMuted)),
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text("-$amountLabel F", style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                        onPressed: () async {
+                          try {
+                            await ApiService.deleteExpense(item['id'].toString());
+                            await _fetchExpenses();
+                          } catch (_) {}
+                        },
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
-                Icon(Icons.trending_up, color: Colors.red, size: constraints.maxWidth > 300 ? 32 : 24),
-              ],
-            );
-          }),
-        ),
-        const SizedBox(height: 32),
-        const Text(
-          "Dépenses récentes",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 16),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: 4,
-          itemBuilder: (context, index) {
-            final items = [
-              {'title': 'Facture Senelec', 'cat': 'Charges', 'price': '125,000'},
-              {'title': 'Rames de papier', 'cat': 'Fournitures', 'price': '45,000'},
-              {'title': 'Maintenance Informatique', 'cat': 'Services', 'price': '75,000'},
-              {'title': 'Achat craies', 'cat': 'Fournitures', 'price': '12,000'},
-            ];
-            final item = items[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                leading: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.bg,
-                  child: const Icon(Icons.receipt_long, color: AppColors.textMuted, size: 18),
-                ),
-                title: Text(
-                  item['title']!, 
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                subtitle: Text(item['cat']!, style: const TextStyle(fontSize: 12)),
-                trailing: Text(
-                  "${item['price']} F", 
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 13),
-                ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
       ],
     );
   }
