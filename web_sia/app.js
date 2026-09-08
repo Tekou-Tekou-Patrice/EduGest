@@ -166,6 +166,41 @@ const State = {
   templates: {}
 };
 
+if (State.apiBaseUrl.includes('onrender.com')) {
+  State.apiBaseUrl = 'http://localhost:8003';
+  localStorage.setItem('edugest_admin_api_url', State.apiBaseUrl);
+}
+
+async function apiRequest(endpoint, options = {}) {
+  try {
+    const response = await fetch(`${State.apiBaseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(localStorage.getItem('edugest_admin_token')
+          ? { 'Authorization': 'Bearer ' + localStorage.getItem('edugest_admin_token') }
+          : {}),
+        ...(options.headers || {})
+      }
+    });
+    if (!response.ok) {
+      let message = `Erreur HTTP ${response.status}`;
+      try {
+        const data = await response.json();
+        message = data.message || message;
+      } catch (_) {}
+      throw new Error(message);
+    }
+    return response.status === 204 ? null : response.json();
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error('Problème de réseau, vérifiez votre accès à Internet.');
+    }
+    throw error;
+  }
+}
+
 // ==========================================================================
 // DATA PERSISTENCE HELPERS
 // ==========================================================================
@@ -173,22 +208,22 @@ const State = {
 function loadStateFromStorage() {
   try {
     const rawSchools = localStorage.getItem('edugest_admin_schools');
-    State.schools = rawSchools ? JSON.parse(rawSchools) : DEFAULT_SCHOOLS;
+    State.schools = rawSchools ? JSON.parse(rawSchools) : [];
 
     const rawPayments = localStorage.getItem('edugest_admin_payments_config');
-    State.paymentMethods = rawPayments ? JSON.parse(rawPayments) : DEFAULT_PAYMENT_METHODS;
+    State.paymentMethods = rawPayments ? JSON.parse(rawPayments) : {};
 
     const rawPromos = localStorage.getItem('edugest_admin_promos');
-    State.promotions = rawPromos ? JSON.parse(rawPromos) : DEFAULT_PROMOTIONS;
+    State.promotions = rawPromos ? JSON.parse(rawPromos) : [];
 
     const rawTemplates = localStorage.getItem('edugest_admin_templates');
-    State.templates = rawTemplates ? JSON.parse(rawTemplates) : DEFAULT_TEMPLATES;
+    State.templates = rawTemplates ? JSON.parse(rawTemplates) : {};
   } catch (e) {
     console.error('Erreur chargement localStorage, réinitialisation par défaut', e);
-    State.schools = DEFAULT_SCHOOLS;
-    State.paymentMethods = DEFAULT_PAYMENT_METHODS;
-    State.promotions = DEFAULT_PROMOTIONS;
-    State.templates = DEFAULT_TEMPLATES;
+    State.schools = [];
+    State.paymentMethods = {};
+    State.promotions = [];
+    State.templates = {};
   }
 }
 
@@ -197,6 +232,64 @@ function saveStateToStorage() {
   localStorage.setItem('edugest_admin_payments_config', JSON.stringify(State.paymentMethods));
   localStorage.setItem('edugest_admin_promos', JSON.stringify(State.promotions));
   localStorage.setItem('edugest_admin_templates', JSON.stringify(State.templates));
+}
+
+async function loadConnectedData() {
+  let schoolsLoaded = false;
+  try {
+    const schools = await apiRequest('/api/schools/all');
+    State.schools = Array.isArray(schools) ? schools.map(mapBackendSchool) : [];
+    schoolsLoaded = true;
+  } catch (error) {
+    console.error('Impossible de charger les écoles:', error);
+  }
+
+  try {
+    const settings = await apiRequest('/api/saas-settings');
+    State.paymentMethods = {
+      orange: {
+        active: Boolean(settings.orangeNumber),
+        label: 'Orange Money',
+        number: settings.orangeNumber || '',
+        holder: settings.orangeName || '',
+        instructions: settings.paymentInstructions || ''
+      },
+      mtn: {
+        active: Boolean(settings.mtnNumber),
+        label: 'MTN Mobile Money',
+        number: settings.mtnNumber || '',
+        holder: settings.mtnName || '',
+        instructions: settings.paymentInstructions || ''
+      }
+    };
+  } catch (error) {
+    console.error('Impossible de charger les paramètres de paiement:', error);
+  }
+
+  if (!schoolsLoaded) {
+    State.schools = [];
+    showToast('Impossible de charger les écoles depuis le serveur local.', 'error');
+  }
+  saveStateToStorage();
+  renderDashboard();
+  renderSchools();
+  renderPaymentMethodsConfig();
+}
+
+function mapBackendSchool(school) {
+  return {
+    ...school,
+    id: String(school.id),
+    status: school.active === false ? 'suspended' : 'active',
+    founderName: school.founderName || 'Non renseigné',
+    founderPhone: school.founderPhone || '',
+    whatsapp: school.founderPhone || '',
+    secretaryName: school.secretaryName || '',
+    secretaryPhone: school.secretaryPhone || '',
+    pack: school.planName || 'Standard',
+    monthlyPrice: school.monthlyFee || 0,
+    subscriptionEnd: school.subscriptionExpiresAt || ''
+  };
 }
 
 // ==========================================================================
@@ -271,7 +364,7 @@ function buildPaymentMethodsText() {
   }
 
   if (parts.length === 0) {
-    return `• Orange Money : +221 77 123 45 67 (EDUGEST SAS)\n• MTN MoMo : +221 76 654 32 10 (EDUGEST SAS)`;
+    return 'Aucun numéro de paiement configuré.';
   }
 
   return parts.join('\n\n');
@@ -630,6 +723,16 @@ function renderSchoolCardHtml(school) {
           </a>
         </div>
         <div class="founder-row">
+          <span class="founder-label">Secrétaire :</span>
+          <span class="founder-value">👤 ${escapeHtml(school.secretaryName || 'Non renseigné')}</span>
+        </div>
+        <div class="founder-row">
+          <span class="founder-label">Téléphone secrétaire :</span>
+          <a href="tel:${escapeHtml(school.secretaryPhone || '')}" style="color: var(--primary); text-decoration: none; font-weight: 600;">
+            📞 ${escapeHtml(school.secretaryPhone || 'N/A')}
+          </a>
+        </div>
+        <div class="founder-row">
           <span class="founder-label">WhatsApp Direct :</span>
           <span style="color: var(--whatsapp); font-weight: 700;">💬 ${escapeHtml(school.whatsapp || school.founderPhone || 'N/A')}</span>
         </div>
@@ -712,25 +815,19 @@ function filterExpiringSchools() {
 }
 
 // Toggle School Active / Suspended
-function toggleSchoolStatus(schoolId) {
+async function toggleSchoolStatus(schoolId) {
   const school = State.schools.find(s => s.id === schoolId);
   if (!school) return;
-
-  if (school.status === 'active') {
-    school.status = 'suspended';
-    showToast(`L'école "${school.name}" a été suspendue (accès bloqué).`, 'warning');
-  } else {
-    school.status = 'active';
-    // If expiry date was in the past, extend by 30 days automatically
-    if (getDaysRemaining(school.subscriptionEnd) < 0) {
-      school.subscriptionEnd = addMonthsToDate(new Date().toISOString().split('T')[0], 1);
-    }
-    showToast(`L'école "${school.name}" a été activée (accès rétabli).`, 'success');
+  try {
+    const updated = await apiRequest(`/api/schools/${encodeURIComponent(schoolId)}/toggle`, { method: 'PATCH' });
+    Object.assign(school, mapBackendSchool(updated));
+    saveStateToStorage();
+    renderDashboard();
+    renderSchools();
+    showToast(`L'école "${school.name}" a été ${school.status === 'active' ? 'activée' : 'suspendue'}.`, 'success');
+  } catch (error) {
+    showToast(error.message || "Impossible de modifier l'état de l'école.", 'error');
   }
-
-  saveStateToStorage();
-  renderDashboard();
-  renderSchools();
 }
 
 // ==========================================================================
@@ -990,7 +1087,7 @@ function updateLivePaymentTextPreview() {
   }
 }
 
-function savePaymentMethodsConfig() {
+async function savePaymentMethodsConfig() {
   State.paymentMethods.orange = {
     active: document.getElementById('cfg-orange-active').checked,
     label: 'Orange Money',
@@ -1014,9 +1111,26 @@ function savePaymentMethodsConfig() {
     holder: document.getElementById('cfg-other-holder').value.trim()
   };
 
-  saveStateToStorage();
-  updateLivePaymentTextPreview();
-  showToast("Paramètres des numéros MTN & Orange Money enregistrés avec succès.", "success");
+  try {
+    const settings = await apiRequest('/api/saas-settings');
+    settings.orangeNumber = State.paymentMethods.orange.number;
+    settings.orangeName = State.paymentMethods.orange.holder;
+    settings.mtnNumber = State.paymentMethods.mtn.number;
+    settings.mtnName = State.paymentMethods.mtn.holder;
+    settings.paymentInstructions = [
+      State.paymentMethods.orange.instructions,
+      State.paymentMethods.mtn.instructions
+    ].filter(Boolean).join(' | ');
+    await apiRequest('/api/saas-settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings)
+    });
+    saveStateToStorage();
+    updateLivePaymentTextPreview();
+    showToast("Paramètres des numéros MTN & Orange Money enregistrés sur le serveur.", "success");
+  } catch (error) {
+    showToast(error.message || "Impossible d'enregistrer les numéros.", "error");
+  }
 }
 
 // ==========================================================================
@@ -1246,7 +1360,7 @@ function renderInvoicePreview() {
   document.getElementById('inv-client-school').textContent = school.name;
   document.getElementById('inv-client-founder').textContent = `Fondateur : ${school.founderName || 'N/A'}`;
   document.getElementById('inv-client-phone').textContent = `Téléphone : ${school.founderPhone || 'N/A'}`;
-  document.getElementById('inv-client-city').textContent = `Ville : ${school.city || 'Dakar'}`;
+  document.getElementById('inv-client-city').textContent = `Ville : ${school.city || 'Non renseignée'}`;
   document.getElementById('inv-payment-details').textContent = `Règlement : ${method}`;
 
   document.getElementById('inv-table-pack').textContent = school.pack || 'Standard';
@@ -1349,16 +1463,18 @@ function handleImportBackup(e) {
   reader.readAsText(file);
 }
 
-function resetToDemoData() {
-  if (confirm("Voulez-vous restaurer les données d'exemple complètes (écoles actives/suspendues, numéros Orange/MTN, promos) ?")) {
-    State.schools = JSON.parse(JSON.stringify(DEFAULT_SCHOOLS));
-    State.paymentMethods = JSON.parse(JSON.stringify(DEFAULT_PAYMENT_METHODS));
-    State.promotions = JSON.parse(JSON.stringify(DEFAULT_PROMOTIONS));
-    State.templates = JSON.parse(JSON.stringify(DEFAULT_TEMPLATES));
-    saveStateToStorage();
-    showToast("Données de démonstration réinitialisées.", "info");
-    renderDashboard();
-    renderSchools();
+async function resetToDemoData() {
+  if (confirm("Voulez-vous supprimer les données locales et recharger les données du serveur ?")) {
+    State.schools = [];
+    State.paymentMethods = {};
+    State.promotions = [];
+    State.templates = {};
+    localStorage.removeItem('edugest_admin_schools');
+    localStorage.removeItem('edugest_admin_payments_config');
+    localStorage.removeItem('edugest_admin_promos');
+    localStorage.removeItem('edugest_admin_templates');
+    await loadConnectedData();
+    showToast("Les données locales ont été supprimées. Les données serveur ont été rechargées.", "info");
   }
 }
 
@@ -1459,4 +1575,5 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSchools();
   renderPaymentMethodsConfig();
   checkBackendHealth();
+  loadConnectedData();
 });

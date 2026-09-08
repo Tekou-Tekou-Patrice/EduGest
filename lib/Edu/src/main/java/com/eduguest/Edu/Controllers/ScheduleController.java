@@ -1,5 +1,7 @@
 package com.eduguest.Edu.Controllers;
 
+import com.eduguest.Edu.Config.RequireRoles;
+import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.DTO.ScheduleItemDto;
 import com.eduguest.Edu.Service.ScheduleService;
 import jakarta.validation.Valid;
@@ -7,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
@@ -88,12 +91,21 @@ public class ScheduleController {
         }
     }
 
+    @GetMapping("/current")
+    public ResponseEntity<ScheduleItemDto> getCurrentSession(@RequestParam String teacherName) {
+        Optional<ScheduleItemDto> session = scheduleService.getCurrentSession(teacherName);
+        return session.map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @PostMapping
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR})
     public ResponseEntity<ScheduleItemDto> createScheduleItem(@Valid @RequestBody ScheduleItemDto dto) {
         return ResponseEntity.ok(scheduleService.createScheduleItem(dto));
     }
 
     @DeleteMapping("/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR})
     public ResponseEntity<Void> deleteScheduleItem(@PathVariable Long id) {
         scheduleService.deleteScheduleItem(id);
         return ResponseEntity.noContent().build();

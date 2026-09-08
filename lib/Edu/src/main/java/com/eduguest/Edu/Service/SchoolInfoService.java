@@ -4,6 +4,7 @@ import com.eduguest.Edu.DTO.SchoolInfoDto;
 import com.eduguest.Edu.Entity.AcademicYear;
 import com.eduguest.Edu.Entity.School;
 import com.eduguest.Edu.Entity.SchoolInfo;
+import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Repository.SchoolInfoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,14 +17,17 @@ public class SchoolInfoService {
     private final SchoolInfoRepository schoolInfoRepository;
     private final AcademicYearService academicYearService;
     private final SchoolContextService schoolContextService;
+    private final UserSecurityContextService userSecurityContextService;
 
 
     public SchoolInfoService(SchoolInfoRepository schoolInfoRepository,
                              AcademicYearService academicYearService,
-                               SchoolContextService schoolContextService) {
+                             SchoolContextService schoolContextService,
+                             UserSecurityContextService userSecurityContextService) {
         this.schoolContextService = schoolContextService;
         this.schoolInfoRepository = schoolInfoRepository;
         this.academicYearService = academicYearService;
+        this.userSecurityContextService = userSecurityContextService;
     }
 
     @Transactional
@@ -59,7 +63,8 @@ public class SchoolInfoService {
         if (dto.getPhone() != null) entity.setPhone(dto.getPhone());
         entity.setEmail(dto.getEmail());
         entity.setLogoUrl(dto.getLogoUrl());
-        if (dto.getCode() != null && !dto.getCode().isBlank()) {
+        if (dto.getCode() != null && !dto.getCode().isBlank()
+                && userSecurityContextService.getCurrentRole() == UserRole.FONDATEUR) {
             School school = schoolContextService.currentSchool();
             if (school != null) {
                 school.setCode(dto.getCode().trim().toUpperCase());
@@ -102,6 +107,10 @@ public class SchoolInfoService {
         School currentSchool = schoolContextService.currentSchool();
         if (currentSchool != null) {
             dto.setCode(currentSchool.getCode());
+            dto.setSubscriptionStatus(currentSchool.getSubscriptionStatus());
+            dto.setSubscriptionExpiresAt(currentSchool.getSubscriptionExpiresAt());
+            dto.setMonthlyFee(currentSchool.getMonthlyFee());
+            dto.setPlanName(currentSchool.getPlanName());
         }
         dto.setAddress(entity.getAddress());
         dto.setPhone(entity.getPhone());

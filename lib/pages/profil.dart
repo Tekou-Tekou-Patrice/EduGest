@@ -19,30 +19,32 @@ class Profil extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: const Text("Changer le mot de passe"),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            MyTextfield(
-              controller: oldPasswordController,
-              hintText: "Ancien mot de passe",
-              icon: Icons.lock_outline,
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            MyTextfield(
-              controller: newPasswordController,
-              hintText: "Nouveau mot de passe",
-              icon: Icons.lock_reset,
-              obscureText: true,
-            ),
-            const SizedBox(height: 16),
-            MyTextfield(
-              controller: confirmPasswordController,
-              hintText: "Confirmer le mot de passe",
-              icon: Icons.lock_reset,
-              obscureText: true,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MyTextfield(
+                controller: oldPasswordController,
+                hintText: "Ancien mot de passe",
+                icon: Icons.lock_outline,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              MyTextfield(
+                controller: newPasswordController,
+                hintText: "Nouveau mot de passe",
+                icon: Icons.lock_reset,
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              MyTextfield(
+                controller: confirmPasswordController,
+                hintText: "Confirmer le mot de passe",
+                icon: Icons.lock_reset,
+                obscureText: true,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

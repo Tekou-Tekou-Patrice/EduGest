@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../components/app_colors.dart';
+import '../localization/app_localizations.dart';
 import '../models/app_user.dart';
 import '../models/school.dart';
 import '../service/api_service.dart';
 import '../service/auth_session_service.dart';
+import '../service/notification_service.dart';
 import '../service/school_notifier.dart';
 import 'home_router.dart';
+import 'login_page.dart';
 import 'school_access_page.dart';
 
 class SchoolSelectionPage extends StatefulWidget {
@@ -29,13 +32,18 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
 
   Future<void> _select(School school) async {
     try {
+      final effectiveRole = school.role ?? _user.role;
+      final selectedUser = _user.copyWith(role: effectiveRole);
+      _user = selectedUser;
+
       // 1. Informer le serveur du choix de l'école
       await ApiService.selectSchool(userId: _user.id, schoolId: school.id);
 
       // 2. Activer l'ID dans le client API pour les futures requêtes
       ApiService.setActiveSchool(school.id);
+      ApiService.setActiveUser(_user);
 
-      // 3. Sauvegarder la session localement
+      // 3. Sauvegarder la session localement avec le rôle lié à l'école choisie
       await AuthSessionService.saveSession(_user, schoolId: school.id);
 
       // 4. Forcer la mise à jour globale des infos de l'école (nom, logo, etc.)
@@ -74,13 +82,33 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: const Text('Mes Établissements'),
+        automaticallyImplyLeading: false,
+        title: Text(loc.translate('mySchools')),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: AppColors.textMuted),
+            tooltip: loc.translate('logout'),
+            onPressed: () async {
+              NotificationService.instance.stop();
+              ApiService.activeSchoolId = null;
+              ApiService.clearActiveUser();
+              await AuthSessionService.clearSession();
+              if (!context.mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (route) => false,
+              );
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<List<School>>(
         future: _schools,
@@ -89,8 +117,8 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return const Center(
-              child: Text("Erreur lors du chargement des écoles."),
+            return Center(
+              child: Text(loc.translate('schoolLoadingError')),
             );
           }
           final schools = snapshot.data ?? [];
@@ -104,8 +132,8 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                     children: [
                       const Icon(Icons.school_outlined, size: 80, color: Colors.grey),
                       const SizedBox(height: 16),
-                      const Text(
-                        "Vous n'êtes inscrit dans aucune école.",
+                      Text(
+                        loc.translate('noSchoolMembership'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 18,
@@ -116,8 +144,8 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                       FilledButton.icon(
                         onPressed: _openSchoolAccess,
                         icon: const Icon(Icons.add_business),
-                        label: const Text(
-                          "Rejoindre ou Créer une école",
+                        label: Text(
+                          loc.translate('joinOrCreateSchool'),
                         ),
                       ),
                     ],
@@ -129,8 +157,8 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
           return ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              const Text(
-                "Sélectionnez l'établissement à gérer :",
+              Text(
+                loc.translate('selectSchoolToManage'),
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 16),
@@ -157,7 +185,20 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                         school.name,
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                      subtitle: Text(school.address ?? "Adresse non définie"),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(school.address ?? loc.translate('undefinedAddress')),
+                          if (school.role != null)
+                            Text(
+                              'Rôle: ${school.roleLabel}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                        ],
+                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _select(school),
                     ),
@@ -168,7 +209,7 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
               TextButton.icon(
                 onPressed: _openSchoolAccess,
                 icon: const Icon(Icons.add),
-                label: const Text("Ajouter un autre établissement"),
+                label: Text(loc.translate('addAnotherSchool')),
               ),
             ],
           );

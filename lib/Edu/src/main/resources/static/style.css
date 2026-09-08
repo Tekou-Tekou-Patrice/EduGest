@@ -1184,7 +1184,8 @@ body.light-theme .data-table tbody tr:hover {
 
 #admin-schools-list,
 #admin-payment-methods-list,
-#admin-promotions-list {
+#admin-promotions-list,
+#admin-expiring-subscriptions {
   padding: 18px;
   display: flex;
   flex-direction: column;
@@ -1204,6 +1205,14 @@ body.light-theme .data-table tbody tr:hover {
 .admin-payment-card,
 .admin-promo-card {
   opacity: 0.98;
+}
+
+.subscription-alert-panel {
+  margin-bottom: 20px;
+}
+
+.subscription-expiring-card {
+  border-left: 4px solid var(--warning);
 }
 
 .admin-school-top,

@@ -12,6 +12,7 @@ public enum UserRole {
     COMPTABLE,
     ENSEIGNANT,
     SURVEILLANT_GENERAL,
+    SURVEILLANT,
     PARENT;
 
     @JsonCreator
@@ -24,17 +25,25 @@ public enum UserRole {
                 .toLowerCase()
                 .replace('é', 'e')
                 .replace('è', 'e')
-                .replace('ê', 'e');
+                .replace('ê', 'e')
+                .replace('à', 'a')
+                .replace('ù', 'u')
+                .replace('ç', 'c')
+                .replace('î', 'i')
+                .replace('ï', 'i')
+                .replace('ô', 'o')
+                .replace(" ", "");
         return switch (normalized) {
-            case "membre", "member" -> MEMBRE;
-            case "fondateur" -> FONDATEUR;
-            case "proviseur" -> PROVISEUR;
+            case "membre", "member", "eleve", "student" -> MEMBRE;
+            case "fondateur", "admin", "administrateur", "administrator" -> FONDATEUR;
+            case "proviseur", "directeur", "directrice", "principal" -> PROVISEUR;
             case "censeur" -> CENSEUR;
-            case "secretaire" -> SECRETAIRE;
+            case "secretaire", "secretariat", "secretary" -> SECRETAIRE;
             case "comptable" -> COMPTABLE;
-            case "enseignant" -> ENSEIGNANT;
-            case "surveillant general", "surveillant général" -> SURVEILLANT_GENERAL;
-            case "parent" -> PARENT;
+            case "enseignant", "professeur", "prof", "teacher" -> ENSEIGNANT;
+            case "surveillantgeneral" -> SURVEILLANT_GENERAL;
+            case "surveillant" -> SURVEILLANT;
+            case "parent", "parents" -> PARENT;
             default -> throw new IllegalArgumentException("Unknown role: " + value);
         };
     }
@@ -50,6 +59,7 @@ public enum UserRole {
             case COMPTABLE -> "Comptable";
             case ENSEIGNANT -> "Enseignant";
             case SURVEILLANT_GENERAL -> "Surveillant Général";
+            case SURVEILLANT -> "Surveillant";
             case PARENT -> "Parent";
         };
     }

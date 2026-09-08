@@ -28,6 +28,9 @@ import 'package:edugest/service/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:edugest/pages/recap_annees.dart';
 import 'package:edugest/pages/bulletins_page.dart';
+import 'package:edugest/pages/programme_page.dart';
+import 'package:edugest/pages/teacher_room_check_page.dart';
+import 'package:edugest/pages/school_selection_page.dart';
 import 'package:edugest/models/school_info.dart';
 import 'package:edugest/service/school_notifier.dart';
 import '../components/app_colors.dart';
@@ -86,6 +89,7 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _logout() async {
     NotificationService.instance.stop();
     ApiService.activeSchoolId = null;
+    ApiService.clearActiveUser();
     await AuthSessionService.clearSession();
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -142,6 +146,10 @@ class _DashboardPageState extends State<DashboardPage> {
         return 'Paramètres';
       case 'profile':
         return 'Mon Profil';
+      case 'programme':
+        return 'Programme et progression';
+      case 'teacherRoomChecks':
+        return 'Présence des enseignants';
       default:
         return loc.translate('dashboard');
     }
@@ -181,8 +189,7 @@ class _DashboardPageState extends State<DashboardPage> {
             _navItem(loc, Icons.dashboard, 'dashboard'),
             if (isFondateur || isCenseur || isSG || isEnseignant)
               _navItem(loc, Icons.calendar_month, 'timetable'),
-            if (isFondateur || isSG || isEnseignant)
-              _navItem(loc, Icons.how_to_reg, 'appel'),
+            if (isEnseignant) _navItem(loc, Icons.how_to_reg, 'appel'),
           ],
         ),
       );
@@ -213,6 +220,12 @@ class _DashboardPageState extends State<DashboardPage> {
     }
     if (isFondateur || isProviseur || isCenseur) {
       acadItems.add(_navItem(loc, Icons.assignment, 'bulletins'));
+    }
+    if (isFondateur || isProviseur || isSecretaire || isEnseignant || isParent) {
+      acadItems.add(_navItem(loc, Icons.menu_book, 'programme'));
+    }
+    if (isFondateur || isProviseur || isSecretaire || isSG || isEnseignant) {
+      acadItems.add(_navItem(loc, Icons.fact_check, 'teacherRoomChecks'));
     }
     if (acadItems.isNotEmpty) {
       sections.add(SidebarSection(title: 'Vie Scolaire', items: acadItems));
@@ -331,59 +344,88 @@ class _DashboardPageState extends State<DashboardPage> {
             borderRadius: BorderRadius.circular(15),
             border: Border.all(color: Colors.orange.shade300),
           ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.pause_circle_filled,
-                color: Colors.deepOrange,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Année scolaire sauvegardée et archivée — En attente de renouvellement",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Colors.deepOrange,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final button = widget.currentUser.role == UserRole.fondateur
+                  ? ElevatedButton(
+                      onPressed: () => _handleNavigation('settings', context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      "L'exercice précédent a été clôturé. Rendez-vous dans les Paramètres pour démarrer la nouvelle année académique.",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange.shade900,
+                      child: const Text(
+                        "Paramètres",
+                        style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              if (widget.currentUser.role == UserRole.fondateur)
-                Padding(
-                  padding: const EdgeInsets.only(left: 10),
-                  child: ElevatedButton(
-                    onPressed: () => _handleNavigation('settings', context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepOrange,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                    ),
-                    child: const Text(
-                      "Paramètres",
-                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    )
+                  : null;
+              final message = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.pause_circle_filled,
+                    color: Colors.deepOrange,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Année scolaire sauvegardée et archivée — En attente de renouvellement",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Colors.deepOrange,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "L'exercice précédent a été clôturé. Rendez-vous dans les Paramètres pour démarrer la nouvelle année académique.",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange.shade900,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-            ],
+                ],
+              );
+              if (button == null || constraints.maxWidth >= 560) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: message),
+                    if (button != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 10),
+                        child: button,
+                      ),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  message,
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: button,
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
@@ -446,6 +488,21 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           IconButton(
             icon: const Icon(
+              Icons.swap_horiz,
+              color: AppColors.textMuted,
+            ),
+            tooltip: 'Changer d’école',
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SchoolSelectionPage(user: widget.currentUser),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(
               Icons.notifications_none,
               color: AppColors.textMuted,
             ),
@@ -483,7 +540,7 @@ class _DashboardPageState extends State<DashboardPage> {
         builder: (dialogContext) => AlertDialog(
           title: const Text('Notifications'),
           content: SizedBox(
-            width: 460,
+            width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 460.0),
             child: notifications.isEmpty
                 ? const Text('Aucune notification non lue.')
                 : ListView.separated(
@@ -541,7 +598,7 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'teachers':
         return const ListeEnseignant();
       case 'myNotes':
-        return const Notes();
+        return Notes(currentUser: widget.currentUser);
       case 'receptionNotes':
         return const ReceptionNotes();
       case 'events':
@@ -574,10 +631,14 @@ class _DashboardPageState extends State<DashboardPage> {
         return RecapAnnees(currentUser: widget.currentUser);
       case 'settings':
         return Parametres(currentUser: widget.currentUser);
+      case 'programme':
+        return ProgrammePage(currentUser: widget.currentUser);
+      case 'teacherRoomChecks':
+        return TeacherRoomCheckPage(currentUser: widget.currentUser);
       case 'profile':
         return Profil(user: widget.currentUser);
       case 'managementStaff':
-        return GestionStaff(currentUserRole: widget.currentUser.displayRole);
+        return GestionStaff(currentUser: widget.currentUser);
       default:
         return _buildRoleBasedOverview();
     }

@@ -3,6 +3,8 @@ package com.eduguest.Edu.Controllers;
 import com.eduguest.Edu.DTO.AbsenceDto;
 import com.eduguest.Edu.DTO.SanctionDto;
 import com.eduguest.Edu.Service.DisciplineService;
+import com.eduguest.Edu.Config.RequireRoles;
+import com.eduguest.Edu.Entity.UserRole;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +32,7 @@ public class DisciplineController {
     }
 
     @PostMapping("/absences")
+    @RequireRoles({UserRole.ENSEIGNANT})
     public ResponseEntity<AbsenceDto> createAbsence(@Valid @RequestBody AbsenceDto dto) {
         return ResponseEntity.ok(disciplineService.createAbsence(dto));
     }
@@ -44,11 +47,13 @@ public class DisciplineController {
     }
 
     @PostMapping("/sanctions")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SURVEILLANT_GENERAL, UserRole.SURVEILLANT})
     public ResponseEntity<SanctionDto> createSanction(@Valid @RequestBody SanctionDto dto) {
         return ResponseEntity.ok(disciplineService.createSanction(dto));
     }
 
     @DeleteMapping("/sanctions/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SURVEILLANT_GENERAL})
     public ResponseEntity<Void> deleteSanction(@PathVariable Long id) {
         disciplineService.deleteSanction(id);
         return ResponseEntity.noContent().build();

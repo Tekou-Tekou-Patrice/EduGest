@@ -38,6 +38,9 @@ public class Exam implements SchoolScoped {
     @Column(name = "submitted_at", nullable = false)
     private LocalDateTime submittedAt;
 
+    @Column(name = "teacher_name")
+    private String teacherName;
+
     @Column(name = "academic_year_id")
     private Long academicYearId;
 }

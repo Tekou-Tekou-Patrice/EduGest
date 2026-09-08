@@ -287,6 +287,13 @@
           </div>
         </div>
 
+        <div class="admin-section-panel full-width subscription-alert-panel">
+          <div class="section-panel-header">
+            <h3>⚠️ Abonnements à renouveler sous 7 jours</h3>
+          </div>
+          <div id="admin-expiring-subscriptions"></div>
+        </div>
+
         <div class="subscription-grid">
           <div class="admin-section-panel">
             <div class="section-panel-header">
@@ -1037,14 +1044,14 @@
           <div class="form-group">
             <label>Rôle du compte *</label>
             <select class="form-control" id="user-role" required>
-              <option value="ADMIN">Administrateur (ADMIN)</option>
-              <option value="FONDATEUR">Fondateur (FONDATEUR)</option>
-              <option value="DIRECTEUR">Directeur / Principal</option>
-              <option value="ENSEIGNANT">Enseignant</option>
+              <option value="FONDATEUR">Fondateur</option>
+              <option value="PROVISEUR">Directeur / Principal</option>
+              <option value="SECRETAIRE">Secrétaire</option>
               <option value="COMPTABLE">Comptable</option>
-              <option value="SURVEILLANT">Surveillant Général</option>
+              <option value="ENSEIGNANT">Enseignant</option>
+              <option value="SURVEILLANT_GENERAL">Surveillant Général</option>
               <option value="PARENT">Parent d'élève</option>
-              <option value="ELEVE">Élève</option>
+              <option value="MEMBRE">Membre / Élève</option>
             </select>
           </div>
         </div>

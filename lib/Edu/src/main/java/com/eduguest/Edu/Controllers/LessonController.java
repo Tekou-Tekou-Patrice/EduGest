@@ -1,6 +1,8 @@
 package com.eduguest.Edu.Controllers;
 
+import com.eduguest.Edu.Config.RequireRoles;
 import com.eduguest.Edu.DTO.LessonDto;
+import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Service.LessonService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -32,8 +34,16 @@ public class LessonController {
     }
 
     @PostMapping
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
     public ResponseEntity<LessonDto> createLesson(@Valid @RequestBody LessonDto dto) {
         return ResponseEntity.ok(lessonService.createLesson(dto));
+    }
+
+    @DeleteMapping("/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
+    public ResponseEntity<Void> deleteLesson(@PathVariable Long id) {
+        lessonService.deleteLesson(id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/class/{className}")

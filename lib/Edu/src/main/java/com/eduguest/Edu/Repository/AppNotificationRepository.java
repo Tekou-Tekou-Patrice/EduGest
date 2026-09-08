@@ -27,6 +27,9 @@ public interface AppNotificationRepository extends JpaRepository<AppNotification
 
     List<AppNotification> findByRecipientIdAndReadFalseOrderByTimestampDesc(Long recipientId);
 
+    boolean existsBySchool_IdAndRecipient_IdAndTypeAndMessageContaining(
+            Long schoolId, Long recipientId, String type, String messagePart);
+
     @Query(value = "SELECT * FROM notifications WHERE type = :type ORDER BY timestamp DESC LIMIT 10", nativeQuery = true)
     List<AppNotification> findRecentByType(@Param("type") String type);
 }

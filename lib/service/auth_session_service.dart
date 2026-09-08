@@ -8,6 +8,17 @@ class AuthSessionService {
 
   static const String _userKey = 'edugest_current_user';
   static const String _schoolKey = 'edugest_active_school_id';
+  static const String _welcomeSeenKey = 'edugest_welcome_seen';
+
+  static Future<bool> hasSeenWelcome() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_welcomeSeenKey) ?? false;
+  }
+
+  static Future<void> markWelcomeSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_welcomeSeenKey, true);
+  }
 
   static Future<void> saveSession(AppUser user, {String? schoolId}) async {
     final prefs = await SharedPreferences.getInstance();

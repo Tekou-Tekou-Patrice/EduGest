@@ -12,4 +12,5 @@ public class LessonDto {
     private String subject;
     private LocalDateTime date;
     private String teacherId;
+    private String teacherName;
 }

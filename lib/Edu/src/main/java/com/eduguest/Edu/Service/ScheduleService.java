@@ -6,7 +6,13 @@ import com.eduguest.Edu.Repository.ScheduleItemRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -50,6 +56,59 @@ public class ScheduleService {
         academicYearService.autoCloseIfDue();
         return academicYearService.filterCurrentYear(schoolContextService.scope(scheduleItemRepository.findByTeacherName(teacherName)), ScheduleItem::getAcademicYearId)
                 .stream().map(this::mapToDto).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ScheduleItemDto> getCurrentSession(String teacherName) {
+        if (teacherName == null || teacherName.isBlank()) {
+            return Optional.empty();
+        }
+
+        String today = switch (LocalDate.now().getDayOfWeek()) {
+            case MONDAY -> "Lundi";
+            case TUESDAY -> "Mardi";
+            case WEDNESDAY -> "Mercredi";
+            case THURSDAY -> "Jeudi";
+            case FRIDAY -> "Vendredi";
+            case SATURDAY -> "Samedi";
+            case SUNDAY -> "Dimanche";
+        };
+        LocalTime now = LocalTime.now();
+
+        return academicYearService
+                .filterCurrentYear(
+                        schoolContextService.scope(scheduleItemRepository.findByTeacherName(teacherName.trim())),
+                        ScheduleItem::getAcademicYearId)
+                .stream()
+                .filter(item -> !item.isBreak())
+                .filter(item -> today.equalsIgnoreCase(item.getDay()))
+                .filter(item -> isWithinSession(item, now))
+                .findFirst()
+                .map(this::mapToDto);
+    }
+
+    private boolean isWithinSession(ScheduleItem item, LocalTime now) {
+        try {
+            LocalTime start = parseTime(item.getStartTime());
+            LocalTime end = parseTime(item.getEndTime());
+            return !now.isBefore(start) && now.isBefore(end);
+        } catch (DateTimeParseException | NullPointerException ex) {
+            return false;
+        }
+    }
+
+    private LocalTime parseTime(String value) {
+        String normalized = value.trim().replace('.', ':');
+        for (DateTimeFormatter formatter : List.of(
+                DateTimeFormatter.ofPattern("H:mm", Locale.ROOT),
+                DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT))) {
+            try {
+                return LocalTime.parse(normalized, formatter);
+            } catch (DateTimeParseException ignored) {
+                // Try the next supported time format.
+            }
+        }
+        throw new DateTimeParseException("Format horaire invalide", normalized, 0);
     }
 
     @Transactional

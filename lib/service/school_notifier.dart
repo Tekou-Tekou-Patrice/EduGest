@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../models/school_info.dart';
 import 'api_service.dart';
 
@@ -8,6 +9,10 @@ class SchoolNotifier extends ValueNotifier<SchoolInfo?> {
   bool _isFetching = false;
 
   Future<void> fetchSchoolInfo() async {
+    if (ApiService.currentUser?.token?.isNotEmpty != true ||
+        ApiService.activeSchoolId == null) {
+      return;
+    }
     if (_isFetching) return;
     _isFetching = true;
     try {
@@ -15,6 +20,11 @@ class SchoolNotifier extends ValueNotifier<SchoolInfo?> {
       if (info != null) {
         value = info;
       }
+    } on DioException catch (e) {
+      debugPrint(
+        'SchoolNotifier fetch error: status=${e.response?.statusCode} '
+        'data=${e.response?.data}',
+      );
     } catch (e) {
       debugPrint("SchoolNotifier fetch error: $e");
     } finally {

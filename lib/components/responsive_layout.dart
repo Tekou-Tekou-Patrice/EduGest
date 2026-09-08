@@ -13,6 +13,9 @@ class ResponsiveLayout extends StatelessWidget {
   });
 
   // Points de rupture (Breakpoints) standards
+  static bool isSmallMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < 380;
+
   static bool isMobile(BuildContext context) =>
       MediaQuery.of(context).size.width < 600;
 
@@ -23,6 +26,23 @@ class ResponsiveLayout extends StatelessWidget {
   static bool isDesktop(BuildContext context) =>
       MediaQuery.of(context).size.width >= 1100;
 
+  static double screenWidth(BuildContext context) =>
+      MediaQuery.of(context).size.width;
+
+  static double screenHeight(BuildContext context) =>
+      MediaQuery.of(context).size.height;
+
+  static T value<T>({
+    required BuildContext context,
+    required T mobile,
+    T? tablet,
+    T? desktop,
+  }) {
+    if (isDesktop(context) && desktop != null) return desktop;
+    if (isTablet(context) && tablet != null) return tablet;
+    return mobile;
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -30,8 +50,7 @@ class ResponsiveLayout extends StatelessWidget {
         if (constraints.maxWidth >= 1100) {
           return desktopBody;
         } else if (constraints.maxWidth >= 600) {
-          // Utilise le layout tablette si disponible, sinon bascule sur le layout bureau
-          return tabletBody ?? desktopBody;
+          return tabletBody ?? mobileBody;
         } else {
           return mobileBody;
         }

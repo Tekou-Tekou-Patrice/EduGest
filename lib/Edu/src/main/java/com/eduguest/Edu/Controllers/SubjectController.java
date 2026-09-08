@@ -2,6 +2,8 @@ package com.eduguest.Edu.Controllers;
 
 import com.eduguest.Edu.DTO.SubjectDto;
 import com.eduguest.Edu.Service.SubjectService;
+import com.eduguest.Edu.Config.RequireRoles;
+import com.eduguest.Edu.Entity.UserRole;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,11 +26,13 @@ public class SubjectController {
     }
 
     @PostMapping
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR})
     public ResponseEntity<SubjectDto> createSubject(@Valid @RequestBody SubjectDto dto) {
         return ResponseEntity.ok(subjectService.createSubject(dto));
     }
 
     @DeleteMapping("/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR})
     public ResponseEntity<Void> deleteSubject(@PathVariable Long id) {
         subjectService.deleteSubject(id);
         return ResponseEntity.noContent().build();

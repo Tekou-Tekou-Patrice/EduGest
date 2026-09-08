@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/school_info.dart';
 import '../service/school_notifier.dart';
+import '../localization/app_localizations.dart';
 import 'app_colors.dart';
 
 class SidebarItem {
@@ -23,10 +24,7 @@ class SidebarSection {
   final String title;
   final List<SidebarItem> items;
 
-  SidebarSection({
-    required this.title,
-    required this.items,
-  });
+  SidebarSection({required this.title, required this.items});
 }
 
 class MySidebar extends StatelessWidget {
@@ -35,6 +33,7 @@ class MySidebar extends StatelessWidget {
   final String? userRole;
   final Widget? bottomTip;
   final VoidCallback? onLogout;
+  final VoidCallback? onSwitchSchool;
 
   const MySidebar({
     super.key,
@@ -43,6 +42,7 @@ class MySidebar extends StatelessWidget {
     this.userRole,
     this.bottomTip,
     this.onLogout,
+    this.onSwitchSchool,
   });
 
   @override
@@ -66,6 +66,14 @@ class MySidebar extends StatelessWidget {
               ),
             ),
             _buildSidebarUser(context),
+            Padding(
+              padding: EdgeInsets.only(left: 16, right: 16, bottom: 12),
+              child: Text(
+                AppLocalizations.of(context).translate('developerCredit'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white38, fontSize: 10),
+              ),
+            ),
           ],
         ),
       ),
@@ -81,10 +89,12 @@ class MySidebar extends StatelessWidget {
     return ValueListenableBuilder<SchoolInfo?>(
       valueListenable: currentSchoolNotifier,
       builder: (context, school, _) {
-        final schoolName = (school?.name.isNotEmpty == true) ? school!.name : "EduGest";
-        final yearLabel = (school?.currentYearId.isNotEmpty == true) 
-            ? "Année ${school!.currentYearId}" 
-            : "Système de Gestion";
+        final schoolName = (school?.name.isNotEmpty == true)
+            ? school!.name
+            : AppLocalizations.of(context).translate('appTitle');
+        final yearLabel = (school?.currentYearId.isNotEmpty == true)
+            ? "${AppLocalizations.of(context).translate('academicYear')} ${school!.currentYearId}"
+            : AppLocalizations.of(context).translate('managementSystem');
         final isWaiting = school?.waitingForNewYear == true;
 
         return Container(
@@ -104,8 +114,8 @@ class MySidebar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  isWaiting ? Icons.hourglass_empty : Icons.school, 
-                  color: Colors.white, 
+                  isWaiting ? Icons.hourglass_empty : Icons.school,
+                  color: Colors.white,
                   size: 20,
                 ),
               ),
@@ -129,14 +139,31 @@ class MySidebar extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: isWaiting ? Colors.orangeAccent : Colors.white54, 
+                        color: isWaiting ? Colors.orangeAccent : Colors.white54,
                         fontSize: 11,
-                        fontWeight: isWaiting ? FontWeight.w600 : FontWeight.normal,
+                        fontWeight: isWaiting
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                   ],
                 ),
               ),
+              if (onSwitchSchool != null)
+                IconButton(
+                  icon: const Icon(
+                    Icons.swap_horiz,
+                    color: Colors.white60,
+                    size: 18,
+                  ),
+                  tooltip: "Changer d'établissement",
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 32,
+                    minHeight: 32,
+                  ),
+                  onPressed: onSwitchSchool,
+                ),
             ],
           ),
         );
@@ -252,16 +279,22 @@ class MySidebar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  userName ?? "Non connecté",
+                  userName ??
+                      AppLocalizations.of(context).translate('notConnected'),
                   style: TextStyle(
-                    color: isConnected ? Colors.white : Colors.white.withValues(alpha: 0.4),
+                    color: isConnected
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.4),
                     fontSize: 12,
-                    fontWeight: isConnected ? FontWeight.w600 : FontWeight.normal,
+                    fontWeight: isConnected
+                        ? FontWeight.w600
+                        : FontWeight.normal,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  userRole ?? "Veuillez vous connecter",
+                  userRole ??
+                      AppLocalizations.of(context).translate('pleaseLogin'),
                   style: const TextStyle(color: Colors.white54, fontSize: 11),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -272,7 +305,7 @@ class MySidebar extends StatelessWidget {
             IconButton(
               onPressed: onLogout,
               icon: const Icon(Icons.logout, color: Colors.white38, size: 16),
-              tooltip: "Déconnexion",
+              tooltip: AppLocalizations.of(context).translate('logout'),
             ),
         ],
       ),

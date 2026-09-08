@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "edugest" "\0"
+            VALUE "CompanyName", "One's Company" "\0"
+            VALUE "FileDescription", "EduGest" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "edugest" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "edugest.exe" "\0"
-            VALUE "ProductName", "edugest" "\0"
+            VALUE "InternalName", "EduGest" "\0"
+            VALUE "LegalCopyright", "Developed by One's Company" "\0"
+            VALUE "OriginalFilename", "EduGest.exe" "\0"
+            VALUE "ProductName", "EduGest" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

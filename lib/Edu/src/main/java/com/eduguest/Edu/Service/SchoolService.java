@@ -60,6 +60,7 @@ public class SchoolService {
         School school = new School();
         school.setName(request.getName().trim());
         school.setCode(normalizeCode(request.getCode(), request.getName()));
+        school.setActive(true);
         school.setSubscriptionStatus("ACTIVE");
         school.setSubscriptionExpiresAt(LocalDate.now().plusMonths(1));
         school.setMonthlyFee(25000.0);
@@ -100,20 +101,36 @@ public class SchoolService {
         SchoolMembership membership = membershipRepository.findByUserIdAndSchoolId(userId, schoolId)
                 .filter(SchoolMembership::isActive)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non membre de cette école"));
+        if (!membership.getSchool().isActive()) {
+            throw new IllegalStateException("Cette école est désactivée. Contactez l'administration.");
+        }
         return toMembershipDto(membership);
     }
 
     @Transactional
-    public SchoolMembershipDto joinByCode(Long userId, String code) {
+    public SchoolMembershipDto joinByCode(Long userId, String code, UserRole requestedRole) {
         if (code == null || code.isBlank()) {
             throw new IllegalArgumentException("Le code de l'école est obligatoire");
         }
 
         School school = schoolRepository.findByCode(code.trim().toUpperCase(Locale.ROOT))
                 .orElseThrow(() -> new RuntimeException("Code d'école invalide"));
+        if (!school.isActive()) {
+            throw new IllegalStateException("Cette école est désactivée. Contactez l'administration.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
-        return toMembershipDto(addMembership(user, school, user.getRole()));
+
+        boolean alreadyRegistered = membershipRepository.findByUserIdAndSchoolId(userId, school.getId())
+                .filter(SchoolMembership::isActive)
+                .isPresent();
+        if (!alreadyRegistered) {
+            throw new IllegalStateException("Vous devez deja etre enregistre dans cette ecole pour y acceder avec son code.");
+        }
+
+        UserRole membershipRole = requestedRole != null ? requestedRole : user.getRole();
+        return toMembershipDto(addMembership(user, school, membershipRole));
     }
 
     @Transactional
@@ -145,6 +162,7 @@ public class SchoolService {
     @Transactional(readOnly = true)
     public List<SchoolMembershipDto> membershipsForUser(Long userId) {
         return membershipRepository.findByUserIdAndActiveTrueOrderBySchool_Name(userId).stream()
+                .filter(membership -> membership.getSchool().isActive())
                 .map(this::toMembershipDto).collect(Collectors.toList());
     }
 
@@ -152,6 +170,19 @@ public class SchoolService {
     public List<SchoolDto> getAllSchools() {
         return schoolRepository.findAll().stream()
                 .map(s -> toDto(s, null))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<SchoolDto> getSchoolsExpiringWithinSevenDays() {
+        LocalDate today = LocalDate.now();
+        LocalDate deadline = today.plusDays(7);
+        return schoolRepository.findAll().stream()
+                .filter(School::isActive)
+                .filter(school -> school.getSubscriptionExpiresAt() != null)
+                .filter(school -> !school.getSubscriptionExpiresAt().isBefore(today))
+                .filter(school -> !school.getSubscriptionExpiresAt().isAfter(deadline))
+                .map(school -> toDto(school, null))
                 .collect(Collectors.toList());
     }
 
@@ -177,8 +208,17 @@ public class SchoolService {
     }
 
     @Transactional
-    public SchoolDto renewSubscription(Long schoolId, Integer months, Double amount, String paymentMethod, String ref, String notes) {
+    public SchoolDto renewSubscription(Long schoolId, Long actorId, Integer months, Double amount, String paymentMethod, String ref, String notes) {
         School school = getRequired(schoolId);
+        User actor = userRepository.findById(actorId)
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur de paiement introuvable"));
+        SchoolMembership actorMembership = membershipRepository.findByUserIdAndSchoolId(actorId, schoolId)
+                .filter(SchoolMembership::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("L'utilisateur n'appartient pas à cette école"));
+        if (actorMembership.getRole() != UserRole.FONDATEUR
+                && actorMembership.getRole() != UserRole.COMPTABLE) {
+            throw new IllegalArgumentException("Seul le fondateur ou le comptable peut enregistrer le paiement");
+        }
         int addMonths = (months != null && months > 0) ? months : 1;
         LocalDate currentExpiry = school.getSubscriptionExpiresAt();
         LocalDate now = LocalDate.now();
@@ -207,6 +247,34 @@ public class SchoolService {
         subscriptionPaymentRepository.save(payment);
 
         return toDto(saved, null);
+    }
+
+    @Transactional
+    public void saveStaffRenewal(Long schoolId, Long founderId, Map<String, Object> body) {
+        SchoolMembership founder = membershipRepository.findByUserIdAndSchoolId(founderId, schoolId)
+                .filter(SchoolMembership::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Fondateur introuvable dans cette école"));
+        if (founder.getRole() != UserRole.FONDATEUR) {
+            throw new IllegalArgumentException("Seul le fondateur peut valider le renouvellement du staff");
+        }
+        Object decisions = body.get("decisions");
+        if (!(decisions instanceof List<?> decisionList)) {
+            throw new IllegalArgumentException("La liste des décisions du staff est obligatoire");
+        }
+        for (Object value : decisionList) {
+            if (!(value instanceof Map<?, ?> decision)) continue;
+            Long userId = Long.valueOf(decision.get("userId").toString());
+            boolean retained = Boolean.parseBoolean(decision.get("retained").toString());
+            SchoolMembership membership = membershipRepository.findByUserIdAndSchoolId(userId, schoolId)
+                    .orElseThrow(() -> new IllegalArgumentException("Membre du staff introuvable"));
+            if (membership.getRole() == UserRole.FONDATEUR) continue;
+            membership.setActive(retained);
+            membershipRepository.save(membership);
+            userRepository.findById(userId).ifPresent(user -> {
+                user.setActive(retained);
+                userRepository.save(user);
+            });
+        }
     }
 
     @Transactional
@@ -259,6 +327,11 @@ public class SchoolService {
                 .orElseThrow(() -> new RuntimeException("École introuvable"));
     }
 
+    @Transactional(readOnly = true)
+    public SchoolDto getSchoolDto(Long id) {
+        return toDto(getRequired(id), null);
+    }
+
     private String normalizeCode(String code, String name) {
         String value = code == null || code.isBlank() ? name : code;
         return value.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "-");
@@ -304,6 +377,16 @@ public class SchoolService {
         dto.setFounderName(founderName != null ? founderName : "Non renseigné");
         dto.setFounderPhone(founderPhone != null ? founderPhone : "");
         dto.setFounderEmail(founderEmail != null ? founderEmail : "");
+
+        membershipRepository.findBySchoolIdAndActiveTrueOrderByUser_FullName(school.getId()).stream()
+                .filter(membership -> membership.getRole() == UserRole.SECRETAIRE)
+                .map(SchoolMembership::getUser)
+                .findFirst()
+                .ifPresent(secretary -> {
+                    dto.setSecretaryName(secretary.getFullName());
+                    dto.setSecretaryPhone(secretary.getPhone());
+                    dto.setSecretaryEmail(secretary.getEmail());
+                });
 
         return dto;
     }

@@ -46,26 +46,34 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
 
   Future<void> _fetchTeachers() async {
     try {
-      final data = await ApiService.getTeachers(query: searchQuery.isEmpty ? null : searchQuery);
+      final data = await ApiService.getTeachers(
+        query: searchQuery.isEmpty ? null : searchQuery,
+      );
       setState(() {
         _allTeachers = data;
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erreur lors du chargement des enseignants")),
+        const SnackBar(
+          content: Text("Erreur lors du chargement des enseignants"),
+        ),
       );
     }
   }
 
   void _showTeacherDialog({Teacher? teacher}) {
     final nomController = TextEditingController(text: teacher?.lastName ?? '');
-    final prenomController = TextEditingController(text: teacher?.firstName ?? '');
+    final prenomController = TextEditingController(
+      text: teacher?.firstName ?? '',
+    );
     final emailController = TextEditingController(text: teacher?.email ?? '');
+    final phoneController = TextEditingController(text: teacher?.phone ?? '');
     final passwordController = TextEditingController();
     String? selectedSpec = teacher?.speciality;
-    
+
     // Si la spécialité du prof n'est pas dans la liste (ex: nouvelle base), on reset
-    if (selectedSpec != null && !_availableSubjects.any((s) => s.name == selectedSpec)) {
+    if (selectedSpec != null &&
+        !_availableSubjects.any((s) => s.name == selectedSpec)) {
       selectedSpec = null;
     }
 
@@ -73,15 +81,27 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(teacher == null ? "Recruter Enseignant" : "Modifier Enseignant"),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(
+            teacher == null ? "Recruter Enseignant" : "Modifier Enseignant",
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                MyTextfield(controller: prenomController, hintText: "Prénom", icon: Icons.person_outline),
+                MyTextfield(
+                  controller: prenomController,
+                  hintText: "Prénom",
+                  icon: Icons.person_outline,
+                ),
                 const SizedBox(height: 16),
-                MyTextfield(controller: nomController, hintText: "Nom", icon: Icons.person),
+                MyTextfield(
+                  controller: nomController,
+                  hintText: "Nom",
+                  icon: Icons.person,
+                ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedSpec,
@@ -89,14 +109,37 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: AppColors.bg,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                    prefixIcon: const Icon(Icons.book, color: AppColors.primary),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.book,
+                      color: AppColors.primary,
+                    ),
                   ),
-                  items: _availableSubjects.map((s) => DropdownMenuItem(value: s.name, child: Text(s.name))).toList(),
+                  items: _availableSubjects
+                      .map(
+                        (s) => DropdownMenuItem(
+                          value: s.name,
+                          child: Text(s.name),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (val) => setDialogState(() => selectedSpec = val),
                 ),
                 const SizedBox(height: 16),
-                MyTextfield(controller: emailController, hintText: "Email (Identifiant)", icon: Icons.email_outlined),
+                MyTextfield(
+                  controller: phoneController,
+                  hintText: "Téléphone *",
+                  icon: Icons.phone_android,
+                ),
+                const SizedBox(height: 16),
+                MyTextfield(
+                  controller: emailController,
+                  hintText: "Email (Identifiant)",
+                  icon: Icons.email_outlined,
+                ),
                 if (teacher == null) ...[
                   const SizedBox(height: 16),
                   MyTextfield(
@@ -110,13 +153,26 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Annuler"),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               onPressed: () async {
-                if (prenomController.text.isEmpty || nomController.text.isEmpty || emailController.text.isEmpty || selectedSpec == null) {
+                if (prenomController.text.isEmpty ||
+                    nomController.text.isEmpty ||
+                    phoneController.text.trim().isEmpty ||
+                    emailController.text.isEmpty ||
+                    selectedSpec == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Veuillez remplir tous les champs")),
+                    const SnackBar(
+                      content: Text(
+                        "Veuillez renseigner le nom, le téléphone, l'email et la spécialité",
+                      ),
+                    ),
                   );
                   return;
                 }
@@ -127,14 +183,20 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                   lastName: nomController.text.trim(),
                   speciality: selectedSpec!,
                   email: emailController.text.trim(),
-                  password: passwordController.text.isNotEmpty ? passwordController.text : null,
+                  phone: phoneController.text.trim(),
+                  password: passwordController.text.isNotEmpty
+                      ? passwordController.text
+                      : null,
                 );
-                
+
                 await ApiService.saveTeacher(newTeacher);
                 _fetchTeachers();
                 if (mounted) Navigator.pop(context);
               },
-              child: const Text("Valider", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Valider",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -144,7 +206,13 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredTeachers = _allTeachers.where((t) => selectedSubjectName == 'Tous' || t.speciality == selectedSubjectName).toList();
+    final filteredTeachers = _allTeachers
+        .where(
+          (t) =>
+              selectedSubjectName == 'Tous' ||
+              t.speciality == selectedSubjectName,
+        )
+        .toList();
     final filterTabs = ['Tous', ..._availableSubjects.map((s) => s.name)];
 
     return Column(
@@ -153,10 +221,18 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
         Wrap(
           alignment: WrapAlignment.spaceBetween,
           crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 16, runSpacing: 10,
+          spacing: 16,
+          runSpacing: 10,
           children: [
-            const Text("Corps Enseignant", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            MyButton(icon: Icons.person_add_alt_1, text: "Recruter", onTap: () => _showTeacherDialog()),
+            const Text(
+              "Corps Enseignant",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            MyButton(
+              icon: Icons.person_add_alt_1,
+              text: "Recruter",
+              onTap: () => _showTeacherDialog(),
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -191,18 +267,25 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                 onTap: () => setState(() => selectedSubjectName = subjectName),
                 child: Container(
                   margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected ? AppColors.primary : Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: isSelected ? AppColors.primary : AppColors.border),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                    ),
                   ),
                   child: Text(
                     subjectName,
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppColors.text,
                       fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -216,7 +299,12 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
         else if (filteredTeachers.isEmpty)
-          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucun enseignant trouvé.")))
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Text("Aucun enseignant trouvé."),
+            ),
+          )
         else
           ListView.builder(
             shrinkWrap: true,
@@ -236,26 +324,48 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                     backgroundColor: AppColors.primaryPale,
                     child: const Icon(Icons.person, color: AppColors.primary),
                   ),
-                  title: Text("${teacher.firstName} ${teacher.lastName}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("Spécialité: ${teacher.speciality} | ${teacher.email ?? ''}"),
+                  title: Text(
+                    "${teacher.firstName} ${teacher.lastName}",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    "Spécialité: ${teacher.speciality} | ${teacher.email ?? ''}\n"
+                    "Téléphone : ${teacher.phone?.trim().isNotEmpty == true ? teacher.phone : 'Non renseigné'}",
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                        icon: const Icon(
+                          Icons.edit,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
                         onPressed: () => _showTeacherDialog(teacher: teacher),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                        icon: const Icon(
+                          Icons.delete,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         onPressed: () async {
                           bool? confirm = await showDialog(
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: const Text("Supprimer"),
-                              content: const Text("Voulez-vous vraiment supprimer cet enseignant et son compte ?"),
+                              content: const Text(
+                                "Voulez-vous vraiment supprimer cet enseignant et son compte ?",
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Non")),
-                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Oui")),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text("Non"),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text("Oui"),
+                                ),
                               ],
                             ),
                           );

@@ -13,7 +13,8 @@ class FinancesPage extends StatefulWidget {
   State<FinancesPage> createState() => _FinancesPageState();
 }
 
-class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderStateMixin {
+class _FinancesPageState extends State<FinancesPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
@@ -65,8 +66,12 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
           tabs: const [
             Tab(icon: Icon(Icons.dashboard_outlined), text: "Vue d'ensemble"),
             Tab(icon: Icon(Icons.payments_outlined), text: "Paiements"),
-            Tab(icon: Icon(Icons.account_balance_wallet_outlined), text: "Dépenses"),
+            Tab(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              text: "Dépenses",
+            ),
           ],
+          isScrollable: true,
         ),
       ),
       body: TabBarView(
@@ -93,7 +98,9 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
 
     final totalRecettes = _stats['totalRevenue'] ?? _stats['totalIncomes'] ?? 0;
     final totalDepenses = _stats['totalExpenses'] ?? 0;
-    final solde = (totalRecettes is num && totalDepenses is num) ? (totalRecettes - totalDepenses) : 0;
+    final solde = (totalRecettes is num && totalDepenses is num)
+        ? (totalRecettes - totalDepenses)
+        : 0;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -109,9 +116,24 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
             spacing: 16,
             runSpacing: 16,
             children: [
-              _buildFinanceCard("Total Encaissé", "$totalRecettes FCFA", Icons.arrow_downward, Colors.green),
-              _buildFinanceCard("Total Dépenses", "$totalDepenses FCFA", Icons.arrow_upward, Colors.red),
-              _buildFinanceCard("Solde Net", "$solde FCFA", Icons.account_balance, Colors.blue),
+              _buildFinanceCard(
+                "Total Encaissé",
+                "$totalRecettes FCFA",
+                Icons.arrow_downward,
+                Colors.green,
+              ),
+              _buildFinanceCard(
+                "Total Dépenses",
+                "$totalDepenses FCFA",
+                Icons.arrow_upward,
+                Colors.red,
+              ),
+              _buildFinanceCard(
+                "Solde Net",
+                "$solde FCFA",
+                Icons.account_balance,
+                Colors.blue,
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -122,7 +144,10 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
                 "Accès Rapide",
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              IconButton(icon: const Icon(Icons.refresh), onPressed: _fetchStats),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _fetchStats,
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -140,7 +165,9 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
                     child: Icon(Icons.payments, color: AppColors.primary),
                   ),
                   title: const Text("Gérer les frais de scolarité"),
-                  subtitle: const Text("Consulter et enregistrer les paiements d'élèves"),
+                  subtitle: const Text(
+                    "Consulter et enregistrer les paiements d'élèves",
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _tabController.animateTo(1),
                 ),
@@ -151,7 +178,9 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
                     child: Icon(Icons.shopping_cart, color: AppColors.primary),
                   ),
                   title: const Text("Gérer les dépenses & factures"),
-                  subtitle: const Text("Saisir et consulter les sorties de caisse"),
+                  subtitle: const Text(
+                    "Saisir et consulter les sorties de caisse",
+                  ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _tabController.animateTo(2),
                 ),
@@ -163,9 +192,14 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildFinanceCard(String title, String value, IconData icon, Color color) {
+  Widget _buildFinanceCard(
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
-      width: 260,
+      width: (MediaQuery.sizeOf(context).width - 64).clamp(220.0, 260.0),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -178,12 +212,21 @@ class _FinancesPageState extends State<FinancesPage> with SingleTickerProviderSt
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 13,
+                ),
+              ),
               Icon(icon, color: color, size: 22),
             ],
           ),
           const SizedBox(height: 12),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );

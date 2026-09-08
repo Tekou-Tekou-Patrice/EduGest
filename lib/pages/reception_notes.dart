@@ -46,12 +46,15 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
           children: [
             const Text(
               "Réception & Validation des Notes",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
             ),
             IconButton(
               icon: const Icon(Icons.refresh, color: AppColors.primary),
@@ -113,7 +116,11 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
                     child: Icon(Icons.assignment_turned_in, color: AppColors.primary),
                   ),
                   title: Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("Matière: ${exam.subject} • Classe: ${exam.className}"),
+                  subtitle: Text(
+                    "Matière: ${exam.subject} • Classe: ${exam.className}"
+                    "${exam.teacherName?.trim().isNotEmpty == true ? ' • Envoyé par ${exam.teacherName}' : ''}",
+                  ),
+                  isThreeLine: exam.teacherName?.trim().isNotEmpty == true,
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => _showGradesTable(context, exam),
                 ),
@@ -173,13 +180,15 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
             ],
           ),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          content: SizedBox(
-            width: 600,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
+          content: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   Text("Matière : ${exam.subject} | Classe : ${exam.className}"),
                   const SizedBox(height: 16),
                   const Divider(),
@@ -210,6 +219,7 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
                 ],
               ),
             ),
+          ),
           ),
           actions: [
             TextButton(

@@ -59,6 +59,10 @@ public class ScolariteService {
 
     @Transactional
     public TeacherDto createTeacher(TeacherDto dto) {
+        if (dto.getPhone() == null || dto.getPhone().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Le numéro de téléphone est obligatoire pour un enseignant.");
+        }
         Teacher teacher;
         boolean isNew = false;
         if (dto.getId() != null) {

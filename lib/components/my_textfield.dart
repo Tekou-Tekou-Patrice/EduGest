@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 
-class MyTextfield extends StatelessWidget {
+class MyTextfield extends StatefulWidget {
   final IconData icon;
   final String hintText;
   final bool obscureText;
   final TextEditingController? controller;
   final TextInputType? keyboardType;
+  final Widget? suffixIcon;
 
   const MyTextfield({
     super.key,
@@ -14,30 +16,59 @@ class MyTextfield extends StatelessWidget {
     this.obscureText = false,
     this.controller,
     this.keyboardType,
+    this.suffixIcon,
   });
 
   @override
+  State<MyTextfield> createState() => _MyTextfieldState();
+}
+
+class _MyTextfieldState extends State<MyTextfield> {
+  late bool _obscured;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscured = widget.obscureText;
+  }
+
+  @override
+  void didUpdateWidget(covariant MyTextfield oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.obscureText != widget.obscureText) {
+      _obscured = widget.obscureText;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    Widget? suffix = widget.suffixIcon;
+    if (widget.obscureText && suffix == null) {
+      suffix = IconButton(
+        icon: Icon(
+          _obscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          color: AppColors.textMuted,
+          size: 20,
+        ),
+        tooltip: _obscured ? 'Afficher le mot de passe' : 'Masquer le mot de passe',
+        onPressed: () {
+          setState(() {
+            _obscured = !_obscured;
+          });
+        },
+      );
+    }
+
     return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      cursorColor: Colors.black,
-      style: const TextStyle(color: Colors.black),
+      controller: widget.controller,
+      obscureText: _obscured,
+      keyboardType: widget.keyboardType,
+      cursorColor: AppColors.primary,
+      style: const TextStyle(color: AppColors.text),
       decoration: InputDecoration(
-        enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.white),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        fillColor: Colors.white,
-        filled: true,
-        hintText: hintText,
-        hintStyle: TextStyle(color: Colors.grey.shade500),
-        prefixIcon: Icon(icon, color: Colors.grey.shade600),
+        hintText: widget.hintText,
+        prefixIcon: Icon(widget.icon),
+        suffixIcon: suffix,
       ),
     );
   }

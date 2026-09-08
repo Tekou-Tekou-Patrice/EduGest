@@ -3,31 +3,57 @@ import 'package:edugest/localization/locale_notifier.dart';
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/pages/WelcomePage.dart';
 import 'package:edugest/pages/home_router.dart';
+import 'package:edugest/pages/login_page.dart';
 import 'package:edugest/pages/school_selection_page.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:edugest/service/auth_session_service.dart';
+import 'package:edugest/components/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await appLocale.loadSavedLocale();
   final session = await AuthSessionService.loadSession();
-  final AppUser? user = session['user'] as AppUser?;
-  final String? schoolId = session['schoolId'] as String?;
+  final storedUser = session['user'] as AppUser?;
+  final hasValidToken =
+      storedUser?.token != null && storedUser!.token!.trim().isNotEmpty;
+  final AppUser? user = hasValidToken ? storedUser : null;
+  final String? schoolId = user == null ? null : session['schoolId'] as String?;
+  final bool welcomeSeen = await AuthSessionService.hasSeenWelcome();
 
+  if (storedUser != null && !hasValidToken) {
+    await AuthSessionService.clearSession();
+  }
+
+  if (user != null) {
+    ApiService.setActiveUser(user);
+  }
   if (schoolId != null && schoolId.isNotEmpty) {
     ApiService.setActiveSchool(schoolId);
   }
 
-  runApp(MyApp(initialUser: user, initialSchoolId: schoolId));
+  runApp(
+    MyApp(
+      initialUser: user,
+      initialSchoolId: schoolId,
+      showWelcome: !welcomeSeen,
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
   final AppUser? initialUser;
   final String? initialSchoolId;
+  final bool showWelcome;
 
-  const MyApp({super.key, this.initialUser, this.initialSchoolId});
+  const MyApp({
+    super.key,
+    this.initialUser,
+    this.initialSchoolId,
+    required this.showWelcome,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,13 +71,11 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-            useMaterial3: true,
-          ),
+          theme: AppTheme.light,
           home: _AppSessionGate(
             initialUser: initialUser,
             initialSchoolId: initialSchoolId,
+            showWelcome: showWelcome,
           ),
         );
       },
@@ -62,8 +86,13 @@ class MyApp extends StatelessWidget {
 class _AppSessionGate extends StatefulWidget {
   final AppUser? initialUser;
   final String? initialSchoolId;
+  final bool showWelcome;
 
-  const _AppSessionGate({this.initialUser, this.initialSchoolId});
+  const _AppSessionGate({
+    this.initialUser,
+    this.initialSchoolId,
+    required this.showWelcome,
+  });
 
   @override
   State<_AppSessionGate> createState() => _AppSessionGateState();
@@ -95,6 +124,6 @@ class _AppSessionGateState extends State<_AppSessionGate> {
       return SchoolSelectionPage(user: _user!);
     }
 
-    return const Welcomepage();
+    return widget.showWelcome ? const Welcomepage() : const LoginPage();
   }
 }

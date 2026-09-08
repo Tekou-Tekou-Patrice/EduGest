@@ -5,7 +5,6 @@ import 'package:edugest/models/school_class.dart';
 import 'package:edugest/models/teacher.dart';
 import 'package:edugest/models/subject.dart';
 import 'package:edugest/service/api_service.dart';
-import 'package:edugest/components/my_textfield.dart';
 import 'package:flutter/material.dart';
 
 class EmploiDuTemps extends StatefulWidget {
@@ -243,24 +242,29 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 10,
           children: [
             const Text(
               "Planning Hebdomadaire",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
             ),
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 if (widget.currentUser.displayRole != 'Enseignant')
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
                     onPressed: _showAddScheduleDialog,
-                    icon: const Icon(Icons.add, color: Colors.white),
-                    label: const Text("Ajouter Créneau", style: TextStyle(color: Colors.white)),
+                    icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                    label: const Text("Ajouter Créneau", style: TextStyle(color: Colors.white, fontSize: 13)),
                   ),
                 const SizedBox(width: 8),
                 IconButton(
@@ -286,7 +290,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
                 },
                 child: Container(
                   margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                   decoration: BoxDecoration(
                     color: isSelected ? AppColors.primary : Colors.white,
                     borderRadius: BorderRadius.circular(12),
@@ -305,7 +309,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
           ),
         ),
 
-        const SizedBox(height: 30),
+        const SizedBox(height: 24),
 
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
@@ -322,7 +326,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
                 child: Row(
                   children: [
                     SizedBox(
-                      width: 80,
+                      width: 75,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -335,32 +339,38 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
                     const VerticalDivider(thickness: 2, color: AppColors.border),
                     Expanded(
                       child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
-                        padding: const EdgeInsets.all(15),
+                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: item.isBreak ? Colors.grey.shade100 : AppColors.primaryPale.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(15),
                           border: Border.all(color: item.isBreak ? Colors.grey.shade300 : AppColors.primary.withValues(alpha: 0.2)),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.subject,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: item.isBreak ? Colors.grey.shade600 : AppColors.primary,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.subject,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: item.isBreak ? Colors.grey.shade600 : AppColors.primary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ),
-                                if (!item.isBreak) ...[
-                                  const SizedBox(height: 5),
-                                  Text("${item.className} • ${item.teacherName}", style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                                  if (!item.isBreak) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "${item.className} • ${item.teacherName}",
+                                      style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
                             if (widget.currentUser.displayRole != 'Enseignant')
                               IconButton(

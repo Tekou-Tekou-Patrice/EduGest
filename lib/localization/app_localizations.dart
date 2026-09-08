@@ -8,18 +8,23 @@ class AppLocalizations {
   static const supportedLocales = [Locale('fr'), Locale('en')];
 
   static AppLocalizations of(BuildContext context) {
-    final AppLocalizations? instance = Localizations.of<AppLocalizations>(context, AppLocalizations);
+    final AppLocalizations? instance = Localizations.of<AppLocalizations>(
+      context,
+      AppLocalizations,
+    );
     assert(instance != null, 'No AppLocalizations found in context');
     return instance!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   static const Map<String, Map<String, String>> _localizedValues = {
     'fr': {
       'appTitle': 'EduGest',
       'welcomeTitle': 'Bienvenue sur EduGest',
-      'welcomeDescription': 'Une application pour gérer vos données scolaires facilement.',
+      'welcomeDescription':
+          'Une application pour gérer vos données scolaires facilement.',
       'getStarted': 'Commencer',
       'loginTitle': 'Se connecter',
       'loginSubtitle': 'Accédez à votre espace de gestion scolaire.',
@@ -54,6 +59,8 @@ class AppLocalizations {
       'adminAnnouncements': 'Annonces Admin',
       'receptionNotes': 'Réception Notes',
       'receptionNotebooks': 'Réception Cahiers',
+      'programTracking': 'Suivi du programme',
+      'teacherRoomChecks': 'Présence des professeurs',
       'events': 'Événements',
       'discipline': 'Discipline',
       'managementStaff': 'Gestion Staff',
@@ -63,6 +70,7 @@ class AppLocalizations {
       'subjects': 'Matières',
       'settings': 'Paramètres',
       'profile': 'Profil',
+      'account': 'Compte',
       'overviewWelcome': 'Bienvenue dans votre espace EduGest',
       'overviewSelectMenu': 'Sélectionnez un menu à gauche pour commencer',
       'dashboardTitle': 'Pilotage Établissement',
@@ -126,6 +134,47 @@ class AppLocalizations {
       'appel': 'Faire l\'appel',
       'recapYears': 'Récapitulatif Années',
       'bulletins': 'Bulletins Scolaires',
+      'auditLogs': 'Journal d\'audit',
+      'schoolLifeAndPedagogy': 'Vie Scolaire',
+      'communication': 'Communication',
+      'takeAttendance': 'Faire l\'appel',
+      'teacherList': 'Liste Enseignants',
+      'notesAndAssessments': 'Notes & Évaluations',
+      'notificationsAndAnnouncements': 'Notifications & Annonces',
+      'notesForChildren': 'Mes Notes / Enfants',
+      'disciplineAndSanctions': 'Discipline & Sanctions',
+      'schoolAbsences': 'Absences',
+      'schoolStaffManagement': 'Gestion du Staff',
+      'schoolPayments': 'Paiements Scolaires',
+      'financialDashboard': 'Tableau de Bord Financier',
+      'classManagement': 'Gestion des Classes',
+      'subjectManagement': 'Gestion des Matières',
+      'myProfile': 'Mon Profil',
+      'createAccount': 'Créer un compte',
+      'alreadyHaveAccount': 'Déjà un compte ? Se connecter',
+      'accountCreated': 'Créer le compte',
+      'fullNameHint': 'Nom complet',
+      'contactPhone': 'Téléphone de contact',
+      'signupDescription':
+          'Créez votre compte. Vous pourrez rejoindre une école avec son code.',
+      'loginCredentialsRequired':
+          'Identifiant (email ou téléphone) et mot de passe requis',
+      'saveInProgress': 'Sauvegarde en cours...',
+      'developerCredit': 'Développé par One\'s Company',
+      'schoolSettings': 'Paramètres de l\'établissement & année académique',
+      'openNewYear': 'Ouvrir une nouvelle année',
+      'notConnected': 'Non connecté',
+      'pleaseLogin': 'Veuillez vous connecter',
+      'mySchools': 'Mes établissements',
+      'schoolLoadingError': 'Erreur lors du chargement des écoles.',
+      'noSchoolMembership': 'Vous n\'êtes inscrit dans aucune école.',
+      'joinOrCreateSchool': 'Rejoindre ou créer une école',
+      'selectSchoolToManage': 'Sélectionnez l\'établissement à gérer :',
+      'undefinedAddress': 'Adresse non définie',
+      'addAnotherSchool': 'Ajouter un autre établissement',
+      'selectionError': 'Erreur de sélection',
+      'academicYear': 'Année',
+      'managementSystem': 'Système de gestion',
     },
     'en': {
       'appTitle': 'EduGest',
@@ -165,6 +214,8 @@ class AppLocalizations {
       'adminAnnouncements': 'Admin Announcements',
       'receptionNotes': 'Notes Reception',
       'receptionNotebooks': 'Notebook Reception',
+      'programTracking': 'Program tracking',
+      'teacherRoomChecks': 'Teacher presence',
       'events': 'Events',
       'discipline': 'Discipline',
       'managementStaff': 'Staff Management',
@@ -174,6 +225,7 @@ class AppLocalizations {
       'subjects': 'Subjects',
       'settings': 'Settings',
       'profile': 'Profile',
+      'account': 'Account',
       'overviewWelcome': 'Welcome to your EduGest workspace',
       'overviewSelectMenu': 'Select a menu on the left to begin',
       'dashboardTitle': 'School Management',
@@ -237,15 +289,59 @@ class AppLocalizations {
       'appel': 'Take Attendance',
       'recapYears': 'Academic Years Recap',
       'bulletins': 'Report Cards',
+      'auditLogs': 'Audit Log',
+      'schoolLifeAndPedagogy': 'School Life',
+      'communication': 'Communication',
+      'takeAttendance': 'Take Attendance',
+      'teacherList': 'Teacher List',
+      'notesAndAssessments': 'Notes & Assessments',
+      'notificationsAndAnnouncements': 'Notifications & Announcements',
+      'notesForChildren': 'My Notes / Children',
+      'disciplineAndSanctions': 'Discipline & Sanctions',
+      'schoolAbsences': 'Absences',
+      'schoolStaffManagement': 'Staff Management',
+      'schoolPayments': 'School Payments',
+      'financialDashboard': 'Financial Dashboard',
+      'classManagement': 'Class Management',
+      'subjectManagement': 'Subject Management',
+      'myProfile': 'My Profile',
+      'createAccount': 'Create an account',
+      'alreadyHaveAccount': 'Already have an account? Sign in',
+      'accountCreated': 'Create account',
+      'fullNameHint': 'Full name',
+      'contactPhone': 'Contact phone',
+      'signupDescription':
+          'Create your account. You can join a school using its code.',
+      'loginCredentialsRequired':
+          'Email or phone number and password are required',
+      'saveInProgress': 'Saving...',
+      'developerCredit': 'Developed by One\'s Company',
+      'schoolSettings': 'School & academic year settings',
+      'openNewYear': 'Open new year',
+      'notConnected': 'Not signed in',
+      'pleaseLogin': 'Please sign in',
+      'mySchools': 'My schools',
+      'schoolLoadingError': 'Unable to load schools.',
+      'noSchoolMembership': 'You are not registered with any school.',
+      'joinOrCreateSchool': 'Join or create a school',
+      'selectSchoolToManage': 'Select the school to manage:',
+      'undefinedAddress': 'Address not defined',
+      'addAnotherSchool': 'Add another school',
+      'selectionError': 'Selection error',
+      'academicYear': 'Academic year',
+      'managementSystem': 'Management system',
     },
   };
 
   String translate(String key) {
-    return _localizedValues[locale.languageCode]?[key] ?? _localizedValues['fr']![key] ?? key;
+    return _localizedValues[locale.languageCode]?[key] ??
+        _localizedValues['fr']![key] ??
+        key;
   }
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override

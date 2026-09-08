@@ -4,6 +4,7 @@ import com.eduguest.Edu.DTO.AcademicYearDto;
 import com.eduguest.Edu.Entity.AcademicYear;
 import com.eduguest.Edu.Entity.Absence;
 import com.eduguest.Edu.Entity.AppNotification;
+import com.eduguest.Edu.Entity.BulletinPublication;
 import com.eduguest.Edu.Entity.Event;
 import com.eduguest.Edu.Entity.Exam;
 import com.eduguest.Edu.Entity.Expense;
@@ -12,6 +13,7 @@ import com.eduguest.Edu.Entity.Lesson;
 import com.eduguest.Edu.Entity.Payment;
 import com.eduguest.Edu.Entity.Sanction;
 import com.eduguest.Edu.Entity.ScheduleItem;
+import com.eduguest.Edu.Entity.School;
 import com.eduguest.Edu.Entity.SchoolInfo;
 import com.eduguest.Edu.Repository.AbsenceRepository;
 import com.eduguest.Edu.Repository.AcademicYearRepository;
@@ -192,6 +194,12 @@ public class AcademicYearService {
             throw new RuntimeException("Cette année scolaire existe déjà");
         }
         LocalDate start = startDate != null ? startDate : LocalDate.now();
+        School currentSchool = schoolContextService.currentSchool();
+        if (currentSchool != null && (currentSchool.getSubscriptionExpiresAt() == null
+                || currentSchool.getSubscriptionExpiresAt().isBefore(start))) {
+            throw new RuntimeException(
+                    "Le paiement de l'abonnement est requis avant de lancer cette année scolaire");
+        }
         LocalDate effectiveArchiveDate = archiveDate != null ? archiveDate : start.plusMonths(10);
         if (effectiveArchiveDate.isBefore(start)) {
             throw new RuntimeException("La date de sauvegarde doit être postérieure au début d'année");
@@ -297,6 +305,7 @@ public class AcademicYearService {
         assignUntagged(Exam.class, yearId);
         assignUntagged(ScheduleItem.class, yearId);
         assignUntagged(AppNotification.class, yearId);
+        assignUntagged(BulletinPublication.class, yearId);
         entityManager.flush();
     }
 

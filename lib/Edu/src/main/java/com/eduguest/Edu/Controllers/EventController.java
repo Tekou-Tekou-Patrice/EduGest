@@ -2,6 +2,8 @@ package com.eduguest.Edu.Controllers;
 
 import com.eduguest.Edu.DTO.EventDto;
 import com.eduguest.Edu.Service.EventService;
+import com.eduguest.Edu.Config.RequireRoles;
+import com.eduguest.Edu.Entity.UserRole;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,11 +30,13 @@ public class EventController {
     }
 
     @PostMapping
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
     public ResponseEntity<EventDto> createEvent(@Valid @RequestBody EventDto dto) {
         return ResponseEntity.ok(eventService.createEvent(dto));
     }
 
     @DeleteMapping("/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
     public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
         eventService.deleteEvent(id);
         return ResponseEntity.noContent().build();

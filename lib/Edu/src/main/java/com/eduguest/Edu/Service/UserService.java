@@ -24,16 +24,22 @@ public class UserService {
     private final SchoolService schoolService;
     private final SchoolMembershipRepository membershipRepository;
     private final SchoolContextService schoolContextService;
+    private final AuthTokenService authTokenService;
+    private final UserSecurityContextService securityContextService;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                        SchoolService schoolService,
                        SchoolMembershipRepository membershipRepository,
-                       SchoolContextService schoolContextService) {
+                       SchoolContextService schoolContextService,
+                       AuthTokenService authTokenService,
+                       UserSecurityContextService securityContextService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.schoolService = schoolService;
         this.membershipRepository = membershipRepository;
         this.schoolContextService = schoolContextService;
+        this.authTokenService = authTokenService;
+        this.securityContextService = securityContextService;
     }
 
     @Transactional(readOnly = true)
@@ -66,7 +72,7 @@ public class UserService {
                 displayName,
                 user.getEmail(),
                 user.getRole(),
-                "session-" + user.getId(),
+                authTokenService.issue(user),
                 schools.isEmpty() ? null : schools.get(0).getSchoolId(),
                 schools
         );
@@ -74,10 +80,14 @@ public class UserService {
 
     @Transactional
     public UserDto register(RegisterRequest request) {
+        String email = request.getEmail() == null ? "" : request.getEmail().trim();
+        if (email.isBlank()) {
+            throw new IllegalArgumentException("L'email est obligatoire");
+        }
+
         String username = request.getUsername() != null && !request.getUsername().isBlank()
                 ? request.getUsername().trim()
-                : request.getEmail().trim();
-        String email = request.getEmail().trim();
+                : email;
 
         if (userRepository.existsByUsername(username)) {
             throw new RuntimeException("Le nom d'utilisateur existe déjà");
@@ -90,9 +100,18 @@ public class UserService {
         user.setUsername(username);
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setFullName(request.getFullName());
+        user.setFullName(request.getFullName() != null && !request.getFullName().isBlank()
+                ? request.getFullName().trim()
+                : username);
         user.setPhone(request.getPhone());
         boolean schoolStaffRegistration = request.getSchoolId() != null;
+        if (schoolStaffRegistration) {
+            if (request.getPhone() == null || request.getPhone().isBlank()) {
+                throw new IllegalArgumentException(
+                        "Le numéro de téléphone est obligatoire pour recruter un membre du staff.");
+            }
+            authorizeStaffRecruitment(request);
+        }
         user.setRole(schoolStaffRegistration && request.getRole() != null
                 ? request.getRole() : UserRole.MEMBRE);
         user.setActive(true);
@@ -103,6 +122,33 @@ public class UserService {
             schoolService.addMembership(saved, school, saved.getRole());
         }
         return toDto(saved);
+    }
+
+    private void authorizeStaffRecruitment(RegisterRequest request) {
+        if (request.getRegisteredByUserId() == null || request.getRole() == null) {
+            throw new IllegalArgumentException("Le recruteur et le rôle sont obligatoires");
+        }
+        Long schoolId = request.getSchoolId();
+        if (!request.getRegisteredByUserId().equals(securityContextService.getCurrentUserId())) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "Le recrutement doit être effectué depuis une session authentifiée du recruteur.");
+        }
+        User recruiter = userRepository.findById(request.getRegisteredByUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Recruteur introuvable"));
+        UserRole recruiterRole = membershipRepository
+                .findByUserIdAndSchoolId(recruiter.getId(), schoolId)
+                .filter(com.eduguest.Edu.Entity.SchoolMembership::isActive)
+                .map(com.eduguest.Edu.Entity.SchoolMembership::getRole)
+                .orElseThrow(() -> new IllegalArgumentException("Le recruteur n'appartient pas à cette école"));
+
+        boolean allowed = recruiterRole == UserRole.FONDATEUR
+                || (recruiterRole == UserRole.PROVISEUR && request.getRole() == UserRole.SECRETAIRE)
+                || (recruiterRole == UserRole.SECRETAIRE && request.getRole() != UserRole.FONDATEUR
+                        && request.getRole() != UserRole.PROVISEUR
+                        && request.getRole() != UserRole.SECRETAIRE);
+        if (!allowed) {
+            throw new IllegalArgumentException("Vous n'êtes pas autorisé à recruter ce rôle");
+        }
     }
 
     @Transactional
@@ -124,6 +170,13 @@ public class UserService {
         if (schoolId == null) return List.of();
         return membershipRepository.findBySchoolIdAndActiveTrueOrderByUser_FullName(schoolId)
                 .stream().map(membership -> toDto(membership.getUser()))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDto> findStaff() {
+        return findAll().stream()
+                .filter(user -> user.getRole() != UserRole.PARENT)
                 .collect(Collectors.toList());
     }
 

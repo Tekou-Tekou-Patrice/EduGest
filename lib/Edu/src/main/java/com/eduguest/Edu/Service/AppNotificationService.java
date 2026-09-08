@@ -9,6 +9,7 @@ import com.eduguest.Edu.Entity.Payment;
 import com.eduguest.Edu.Entity.Sanction;
 import com.eduguest.Edu.Entity.SchoolMembership;
 import com.eduguest.Edu.Entity.Student;
+import com.eduguest.Edu.Entity.TeacherRoomCheck;
 import com.eduguest.Edu.Entity.User;
 import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Repository.AppNotificationRepository;
@@ -144,6 +145,110 @@ public class AppNotificationService {
                 event.getTitle() + " est prévu le " + event.getDate() + ".",
                 "event");
     }
+
+    @Transactional
+    public void notifyBulletinPublished(String studentId, String period, String publishedBy) {
+        String studentName = "";
+        try {
+            Long sId = Long.valueOf(studentId);
+            studentName = studentRepository.findById(sId)
+                    .map(s -> " pour l'élève " + s.getFirstName() + " " + s.getLastName())
+                    .orElse("");
+        } catch (Exception ignored) {}
+
+        notifyParents(studentId,
+                "Bulletin disponible - " + period,
+                "Le bulletin de notes officiel pour la période " + period + studentName + " a été validé et publié par " + publishedBy + ". Vous pouvez désormais le consulter et le télécharger en PDF dans votre espace parent.",
+                "bulletin");
+    }
+
+    @Transactional
+    public void notifyNotesPublished(String className, String subject, String sequence, String teacherName) {
+        List<Student> students = schoolContextService.scope(studentRepository.findByClassName(className));
+        String teacherInfo = teacherName != null && !teacherName.isBlank() ? " par M./Mme " + teacherName : "";
+        for (Student student : students) {
+            notifyParents(String.valueOf(student.getId()),
+                    "Notes publiées : " + subject,
+                    "Les notes d'évaluation de " + subject + " (" + sequence + ") ont été publiées" + teacherInfo + " pour la classe de " + student.getFirstName() + " (" + className + ").",
+                    "grade");
+        }
+    }
+
+    @Transactional
+    public void notifyPaymentReminder(String studentId, String studentName, double amountDue, String reason) {
+        notifyParents(studentId,
+                "Rappel de paiement / Impayé",
+                "Un montant de " + Math.round(amountDue) + " FCFA reste à régler pour "
+                        + (studentName != null && !studentName.isBlank() ? studentName : "votre enfant")
+                        + (reason != null && !reason.isBlank() ? " (" + reason + ")" : "")
+                        + ". Merci de régulariser la situation auprès de la comptabilité.",
+                "payment_due");
+    }
+
+    @Transactional
+    public void notifyNewLesson(String className, String subject, String title, String teacherName) {
+        List<Student> students = schoolContextService.scope(studentRepository.findByClassName(className));
+        String teacherInfo = teacherName != null && !teacherName.isBlank() ? " par M./Mme " + teacherName : "";
+        for (Student student : students) {
+            notifyParents(String.valueOf(student.getId()),
+                    "Nouveau cours en ligne : " + subject,
+                    "Une nouvelle entrée « " + title + " » a été ajoutée au cahier de texte de " + className + teacherInfo + ".",
+                    "lesson");
+        }
+
+    }
+
+    @Transactional
+    public void notifyProgramChapterUpdated(String className, String subject,
+                                            String chapter, String teacherName,
+                                            boolean completed) {
+        String status = completed ? "terminé" : "réouvert";
+        String message = "Le professeur " + (teacherName == null ? "" : teacherName)
+                + " a marqué le chapitre « " + chapter + " » comme " + status
+                + " pour la classe " + className + " (" + subject + ").";
+        notifyUsers(schoolUsers().stream()
+                        .filter(user -> user.getRole() == UserRole.FONDATEUR
+                                || user.getRole() == UserRole.PROVISEUR
+                                || user.getRole() == UserRole.SECRETAIRE)
+                        .collect(Collectors.toList()),
+                "Progression du programme", message, "program_progress");
+    }
+
+    @Transactional
+    public void notifyImportantAnnouncement(String title, String message, String audience) {
+        Collection<User> recipients;
+        if ("PARENTS".equalsIgnoreCase(audience)) {
+            recipients = schoolUsers().stream().filter(u -> u.getRole() == UserRole.PARENT).toList();
+        } else if ("ENSEIGNANTS".equalsIgnoreCase(audience)) {
+            recipients = schoolUsers().stream().filter(u -> u.getRole() == UserRole.ENSEIGNANT).toList();
+        } else if ("STAFF".equalsIgnoreCase(audience)) {
+            recipients = schoolUsers().stream().filter(u -> u.getRole() != UserRole.PARENT && u.getRole() != UserRole.ENSEIGNANT).toList();
+        } else {
+            recipients = schoolUsers();
+        }
+        notifyUsers(recipients, "[ANNONCE IMPORTANTE] " + title, message, "announcement");
+    }
+
+    @Transactional
+    public void notifyTeacherRoomAbsence(TeacherRoomCheck check) {
+        String message = "Le professeur " + check.getTeacherName()
+                + " a été marqué absent pour le cours de " + check.getSubject()
+                + " (" + check.getClassName() + ") du " + check.getCheckDate()
+                + ". Une explication est attendue dans les 24 heures.";
+        notifyUsers(schoolUsers().stream()
+                        .filter(user -> user.getRole() == UserRole.ENSEIGNANT
+                                && user.getFullName() != null
+                                && user.getFullName().equalsIgnoreCase(check.getTeacherName()))
+                        .collect(Collectors.toList()),
+                "Explication d'absence attendue", message, "teacher_room_absence");
+        notifyUsers(schoolUsers().stream()
+                        .filter(user -> user.getRole() == UserRole.SECRETAIRE
+                                || user.getRole() == UserRole.PROVISEUR
+                                || user.getRole() == UserRole.FONDATEUR)
+                        .collect(Collectors.toList()),
+                "Absence d'un professeur", message, "teacher_room_absence_admin");
+    }
+
 
     private void notifyParents(String studentId, String title, String message, String type) {
         notifyUsers(parentUsersForStudent(studentId), title, message, type);

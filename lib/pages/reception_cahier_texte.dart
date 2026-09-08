@@ -117,7 +117,8 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    "${lesson['subject'] ?? ''} • ${lesson['className'] ?? ''}\n${_formatDate(lesson['date'])}",
+                    "${lesson['subject'] ?? ''} • ${lesson['className'] ?? ''}\n${_formatDate(lesson['date'])}"
+                    "${lesson['teacherName']?.toString().trim().isNotEmpty == true ? ' • Par ${lesson['teacherName']}' : ''}",
                   ),
                   isThreeLine: true,
                 ),

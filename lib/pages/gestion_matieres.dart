@@ -51,22 +51,24 @@ class _GestionMatieresState extends State<GestionMatieres> {
       builder: (context) => AlertDialog(
         title: Text(subject == null ? "Ajouter une matière" : "Modifier la matière"),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            MyTextfield(
-              controller: nameCtrl,
-              hintText: "Nom de la matière (ex: Mathématiques)",
-              icon: Icons.book_outlined,
-            ),
-            const SizedBox(height: 16),
-            MyTextfield(
-              controller: coeffCtrl,
-              hintText: "Coefficient",
-              icon: Icons.star_outline,
-              keyboardType: TextInputType.number,
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MyTextfield(
+                controller: nameCtrl,
+                hintText: "Nom de la matière (ex: Mathématiques)",
+                icon: Icons.book_outlined,
+              ),
+              const SizedBox(height: 16),
+              MyTextfield(
+                controller: coeffCtrl,
+                hintText: "Coefficient",
+                icon: Icons.star_outline,
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -110,12 +112,15 @@ class _GestionMatieresState extends State<GestionMatieres> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 10,
           children: [
             const Text(
               "Gestion des Matières",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             MyButton(
               icon: Icons.add,
@@ -124,7 +129,7 @@ class _GestionMatieresState extends State<GestionMatieres> {
             ),
           ],
         ),
-        const SizedBox(height: 25),
+        const SizedBox(height: 24),
         
         if (_isLoading)
           const Center(child: CircularProgressIndicator())

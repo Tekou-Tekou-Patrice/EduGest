@@ -27,7 +27,7 @@ public class FinanceService {
     private final StudentRepository studentRepository;
     private final SchoolContextService schoolContextService;
     private final AppNotificationService notificationService;
-
+    private final AuditLogService auditLogService;
 
     public FinanceService(PaymentRepository paymentRepository, 
                           ExpenseRepository expenseRepository,
@@ -35,7 +35,8 @@ public class FinanceService {
                           AcademicYearService academicYearService,
                           StudentRepository studentRepository,
                           SchoolContextService schoolContextService,
-                          AppNotificationService notificationService) {
+                          AppNotificationService notificationService,
+                          AuditLogService auditLogService) {
         this.schoolContextService = schoolContextService;
         this.paymentRepository = paymentRepository;
         this.expenseRepository = expenseRepository;
@@ -43,6 +44,7 @@ public class FinanceService {
         this.academicYearService = academicYearService;
         this.studentRepository = studentRepository;
         this.notificationService = notificationService;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -111,8 +113,40 @@ public class FinanceService {
         schoolContextService.verifyAndAssign(payment);
         
         Payment saved = paymentRepository.save(payment);
+
+        try {
+            auditLogService.logAction(
+                    "CREATE",
+                    "PAIEMENT",
+                    saved.getId().toString(),
+                    "Enregistrement paiement de " + Math.round(saved.getAmount()) + " FCFA pour l'élève " + saved.getStudentName(),
+                    null,
+                    Math.round(saved.getAmount()) + " FCFA - " + (saved.getDescription() != null ? saved.getDescription() : "Scolarité")
+            );
+        } catch (Exception ignored) {}
+
         notificationService.notifyPayment(saved);
         return mapToPaymentDto(saved);
+    }
+
+    @Transactional
+    public void deletePayment(Long id) {
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Paiement introuvable"));
+        schoolContextService.verifyAndAssign(payment);
+
+        try {
+            auditLogService.logAction(
+                    "DELETE",
+                    "PAIEMENT",
+                    id.toString(),
+                    "Suppression paiement élève " + payment.getStudentName() + " (" + Math.round(payment.getAmount()) + " FCFA)",
+                    Math.round(payment.getAmount()) + " FCFA (" + payment.getDescription() + ")",
+                    "Supprimé"
+            );
+        } catch (Exception ignored) {}
+
+        paymentRepository.delete(payment);
     }
 
     @Transactional
@@ -141,8 +175,20 @@ public class FinanceService {
         }
         
         schoolContextService.verifyAndAssign(expense);
-        
-        return mapToExpenseDto(expenseRepository.save(expense));
+        Expense saved = expenseRepository.save(expense);
+
+        try {
+            auditLogService.logAction(
+                    "CREATE",
+                    "DEPENSE",
+                    saved.getId().toString(),
+                    "Enregistrement dépense : " + saved.getTitle() + " (" + Math.round(saved.getAmount()) + " FCFA)",
+                    null,
+                    saved.getCategory() + " - " + Math.round(saved.getAmount()) + " FCFA"
+            );
+        } catch (Exception ignored) {}
+
+        return mapToExpenseDto(saved);
     }
 
     @Transactional
@@ -152,6 +198,18 @@ public class FinanceService {
         }
         expenseRepository.findById(id).ifPresent(expense -> {
             schoolContextService.verifyAndAssign(expense);
+
+            try {
+                auditLogService.logAction(
+                        "DELETE",
+                        "DEPENSE",
+                        id.toString(),
+                        "Suppression dépense : " + expense.getTitle() + " (" + Math.round(expense.getAmount()) + " FCFA)",
+                        expense.getTitle() + " - " + Math.round(expense.getAmount()) + " FCFA",
+                        "Supprimé"
+                );
+            } catch (Exception ignored) {}
+
             expenseRepository.delete(expense);
         });
     }

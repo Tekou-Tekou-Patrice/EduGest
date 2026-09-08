@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
 import '../models/app_user.dart';
@@ -29,22 +30,36 @@ class _AppelPageState extends State<AppelPage> {
 
   Future<void> _fetchCurrentSessionAndStudents() async {
     if (!mounted) return;
+    if (widget.currentUser.role != UserRole.enseignant) {
+      setState(() => _isLoading = false);
+      return;
+    }
     setState(() => _isLoading = true);
-    
+
     try {
-      debugPrint("AppelPage: Recherche de session pour ${widget.currentUser.name}");
-      
+      debugPrint(
+        "AppelPage: Recherche de session pour ${widget.currentUser.name}",
+      );
+
       // 1. Trouver le cours actuel
-      final session = await ApiService.getCurrentSession(widget.currentUser.name);
-      
+      final session = await ApiService.getCurrentSession(
+        widget.currentUser.name,
+      );
+
       if (session != null) {
-        debugPrint("AppelPage: Session trouvée -> ${session.subject} (Classe: ${session.className})");
-        
+        debugPrint(
+          "AppelPage: Session trouvée -> ${session.subject} (Classe: ${session.className})",
+        );
+
         // 2. Récupérer les élèves de la classe
         // On nettoie le nom de la classe (trim) pour éviter les erreurs d'espaces
-        final students = await ApiService.getStudents(className: session.className.trim());
-        debugPrint("AppelPage: ${students.length} élèves trouvés pour la classe ${session.className}");
-        
+        final students = await ApiService.getStudents(
+          className: session.className.trim(),
+        );
+        debugPrint(
+          "AppelPage: ${students.length} élèves trouvés pour la classe ${session.className}",
+        );
+
         if (mounted) {
           setState(() {
             _currentSession = session;
@@ -63,12 +78,20 @@ class _AppelPageState extends State<AppelPage> {
           });
         }
       }
+    } on DioException catch (e) {
+      debugPrint("AppelPage Error: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ApiService.friendlyErrorMessage(e))),
+        );
+      }
     } catch (e) {
       debugPrint("AppelPage Error: $e");
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur de connexion : $e")),
+          SnackBar(content: Text(ApiService.friendlyErrorMessage(e))),
         );
       }
     }
@@ -85,16 +108,19 @@ class _AppelPageState extends State<AppelPage> {
         bool isPresent = _presenceMap[student.id] ?? true;
         if (!isPresent) {
           absentCount++;
-          await ApiService.saveAbsence(Absence(
-            id: '',
-            studentId: student.id,
-            studentName: student.fullName,
-            className: _currentSession!.className,
-            date: DateTime.now(),
-            period: "${_currentSession!.startTime} - ${_currentSession!.endTime}",
-            reason: "Absence signalée par ${widget.currentUser.name}",
-            isJustified: false,
-          ));
+          await ApiService.saveAbsence(
+            Absence(
+              id: '',
+              studentId: student.id,
+              studentName: student.fullName,
+              className: _currentSession!.className,
+              date: DateTime.now(),
+              period:
+                  "${_currentSession!.startTime} - ${_currentSession!.endTime}",
+              reason: "Absence signalée par ${widget.currentUser.name}",
+              isJustified: false,
+            ),
+          );
         }
       }
 
@@ -104,9 +130,14 @@ class _AppelPageState extends State<AppelPage> {
           context: context,
           builder: (ctx) => AlertDialog(
             title: const Text("Appel terminé"),
-            content: Text("L'appel a été envoyé.\nNombre d'absents : $absentCount"),
+            content: Text(
+              "L'appel a été envoyé.\nNombre d'absents : $absentCount",
+            ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("OK"),
+              ),
             ],
           ),
         );
@@ -115,7 +146,7 @@ class _AppelPageState extends State<AppelPage> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erreur lors de l'envoi de l'appel")),
+          SnackBar(content: Text(ApiService.friendlyErrorMessage(e))),
         );
       }
     }
@@ -132,6 +163,15 @@ class _AppelPageState extends State<AppelPage> {
       );
     }
 
+    if (widget.currentUser.role != UserRole.enseignant) {
+      return const Center(
+        child: Text(
+          "Seuls les enseignants peuvent faire l'appel.",
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
     // Cas 1 : Pas de session en cours
     if (_currentSession == null) {
       return Center(
@@ -140,11 +180,16 @@ class _AppelPageState extends State<AppelPage> {
             const SizedBox(height: 60),
             const Icon(Icons.event_busy, size: 80, color: AppColors.textMuted),
             const SizedBox(height: 20),
-            const Text("Aucun cours n'est prévu à cette heure.", 
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text(
+              "Aucun cours n'est prévu à cette heure.",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 10),
-            const Text("Vérifiez votre emploi du temps ou l'heure de votre ordinateur.", 
-              textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted)),
+            const Text(
+              "Vérifiez votre emploi du temps ou l'heure de votre ordinateur.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textMuted),
+            ),
             const SizedBox(height: 30),
             ElevatedButton.icon(
               onPressed: _fetchCurrentSessionAndStudents,
@@ -167,7 +212,7 @@ class _AppelPageState extends State<AppelPage> {
           decoration: BoxDecoration(
             color: AppColors.primaryPale,
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,13 +220,32 @@ class _AppelPageState extends State<AppelPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_currentSession!.subject, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  Text("${_currentSession!.startTime} - ${_currentSession!.endTime}", 
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  Expanded(
+                    child: Text(
+                      _currentSession!.subject,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    "${_currentSession!.startTime} - ${_currentSession!.endTime}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 5),
-              Text("Classe : ${_currentSession!.className}", style: const TextStyle(fontSize: 16)),
+              Text(
+                "Classe : ${_currentSession!.className}",
+                style: const TextStyle(fontSize: 15),
+              ),
             ],
           ),
         ),
@@ -191,7 +255,10 @@ class _AppelPageState extends State<AppelPage> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(30),
-            decoration: BoxDecoration(color: Colors.red.withOpacity(0.05), borderRadius: BorderRadius.circular(15)),
+            decoration: BoxDecoration(
+              color: Colors.red.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(15),
+            ),
             child: Column(
               children: [
                 const Icon(Icons.group_off, color: Colors.redAccent, size: 40),
@@ -199,7 +266,10 @@ class _AppelPageState extends State<AppelPage> {
                 Text(
                   "Aucun élève trouvé pour la classe \"${_currentSession!.className}\".",
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 const Text(
@@ -208,21 +278,35 @@ class _AppelPageState extends State<AppelPage> {
                   style: TextStyle(fontSize: 13),
                 ),
                 const SizedBox(height: 20),
-                TextButton.icon(onPressed: _fetchCurrentSessionAndStudents, icon: const Icon(Icons.refresh), label: const Text("Réessayer"))
+                TextButton.icon(
+                  onPressed: _fetchCurrentSessionAndStudents,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text("Réessayer"),
+                ),
               ],
             ),
           )
         else ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 6,
             children: [
-              Text("Liste de présence (${_eleves.length} élèves)", 
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(
+                "Liste de présence (${_eleves.length} élèves)",
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               TextButton.icon(
-                onPressed: () => setState(() => _presenceMap = {for (var s in _eleves) s.id: true}),
+                onPressed: () => setState(
+                  () => _presenceMap = {for (var s in _eleves) s.id: true},
+                ),
                 icon: const Icon(Icons.done_all),
                 label: const Text("Tout présent"),
-              )
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -238,15 +322,27 @@ class _AppelPageState extends State<AppelPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: isPresent ? AppColors.border : Colors.red.shade200),
+                  border: Border.all(
+                    color: isPresent ? AppColors.border : Colors.red.shade200,
+                  ),
                 ),
                 child: CheckboxListTile(
-                  title: Text(student.fullName, style: TextStyle(
-                    fontWeight: isPresent ? FontWeight.bold : FontWeight.normal,
-                    color: isPresent ? AppColors.text : Colors.red,
-                  )),
-                  subtitle: Text(isPresent ? "Présent" : "Absent", 
-                    style: TextStyle(color: isPresent ? Colors.green : Colors.red, fontSize: 12)),
+                  title: Text(
+                    student.fullName,
+                    style: TextStyle(
+                      fontWeight: isPresent
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isPresent ? AppColors.text : Colors.red,
+                    ),
+                  ),
+                  subtitle: Text(
+                    isPresent ? "Présent" : "Absent",
+                    style: TextStyle(
+                      color: isPresent ? Colors.green : Colors.red,
+                      fontSize: 12,
+                    ),
+                  ),
                   value: isPresent,
                   activeColor: AppColors.primary,
                   onChanged: (val) {
@@ -268,7 +364,7 @@ class _AppelPageState extends State<AppelPage> {
             ),
           ),
           const SizedBox(height: 40),
-        ]
+        ],
       ],
     );
   }

@@ -17,7 +17,13 @@ class _EvenementState extends State<Evenement> {
   List<Event> _events = [];
   bool _isLoading = true;
   String _selectedCategory = "Tous";
-  final List<String> _categories = ["Tous", "Conseil", "Examen", "Réunion", "Cérémonie"];
+  final List<String> _categories = [
+    "Tous",
+    "Conseil",
+    "Examen",
+    "Réunion",
+    "Cérémonie",
+  ];
 
   @override
   void initState() {
@@ -38,7 +44,9 @@ class _EvenementState extends State<Evenement> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erreur lors du chargement des événements")),
+        const SnackBar(
+          content: Text("Erreur lors du chargement des événements"),
+        ),
       );
     }
   }
@@ -53,19 +61,29 @@ class _EvenementState extends State<Evenement> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(event == null ? "Nouvel Événement" : "Modifier l'événement"),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(
+            event == null ? "Nouvel Événement" : "Modifier l'événement",
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                MyTextfield(controller: titleController, hintText: "Titre", icon: Icons.title),
+                MyTextfield(
+                  controller: titleController,
+                  hintText: "Titre",
+                  icon: Icons.title,
+                ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: tempCategory,
                   decoration: InputDecoration(
                     labelText: "Catégorie",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   items: _categories
                       .where((c) => c != "Tous")
@@ -74,36 +92,62 @@ class _EvenementState extends State<Evenement> {
                   onChanged: (val) => setDialogState(() => tempCategory = val!),
                 ),
                 const SizedBox(height: 16),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text("Date: ${DateFormat('dd/MM/yyyy').format(tempDate)}"),
-                  trailing: const Icon(Icons.calendar_today, color: AppColors.primary),
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: tempDate,
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime(2101),
-                    );
-                    if (picked != null) setDialogState(() => tempDate = picked);
-                  },
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      "Date: ${DateFormat('dd/MM/yyyy').format(tempDate)}",
+                    ),
+                    trailing: const Icon(
+                      Icons.calendar_today,
+                      color: AppColors.primary,
+                    ),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: tempDate,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2101),
+                      );
+                      if (picked != null) {
+                        setDialogState(() => tempDate = picked);
+                      }
+                    },
+                  ),
                 ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text("Heure: ${tempTime.format(context)}"),
-                  trailing: const Icon(Icons.access_time, color: AppColors.primary),
-                  onTap: () async {
-                    final picked = await showTimePicker(context: context, initialTime: tempTime);
-                    if (picked != null) setDialogState(() => tempTime = picked);
-                  },
+                Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text("Heure: ${tempTime.format(context)}"),
+                    trailing: const Icon(
+                      Icons.access_time,
+                      color: AppColors.primary,
+                    ),
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: tempTime,
+                      );
+                      if (picked != null) {
+                        setDialogState(() => tempTime = picked);
+                      }
+                    },
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Annuler"),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               onPressed: () async {
                 if (titleController.text.isEmpty) return;
                 final newEvent = Event(
@@ -120,12 +164,17 @@ class _EvenementState extends State<Evenement> {
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Erreur lors de l'enregistrement")),
+                      const SnackBar(
+                        content: Text("Erreur lors de l'enregistrement"),
+                      ),
                     );
                   }
                 }
               },
-              child: const Text("Enregistrer", style: TextStyle(color: Colors.white)),
+              child: const Text(
+                "Enregistrer",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -135,8 +184,11 @@ class _EvenementState extends State<Evenement> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredEvents =
-        _events.where((e) => _selectedCategory == "Tous" || e.category == _selectedCategory).toList();
+    final filteredEvents = _events
+        .where(
+          (e) => _selectedCategory == "Tous" || e.category == _selectedCategory,
+        )
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,8 +199,15 @@ class _EvenementState extends State<Evenement> {
           spacing: 16,
           runSpacing: 10,
           children: [
-            const Text("Événements", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            MyButton(icon: Icons.add, text: "Ajouter", onTap: () => _showEventDialog()),
+            const Text(
+              "Événements",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            MyButton(
+              icon: Icons.add,
+              text: "Ajouter",
+              onTap: () => _showEventDialog(),
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -172,7 +231,12 @@ class _EvenementState extends State<Evenement> {
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
         else if (filteredEvents.isEmpty)
-          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucun événement")))
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Text("Aucun événement"),
+            ),
+          )
         else
           ListView.builder(
             shrinkWrap: true,
@@ -187,30 +251,39 @@ class _EvenementState extends State<Evenement> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primaryPale,
-                    child: Icon(Icons.event, color: AppColors.primary),
+                child: Material(
+                  color: Colors.transparent,
+                  child: ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.primaryPale,
+                      child: Icon(Icons.event, color: AppColors.primary),
+                    ),
+                    title: Text(
+                      e.title,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      "${e.category} • ${DateFormat('dd/MM/yyyy').format(e.date)} à ${e.time.format(context)}",
+                    ),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () async {
+                        try {
+                          await ApiService.deleteEvent(e.id);
+                          await _fetchEvents();
+                        } catch (_) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Suppression impossible"),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                    onTap: () => _showEventDialog(event: e),
                   ),
-                  title: Text(e.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(
-                    "${e.category} • ${DateFormat('dd/MM/yyyy').format(e.date)} à ${e.time.format(context)}",
-                  ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                    onPressed: () async {
-                      try {
-                        await ApiService.deleteEvent(e.id);
-                        await _fetchEvents();
-                      } catch (_) {
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("Suppression impossible")),
-                        );
-                      }
-                    },
-                  ),
-                  onTap: () => _showEventDialog(event: e),
                 ),
               );
             },

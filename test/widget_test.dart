@@ -17,7 +17,7 @@ void main() {
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
 
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(const MyApp(showWelcome: true));
 
     expect(find.byType(MaterialApp), findsOneWidget);
   });

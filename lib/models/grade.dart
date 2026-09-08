@@ -44,6 +44,7 @@ class Exam {
   final DateTime date;
   final double coefficient;
   final bool editable;
+  final String? teacherName;
 
   Exam({
     required this.id,
@@ -53,6 +54,7 @@ class Exam {
     required this.date,
     this.coefficient = 1.0,
     this.editable = true,
+    this.teacherName,
   });
 
   Map<String, dynamic> toMap() {
@@ -63,6 +65,7 @@ class Exam {
       'className': className,
       'date': date.toIso8601String(),
       'coefficient': coefficient,
+      if (teacherName != null) 'teacherName': teacherName,
     };
   }
 
@@ -77,6 +80,7 @@ class Exam {
           ? (map['coefficient'] as num).toDouble()
           : double.tryParse('${map['coefficient']}') ?? 1.0,
       editable: map['editable'] != false,
+      teacherName: map['teacherName']?.toString() ?? map['teacher_name']?.toString(),
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/grade.dart';
 import '../models/student.dart';
+import '../models/subject.dart';
 import '../models/payment.dart';
 import '../models/absence.dart';
 import '../models/academic_year_recap.dart';
@@ -94,6 +95,8 @@ class ExportService {
     required List<Grade> grades,
     required List<Exam> exams,
     List<Absence> absences = const [],
+    List<Subject>? subjects,
+    Map<String, double>? subjectCoefficients,
     SchoolInfo? schoolInfo,
     String period = "1er Trimestre",
     int? rank,
@@ -114,6 +117,8 @@ class ExportService {
             grades: grades,
             exams: exams,
             absences: absences,
+            subjects: subjects,
+            subjectCoefficients: subjectCoefficients,
             schoolInfo: schoolInfo,
             period: period,
             rank: rank,
@@ -138,16 +143,28 @@ class ExportService {
     required List<Exam> exams,
     required Map<String, List<Absence>> absencesByStudent,
     required String className,
+    List<Subject>? subjects,
+    Map<String, double>? subjectCoefficients,
     SchoolInfo? schoolInfo,
     String period = "1er Trimestre",
   }) async {
     final pdf = pw.Document();
 
+    final Map<String, double> effectiveCoeffs = {};
+    if (subjectCoefficients != null) {
+      effectiveCoeffs.addAll(subjectCoefficients);
+    }
+    if (subjects != null) {
+      for (var s in subjects) {
+        effectiveCoeffs[s.name.trim().toLowerCase()] = s.coefficient;
+      }
+    }
+
     // Calcul des moyennes pour le classement
     final Map<String, double> averages = {};
     for (var s in students) {
       final sGrades = gradesByStudent[s.id] ?? [];
-      averages[s.id] = _calculateWeightedAverage(sGrades, exams);
+      averages[s.id] = _calculateWeightedAverage(sGrades, exams, subjectCoeffs: effectiveCoeffs);
     }
 
     final sortedStudentIds = students.map((s) => s.id).toList()
@@ -173,6 +190,8 @@ class ExportService {
               grades: studentGrades,
               exams: exams,
               absences: studentAbsences,
+              subjects: subjects,
+              subjectCoefficients: effectiveCoeffs,
               schoolInfo: schoolInfo,
               period: period,
               rank: rank,
@@ -197,6 +216,8 @@ class ExportService {
     required List<Grade> grades,
     required List<Exam> exams,
     required List<Absence> absences,
+    List<Subject>? subjects,
+    Map<String, double>? subjectCoefficients,
     SchoolInfo? schoolInfo,
     String period = "1er Trimestre",
     int? rank,
@@ -242,12 +263,27 @@ class ExportService {
       }
     }
 
+    final Map<String, double> effectiveCoeffs = {};
+    if (subjectCoefficients != null) {
+      effectiveCoeffs.addAll(subjectCoefficients);
+    }
+    if (subjects != null) {
+      for (var s in subjects) {
+        effectiveCoeffs[s.name.trim().toLowerCase()] = s.coefficient;
+      }
+    }
+
     double totalPoints = 0;
     double totalCoeffs = 0;
     for (var g in grades) {
-      final exam = exams.firstWhere((e) => e.id == g.examId, orElse: () => Exam(id: '', title: '', subject: '', className: '', date: DateTime.now(), coefficient: 1));
-      totalPoints += (g.score * exam.coefficient);
-      totalCoeffs += exam.coefficient;
+      final exam = exams.firstWhere(
+        (e) => e.id == g.examId,
+        orElse: () => Exam(id: '', title: '', subject: '', className: '', date: DateTime.now(), coefficient: 1),
+      );
+      final coef = effectiveCoeffs[exam.subject.trim().toLowerCase()] ??
+          (exam.coefficient > 0 ? exam.coefficient : 1.0);
+      totalPoints += (g.score * coef);
+      totalCoeffs += coef;
     }
     final generalAvg = totalCoeffs > 0 ? totalPoints / totalCoeffs : 0.0;
 
@@ -384,12 +420,12 @@ class ExportService {
                 ),
               ],
             ),
-            ...grades.map((g) {
-              final exam = exams.firstWhere(
-                (e) => e.id == g.examId,
-                orElse: () => Exam(id: '', title: 'N/A', subject: 'N/A', className: '', date: DateTime.now()),
-              );
-              final points = g.score * exam.coefficient;
+            ...(exams.isNotEmpty ? exams.map((exam) {
+              final Grade? g = grades.where((gr) => gr.examId == exam.id).firstOrNull;
+              final coef = effectiveCoeffs[exam.subject.trim().toLowerCase()] ??
+                  (exam.coefficient > 0 ? exam.coefficient : 1.0);
+              final hasGrade = g != null;
+              final points = hasGrade ? (g.score * coef).toStringAsFixed(2) : "-";
               return pw.TableRow(
                 children: [
                   pw.Padding(
@@ -398,7 +434,51 @@ class ExportService {
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(4.5),
-                    child: pw.Text("${exam.coefficient}", textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8.5)),
+                    child: pw.Text("${coef % 1 == 0 ? coef.toInt() : coef}", textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8.5)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(4.5),
+                    child: pw.Text(
+                      hasGrade ? g.score.toStringAsFixed(2) : "Non noté",
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: pw.FontWeight.bold,
+                        color: hasGrade ? PdfColors.black : PdfColors.orange800,
+                        fontStyle: hasGrade ? pw.FontStyle.normal : pw.FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(4.5),
+                    child: pw.Text(points, textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8.5)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(4.5),
+                    child: pw.Text(
+                      hasGrade ? _getAppreciation(g.score) : "En attente",
+                      style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey800),
+                    ),
+                  ),
+                ],
+              );
+            }) : grades.map((g) {
+              final exam = exams.firstWhere(
+                (e) => e.id == g.examId,
+                orElse: () => Exam(id: '', title: 'N/A', subject: 'N/A', className: '', date: DateTime.now()),
+              );
+              final coef = effectiveCoeffs[exam.subject.trim().toLowerCase()] ??
+                  (exam.coefficient > 0 ? exam.coefficient : 1.0);
+              final points = g.score * coef;
+              return pw.TableRow(
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(4.5),
+                    child: pw.Text(exam.subject, style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(4.5),
+                    child: pw.Text("${coef % 1 == 0 ? coef.toInt() : coef}", textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8.5)),
                   ),
                   pw.Padding(
                     padding: const pw.EdgeInsets.all(4.5),
@@ -414,7 +494,7 @@ class ExportService {
                   ),
                 ],
               );
-            }),
+            })),
             // Ligne de Total
             pw.TableRow(
               decoration: const pw.BoxDecoration(color: PdfColors.grey100),
@@ -425,7 +505,7 @@ class ExportService {
                 ),
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
-                  child: pw.Text("$totalCoeffs", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8.5)),
+                  child: pw.Text("${totalCoeffs % 1 == 0 ? totalCoeffs.toInt() : totalCoeffs.toStringAsFixed(1)}", textAlign: pw.TextAlign.center, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8.5)),
                 ),
                 pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text("-", textAlign: pw.TextAlign.center)),
                 pw.Padding(
@@ -844,14 +924,19 @@ class ExportService {
     return grades.map((g) => g.score).reduce((a, b) => a + b) / grades.length;
   }
 
-  static double _calculateWeightedAverage(List<Grade> grades, List<Exam> exams) {
+  static double _calculateWeightedAverage(List<Grade> grades, List<Exam> exams, {Map<String, double>? subjectCoeffs}) {
     if (grades.isEmpty) return 0;
     double totalPoints = 0;
     double totalCoeffs = 0;
     for (var g in grades) {
-      final exam = exams.firstWhere((e) => e.id == g.examId, orElse: () => Exam(id: '', title: '', subject: '', className: '', date: DateTime.now(), coefficient: 1));
-      totalPoints += (g.score * exam.coefficient);
-      totalCoeffs += exam.coefficient;
+      final exam = exams.firstWhere(
+        (e) => e.id == g.examId,
+        orElse: () => Exam(id: '', title: '', subject: '', className: '', date: DateTime.now(), coefficient: 1),
+      );
+      final coef = subjectCoeffs?[exam.subject.trim().toLowerCase()] ??
+          (exam.coefficient > 0 ? exam.coefficient : 1.0);
+      totalPoints += (g.score * coef);
+      totalCoeffs += coef;
     }
     return totalCoeffs == 0 ? 0 : totalPoints / totalCoeffs;
   }

@@ -19,4 +19,8 @@ public class SchoolInfoDto {
     private LocalDate archiveDate;
     private String yearStatus;
     private boolean waitingForNewYear;
+    private String subscriptionStatus;
+    private LocalDate subscriptionExpiresAt;
+    private Double monthlyFee;
+    private String planName;
 }

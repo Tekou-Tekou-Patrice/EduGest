@@ -119,7 +119,11 @@ class _RecapAnneesState extends State<RecapAnnees> {
               color: AppColors.primaryPale,
               borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(Icons.history_edu, color: AppColors.primary, size: 28),
+            child: const Icon(
+              Icons.history_edu,
+              color: AppColors.primary,
+              size: 28,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -267,7 +271,8 @@ class _RecapAnneesState extends State<RecapAnnees> {
         onChanged: (val) => setState(() => _searchQuery = val),
         decoration: const InputDecoration(
           icon: Icon(Icons.search, color: AppColors.textMuted, size: 20),
-          hintText: "Rechercher par année (ex: 2023-2024) ou nom d'établissement...",
+          hintText:
+              "Rechercher par année (ex: 2023-2024) ou nom d'établissement...",
           hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
           border: InputBorder.none,
         ),
@@ -293,18 +298,30 @@ class _RecapAnneesState extends State<RecapAnnees> {
               color: AppColors.primaryPale,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.archive_outlined, color: AppColors.primary, size: 40),
+            child: const Icon(
+              Icons.archive_outlined,
+              color: AppColors.primary,
+              size: 40,
+            ),
           ),
           const SizedBox(height: 20),
           const Text(
             "Aucune année scolaire archivée",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text,
+            ),
           ),
           const SizedBox(height: 10),
           const Text(
             "Les récapitulatifs apparaîtront automatiquement ici dès qu'une année scolaire sera sauvegardée et clôturée dans les Paramètres.",
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.5),
+            style: TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 13,
+              height: 1.5,
+            ),
           ),
         ],
       ),
@@ -346,10 +363,16 @@ class _RecapAnneesState extends State<RecapAnnees> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Top Bar
-            Row(
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryPale,
                     borderRadius: BorderRadius.circular(10),
@@ -357,7 +380,11 @@ class _RecapAnneesState extends State<RecapAnnees> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.calendar_today, color: AppColors.primary, size: 16),
+                      const Icon(
+                        Icons.calendar_today,
+                        color: AppColors.primary,
+                        size: 16,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         "Session ${recap.label}",
@@ -370,9 +397,11 @@ class _RecapAnneesState extends State<RecapAnnees> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
@@ -387,10 +416,12 @@ class _RecapAnneesState extends State<RecapAnnees> {
                     ),
                   ),
                 ),
-                const Spacer(),
                 Text(
                   "Clôturée le ${recap.formattedClosedAt}",
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMuted,
+                  ),
                 ),
               ],
             ),
@@ -462,7 +493,8 @@ class _RecapAnneesState extends State<RecapAnnees> {
                 _metricItem(
                   icon: Icons.gavel,
                   label: "Absences / Sanctions",
-                  value: "${recap.absenceCount} abs. / ${recap.sanctionCount} sanc.",
+                  value:
+                      "${recap.absenceCount} abs. / ${recap.sanctionCount} sanc.",
                   color: Colors.blueGrey,
                 ),
               ],
@@ -472,8 +504,10 @@ class _RecapAnneesState extends State<RecapAnnees> {
             const SizedBox(height: 16),
 
             // Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 12,
+              runSpacing: 10,
               children: [
                 OutlinedButton.icon(
                   onPressed: () => _showDetailedDialog(recap),
@@ -482,10 +516,11 @@ class _RecapAnneesState extends State<RecapAnnees> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primary),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
                 ElevatedButton.icon(
                   onPressed: () async {
                     await ExportService.generateYearRecapPdf(
@@ -493,11 +528,20 @@ class _RecapAnneesState extends State<RecapAnnees> {
                       schoolInfo: _schoolInfo,
                     );
                   },
-                  icon: const Icon(Icons.picture_as_pdf, size: 16, color: Colors.white),
-                  label: const Text("Télécharger Rapport PDF", style: TextStyle(color: Colors.white)),
+                  icon: const Icon(
+                    Icons.picture_as_pdf,
+                    size: 16,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    "Télécharger Rapport PDF",
+                    style: TextStyle(color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -565,7 +609,9 @@ class _RecapAnneesState extends State<RecapAnnees> {
       builder: (context) {
         final schoolName = recap.schoolName ?? _schoolInfo?.name ?? "EduGest";
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Row(
             children: [
               const Icon(Icons.assessment, color: AppColors.primary),
@@ -574,27 +620,48 @@ class _RecapAnneesState extends State<RecapAnnees> {
             ],
           ),
           content: SizedBox(
-            width: 500,
+            width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 500.0),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Établissement : $schoolName", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    "Établissement : $schoolName",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 4),
-                  Text("Période : du ${recap.formattedStartDate} au ${recap.formattedEndDate}"),
+                  Text(
+                    "Période : du ${recap.formattedStartDate} au ${recap.formattedEndDate}",
+                  ),
                   Text("Sauvegardé et clôturé le : ${recap.formattedClosedAt}"),
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 10),
-                  const Text("1. Volet Financier", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  const Text(
+                    "1. Volet Financier",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   _detailRow("Recettes Totales :", recap.formattedRevenue),
                   _detailRow("Dépenses Totales :", recap.formattedExpenses),
-                  _detailRow("Solde Net d'Exercice :", recap.formattedBalance, isBold: true),
+                  _detailRow(
+                    "Solde Net d'Exercice :",
+                    recap.formattedBalance,
+                    isBold: true,
+                  ),
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 10),
-                  const Text("2. Volet Pédagogique", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  const Text(
+                    "2. Volet Pédagogique",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   _detailRow("Élèves Inscrits :", "${recap.studentCount}"),
                   _detailRow("Enseignants Actifs :", "${recap.teacherCount}"),
@@ -603,7 +670,13 @@ class _RecapAnneesState extends State<RecapAnnees> {
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 10),
-                  const Text("3. Volet Discipline", style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  const Text(
+                    "3. Volet Discipline",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   _detailRow("Total Absences :", "${recap.absenceCount}"),
                   _detailRow("Total Sanctions :", "${recap.sanctionCount}"),
@@ -625,8 +698,13 @@ class _RecapAnneesState extends State<RecapAnnees> {
                 );
               },
               icon: const Icon(Icons.print, size: 16, color: Colors.white),
-              label: const Text("Imprimer PDF", style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              label: const Text(
+                "Imprimer PDF",
+                style: TextStyle(color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
             ),
           ],
         );
@@ -640,7 +718,10 @@ class _RecapAnneesState extends State<RecapAnnees> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+          ),
           Text(
             value,
             style: TextStyle(

@@ -5,10 +5,12 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
 import java.io.IOException;
@@ -17,9 +19,10 @@ import java.io.IOException;
 public class JacksonConfig {
 
     @Bean
-    Jackson2ObjectMapperBuilder jackson2ObjectMapperBuilder() {
+    public Jackson2ObjectMapperBuilder jackson2ObjectMapperBuilder() {
         Jackson2ObjectMapperBuilder builder = new Jackson2ObjectMapperBuilder();
         SimpleModule module = new SimpleModule();
+        
         module.addSerializer(UserRole.class, new JsonSerializer<>() {
             @Override
             public void serialize(UserRole value, com.fasterxml.jackson.core.JsonGenerator gen, SerializerProvider serializers) throws IOException {
@@ -35,11 +38,13 @@ public class JacksonConfig {
                         case COMPTABLE -> "Comptable";
                         case ENSEIGNANT -> "Enseignant";
                         case SURVEILLANT_GENERAL -> "Surveillant Général";
+                        case SURVEILLANT -> "Surveillant";
                         case PARENT -> "Parent";
                     });
                 }
             }
         });
+
         module.addDeserializer(UserRole.class, new JsonDeserializer<>() {
             @Override
             public UserRole deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
@@ -59,11 +64,20 @@ public class JacksonConfig {
                     case "comptable" -> UserRole.COMPTABLE;
                     case "enseignant" -> UserRole.ENSEIGNANT;
                     case "surveillant general", "surveillant général" -> UserRole.SURVEILLANT_GENERAL;
+                    case "surveillant" -> UserRole.SURVEILLANT;
+                    case "parent" -> UserRole.PARENT;
                     default -> UserRole.MEMBRE;
                 };
             }
         });
+        
         builder.modules(module);
         return builder;
+    }
+
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
+        return builder.build();
     }
 }

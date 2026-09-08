@@ -1,7 +1,9 @@
 package com.eduguest.Edu.Controllers;
 
+import com.eduguest.Edu.Config.RequireRoles;
 import com.eduguest.Edu.DTO.ExamDto;
 import com.eduguest.Edu.DTO.GradeDto;
+import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Service.ExamService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -33,6 +35,7 @@ public class ExamController {
     }
 
     @PostMapping("/exams")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
     public ResponseEntity<ExamDto> createExam(@Valid @RequestBody ExamDto dto) {
         return ResponseEntity.ok(examService.createExam(dto));
     }
@@ -47,6 +50,7 @@ public class ExamController {
     }
 
     @PostMapping("/grades")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
     public ResponseEntity<?> saveGrades(@RequestBody Map<String, Object> payload) {
         // Batch Flutter: { classe, sequence, grades: {id: score} }
         if (payload.containsKey("grades") || payload.containsKey("items")) {
@@ -63,7 +67,28 @@ public class ExamController {
     }
 
     @PutMapping("/grades/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
     public ResponseEntity<GradeDto> updateGrade(@PathVariable Long id, @RequestBody GradeDto dto) {
         return ResponseEntity.ok(examService.updateGrade(id, dto));
+    }
+
+    @DeleteMapping("/grades/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
+    public ResponseEntity<Void> deleteGrade(@PathVariable Long id) {
+        examService.deleteGrade(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/exams/{id}")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
+    public ResponseEntity<Void> deleteExam(@PathVariable Long id) {
+        examService.deleteExam(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/pending-submissions")
+    public ResponseEntity<List<Map<String, Object>>> getPendingSubmissions(
+            @RequestParam(required = false) String period) {
+        return ResponseEntity.ok(examService.getPendingSubjectSubmissions(period));
     }
 }

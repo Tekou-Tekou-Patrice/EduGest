@@ -21,6 +21,7 @@ class NotificationService {
     'absence', // Surveillant Général -> Parent
     'event', // Secrétaire/Proviseur -> Tous
     'discipline', // Surveillant/Proviseur -> Parent
+    'subscription', // EduGest -> Fondateur
   };
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -43,19 +44,33 @@ class NotificationService {
       _preferences = await SharedPreferences.getInstance();
       if (!isEnabled) return;
       const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+      final linux = LinuxInitializationSettings(
+        defaultActionName: 'Ouvrir',
+        defaultIcon: AssetsLinuxIcon('assets/images/icon.png'),
+      );
       const windows = WindowsInitializationSettings(
         appName: 'EduGest',
         appUserModelId: 'com.example.edugest',
         guid: '8f5bf5a4-7be4-4e7a-a6a1-4f5e4b6f2c7d',
       );
-      const settings = InitializationSettings(
+      final settings = InitializationSettings(
         android: android,
-        iOS: DarwinInitializationSettings(),
-        macOS: DarwinInitializationSettings(),
+        iOS: const DarwinInitializationSettings(),
+        macOS: const DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        ),
+        linux: linux,
         windows: windows,
       );
 
-      await _plugin.initialize(settings);
+      await _plugin.initialize(
+        settings: settings,
+        onDidReceiveNotificationResponse: (details) {
+          debugPrint('Notification cliquée: ${details.payload}');
+        },
+      );
       await _plugin
           .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin
@@ -64,6 +79,11 @@ class NotificationService {
       await _plugin
           .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin
+          >()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+            MacOSFlutterLocalNotificationsPlugin
           >()
           ?.requestPermissions(alert: true, badge: true, sound: true);
 
@@ -90,6 +110,42 @@ class NotificationService {
       await start();
     } else {
       await stop();
+    }
+  }
+
+  /// Déclenche une notification système (Desktop, Android, iOS)
+  Future<void> showNotification({
+    required String title,
+    required String message,
+    String? type,
+    String? id,
+  }) async {
+    if (!_initialized) {
+      await start();
+    }
+    await _show({
+      'title': title,
+      'message': message,
+      'type': type ?? 'general',
+    }, id ?? DateTime.now().millisecondsSinceEpoch.toString());
+  }
+
+  /// Envoie une notification de test pour vérifier le bon fonctionnement sous Windows / Desktop
+  Future<bool> showTestNotification() async {
+    try {
+      if (!_initialized) {
+        await start();
+      }
+      await showNotification(
+        title: 'EduGest — Notification Desktop',
+        message: 'Les alertes bureau sont opérationnelles et configurées avec succès.',
+        type: 'test',
+        id: 'test_${DateTime.now().millisecondsSinceEpoch}',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Erreur test notification: $e');
+      return false;
     }
   }
 
@@ -146,15 +202,27 @@ class NotificationService {
         presentBadge: true,
         presentSound: true,
       ),
-      macOS: DarwinNotificationDetails(),
+      macOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+      linux: LinuxNotificationDetails(
+        urgency: LinuxNotificationUrgency.critical,
+      ),
       windows: WindowsNotificationDetails(),
     );
 
-    await _plugin.show(
-      id.hashCode & 0x7fffffff,
-      notification['title']?.toString() ?? 'EduGest',
-      notification['message']?.toString() ?? '',
-      details,
-    );
+    try {
+      await _plugin.show(
+        id: id.hashCode & 0x7fffffff,
+        title: notification['title']?.toString() ?? 'EduGest',
+        body: notification['message']?.toString() ?? '',
+        notificationDetails: details,
+        payload: id,
+      );
+    } catch (e) {
+      debugPrint('Erreur affichage notification: $e');
+    }
   }
 }

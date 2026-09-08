@@ -38,6 +38,9 @@ public class Lesson implements SchoolScoped {
     @Column(name = "teacher_id")
     private String teacherId;
 
+    @Column(name = "teacher_name")
+    private String teacherName;
+
     @Column(name = "academic_year_id")
     private Long academicYearId;
 }

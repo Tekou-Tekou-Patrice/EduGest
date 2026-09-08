@@ -3,6 +3,7 @@ package com.eduguest.Edu.Service;
 import com.eduguest.Edu.Entity.School;
 import com.eduguest.Edu.Entity.SchoolScoped;
 import com.eduguest.Edu.Repository.SchoolRepository;
+import com.eduguest.Edu.Repository.SchoolMembershipRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -21,9 +22,15 @@ public class SchoolContextService {
     public static final String SCHOOL_HEADER = "X-School-Id";
 
     private final SchoolRepository schoolRepository;
+    private final SchoolMembershipRepository membershipRepository;
+    private final AuthTokenService authTokenService;
 
-    public SchoolContextService(SchoolRepository schoolRepository) {
+    public SchoolContextService(SchoolRepository schoolRepository,
+                                SchoolMembershipRepository membershipRepository,
+                                AuthTokenService authTokenService) {
         this.schoolRepository = schoolRepository;
+        this.membershipRepository = membershipRepository;
+        this.authTokenService = authTokenService;
     }
 
     public Long currentSchoolId() {
@@ -34,7 +41,14 @@ public class SchoolContextService {
             Long parsed = parse(request.getParameter("schoolId"));
             if (parsed == null) parsed = parse(request.getHeader(SCHOOL_HEADER));
             if (parsed == null) parsed = parse(request.getHeader("School-Id"));
-            if (parsed != null && schoolRepository.existsById(parsed)) return parsed;
+            Long userId = authTokenService.verifyAndGetUserId(request.getHeader("Authorization"));
+            if (parsed != null && schoolRepository.existsById(parsed)
+                    && userId != null
+                    && membershipRepository.findByUserIdAndSchoolId(userId, parsed)
+                    .filter(com.eduguest.Edu.Entity.SchoolMembership::isActive)
+                    .isPresent()) {
+                return parsed;
+            }
         }
         return null;
     }

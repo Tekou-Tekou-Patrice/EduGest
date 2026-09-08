@@ -12,6 +12,10 @@ class SchoolInfo {
   final DateTime? archiveDate;
   final String yearStatus; // ACTIVE, WAITING, NONE, CLOSED
   final bool waitingForNewYear;
+  final String subscriptionStatus;
+  final DateTime? subscriptionExpiresAt;
+  final double? monthlyFee;
+  final String? planName;
 
   SchoolInfo({
     required this.id,
@@ -27,6 +31,10 @@ class SchoolInfo {
     this.archiveDate,
     this.yearStatus = 'ACTIVE',
     this.waitingForNewYear = false,
+    this.subscriptionStatus = 'ACTIVE',
+    this.subscriptionExpiresAt,
+    this.monthlyFee,
+    this.planName,
   });
 
   Map<String, dynamic> toMap() {
@@ -44,6 +52,12 @@ class SchoolInfo {
       'archiveDate': archiveDate?.toIso8601String().substring(0, 10),
       'yearStatus': yearStatus,
       'waitingForNewYear': waitingForNewYear,
+      'subscriptionStatus': subscriptionStatus,
+      'subscriptionExpiresAt': subscriptionExpiresAt
+          ?.toIso8601String()
+          .substring(0, 10),
+      'monthlyFee': monthlyFee,
+      'planName': planName,
     };
   }
 
@@ -79,6 +93,12 @@ class SchoolInfo {
       archiveDate: parseDate(map['archiveDate']),
       yearStatus: map['yearStatus']?.toString() ?? 'ACTIVE',
       waitingForNewYear: map['waitingForNewYear'] == true,
+      subscriptionStatus: map['subscriptionStatus']?.toString() ?? 'ACTIVE',
+      subscriptionExpiresAt: parseDate(map['subscriptionExpiresAt']),
+      monthlyFee: map['monthlyFee'] is num
+          ? (map['monthlyFee'] as num).toDouble()
+          : double.tryParse(map['monthlyFee']?.toString() ?? ''),
+      planName: map['planName']?.toString(),
     );
   }
 

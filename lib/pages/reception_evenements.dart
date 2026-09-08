@@ -45,12 +45,15 @@ class _ReceptionEvenementsState extends State<ReceptionEvenements> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
           children: [
             const Text(
               "Annonces Administration",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
             ),
             IconButton(
               icon: const Icon(Icons.refresh, color: AppColors.primary),

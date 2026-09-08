@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import '../components/app_colors.dart';
 
 class GestionStaff extends StatefulWidget {
-  final String currentUserRole;
-  const GestionStaff({super.key, required this.currentUserRole});
+  final AppUser currentUser;
+  const GestionStaff({super.key, required this.currentUser});
 
   @override
   State<GestionStaff> createState() => _GestionStaffState();
@@ -36,7 +36,9 @@ class _GestionStaffState extends State<GestionStaff> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erreur lors du chargement du personnel")),
+          const SnackBar(
+            content: Text("Erreur lors du chargement du personnel"),
+          ),
         );
       }
     }
@@ -49,13 +51,16 @@ class _GestionStaffState extends State<GestionStaff> {
         contentPadding: EdgeInsets.zero,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         content: SizedBox(
-          width: 500,
+          width: MediaQuery.sizeOf(context).width - 32,
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
-            child: InscriptionStaff(onSuccess: () {
-              Navigator.pop(context);
-              _fetchStaff();
-            }),
+            child: InscriptionStaff(
+              currentUser: widget.currentUser,
+              onSuccess: () {
+                Navigator.pop(context);
+                _fetchStaff();
+              },
+            ),
           ),
         ),
       ),
@@ -67,24 +72,40 @@ class _GestionStaffState extends State<GestionStaff> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Text("Gestion du Personnel", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            Row(
+            const Text(
+              "Gestion du Personnel",
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                if (widget.currentUserRole == 'Fondateur' || widget.currentUserRole == 'Proviseur')
+                if (widget.currentUser.role == UserRole.fondateur ||
+                    widget.currentUser.role == UserRole.proviseur ||
+                    widget.currentUser.role == UserRole.secretaire)
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
                     onPressed: _showAddStaffDialog,
                     icon: const Icon(Icons.person_add, color: Colors.white),
-                    label: const Text("Ajouter Staff", style: TextStyle(color: Colors.white)),
+                    label: const Text(
+                      "Ajouter Staff",
+                      style: TextStyle(color: Colors.white),
+                    ),
                   ),
-                const SizedBox(width: 12),
                 IconButton(
                   icon: const Icon(Icons.refresh, color: AppColors.primary),
                   onPressed: _fetchStaff,
@@ -94,7 +115,7 @@ class _GestionStaffState extends State<GestionStaff> {
           ],
         ),
         const SizedBox(height: 25),
-        
+
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
         else if (_staffList.isEmpty)
@@ -116,32 +137,62 @@ class _GestionStaffState extends State<GestionStaff> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primaryPale,
-                    child: Text(member.initials, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    child: Text(
+                      member.initials,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("${member.displayRole} • ${member.email}"),
-                  trailing: (widget.currentUserRole == 'Fondateur' && member.displayRole != 'Fondateur')
-                    ? IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text("Confirmer"),
-                              content: Text("Voulez-vous supprimer ${member.name} ?"),
-                              actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Annuler")),
-                                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Supprimer", style: TextStyle(color: Colors.red))),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            await ApiService.deleteUser(member.id);
-                            _fetchStaff();
-                          }
-                        },
-                      )
-                    : null,
+                  title: Text(
+                    member.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    "${member.displayRole} • ${member.email}"
+                    "${member.phone?.trim().isNotEmpty == true ? '\nTéléphone : ${member.phone}' : '\nTéléphone : Non renseigné'}",
+                  ),
+                  trailing:
+                      (widget.currentUser.role == UserRole.fondateur &&
+                          member.displayRole != 'Fondateur')
+                      ? IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                          ),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Confirmer"),
+                                content: Text(
+                                  "Voulez-vous supprimer ${member.name} ?",
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text("Annuler"),
+                                  ),
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
+                                    child: const Text(
+                                      "Supprimer",
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await ApiService.deleteUser(member.id);
+                              _fetchStaff();
+                            }
+                          },
+                        )
+                      : null,
                 ),
               );
             },

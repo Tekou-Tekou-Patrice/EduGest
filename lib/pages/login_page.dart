@@ -47,6 +47,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final bool isMobile = ResponsiveLayout.isMobile(context);
+    final loc = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -57,7 +58,7 @@ class _LoginPageState extends State<LoginPage> {
           ? AppBar(
               backgroundColor: AppColors.sidebarBg,
               title: Text(
-                _isLogin ? "Connexion" : "Inscription",
+                _isLogin ? loc.translate('loginTitle') : loc.translate('createAccount'),
                 style: const TextStyle(color: Colors.white, fontSize: 18),
               ),
               iconTheme: const IconThemeData(color: Colors.white),
@@ -85,7 +86,7 @@ class _LoginPageState extends State<LoginPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _isLogin ? loc.translate('loginTitle') : "Créer un compte",
+                _isLogin ? loc.translate('loginTitle') : loc.translate('createAccount'),
                 style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
@@ -96,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
               Text(
                 _isLogin
                     ? loc.translate('loginSubtitle')
-                    : "Créez votre compte. Vous pourrez rejoindre une école avec son code.",
+                    : loc.translate('signupDescription'),
                 style: const TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 16,
@@ -108,13 +109,13 @@ class _LoginPageState extends State<LoginPage> {
                 MyTextfield(
                   controller: _nameController,
                   icon: Icons.person,
-                  hintText: "Nom complet",
+                  hintText: loc.translate('fullNameHint'),
                 ),
                 const SizedBox(height: 20),
                 MyTextfield(
                   controller: _phoneController,
                   icon: Icons.phone_android,
-                  hintText: "Téléphone de contact",
+                  hintText: loc.translate('contactPhone'),
                 ),
                 const SizedBox(height: 20),
               ],
@@ -142,9 +143,20 @@ class _LoginPageState extends State<LoginPage> {
                         icon: _isLogin ? Icons.login : Icons.how_to_reg,
                         text: _isLogin
                             ? loc.translate('connectButton')
-                            : "Créer le compte",
+                            : loc.translate('accountCreated'),
                         onTap: _isLogin ? _handleLogin : _handleRegister,
                       ),
+              ),
+              const SizedBox(height: 18),
+              Center(
+                child: Text(
+                  loc.translate('developerCredit'),
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -154,8 +166,8 @@ class _LoginPageState extends State<LoginPage> {
                   onPressed: _toggleAuthMode,
                   child: Text(
                     _isLogin
-                        ? "Créer un compte"
-                        : "Déjà un compte ? Se connecter",
+                        ? loc.translate('createAccount')
+                        : loc.translate('alreadyHaveAccount'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: AppColors.primary,
@@ -175,9 +187,9 @@ class _LoginPageState extends State<LoginPage> {
     if (_emailController.text.trim().isEmpty ||
         _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Identifiant (email ou téléphone) et mot de passe requis',
+            AppLocalizations.of(context).translate('loginCredentialsRequired'),
           ),
         ),
       );
@@ -195,14 +207,16 @@ class _LoginPageState extends State<LoginPage> {
 
       if (result['success'] == true) {
         final currentUser = result['user'] as AppUser;
+        ApiService.setActiveUser(currentUser);
         await AuthSessionService.saveSession(currentUser);
         await AuthSessionService.saveActiveSchool(null);
         if (!mounted) return;
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder: (context) => SchoolSelectionPage(user: currentUser),
           ),
+          (route) => false,
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -218,16 +232,22 @@ class _LoginPageState extends State<LoginPage> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Serveur injoignable')));
+      ).showSnackBar(
+        SnackBar(content: Text(ApiService.friendlyErrorMessage(e))),
+      );
     }
   }
 
   Future<void> _handleRegister() async {
     if (_nameController.text.trim().isEmpty ||
         _emailController.text.trim().isEmpty ||
-        _passwordController.text.isEmpty) {
+        _passwordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez remplir tous les champs')),
+        const SnackBar(
+          content: Text(
+            'Renseignez votre nom, un email valide et un mot de passe de 6 caractères minimum.',
+          ),
+        ),
       );
       return;
     }

@@ -38,8 +38,24 @@ class ApiContractTest {
     }
 
     @Test
-    void shouldParseAccentedSecretaireRole() {
+    void shouldParseLegacyRoleAliases() {
         assertThat(UserRole.fromValue("Secrétaire")).isEqualTo(UserRole.SECRETAIRE);
         assertThat(UserRole.fromValue("secretaire")).isEqualTo(UserRole.SECRETAIRE);
+        assertThat(UserRole.fromValue("ADMIN")).isEqualTo(UserRole.FONDATEUR);
+        assertThat(UserRole.fromValue("Directeur")).isEqualTo(UserRole.PROVISEUR);
+    }
+
+    @Test
+    void shouldDeserializeLegacyRegisterPayloadWithoutUsername() throws Exception {
+        String json = """
+                {"name":"Alice Ndiaye","email":"alice@example.com","password":"secret","role":"ADMIN"}
+                """;
+
+        RegisterRequest request = objectMapper.readValue(json, RegisterRequest.class);
+
+        assertThat(request.getFullName()).isEqualTo("Alice Ndiaye");
+        assertThat(request.getRole()).isEqualTo(UserRole.FONDATEUR);
+        assertThat(request.getEmail()).isEqualTo("alice@example.com");
+        assertThat(request.getUsername()).isNull();
     }
 }

@@ -1,4 +1,6 @@
 import 'package:edugest/models/app_user.dart';
+import 'package:edugest/models/school_class.dart';
+import 'package:edugest/models/subject.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
 import '../components/app_colors.dart';
@@ -13,22 +15,56 @@ class CahierTexte extends StatefulWidget {
   State<CahierTexte> createState() => _CahierTexteState();
 }
 
-class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStateMixin {
+class _CahierTexteState extends State<CahierTexte>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _contentController = TextEditingController();
-  String _selectedClasse = 'Terminale S1';
+  String? _selectedClasse;
+  String? _selectedSubject;
+  List<SchoolClass> _classes = [];
+  List<Subject> _subjects = [];
   bool _isEditing = false;
   String? _editingId;
-  
+
   List<Map<String, dynamic>> _myHistory = [];
   bool _isLoading = true;
+
+  bool get _canWriteNotebook =>
+      widget.currentUser?.role == UserRole.enseignant;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _fetchOptions();
     _fetchMyHistory();
+  }
+
+  Future<void> _fetchOptions() async {
+    try {
+      final results = await Future.wait([
+        ApiService.getClassrooms(),
+        ApiService.getSubjects(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _classes = results[0] as List<SchoolClass>;
+        _subjects = results[1] as List<Subject>;
+        _selectedClasse ??= _classes.isEmpty ? null : _classes.first.name;
+        _selectedSubject ??= _subjects.isEmpty ? null : _subjects.first.name;
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Impossible de charger les classes et matières : $error',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _fetchMyHistory() async {
@@ -46,16 +82,31 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
   }
 
   Future<void> _publishLesson() async {
-    if (_titleController.text.isEmpty || _contentController.text.isEmpty) return;
+    if (!_canWriteNotebook) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Seuls les enseignants peuvent publier un cahier de texte.')),
+      );
+      return;
+    }
+    if (_titleController.text.isEmpty ||
+        _contentController.text.isEmpty ||
+        _selectedClasse == null ||
+        _selectedSubject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sélectionnez une classe et une matière')),
+      );
+      return;
+    }
 
     final lessonData = {
       if (_editingId != null) 'id': _editingId,
       'title': _titleController.text.trim(),
       'content': _contentController.text.trim(),
       'className': _selectedClasse,
-      'subject': 'Mathématiques', // À dynamiser selon le prof
+      'subject': _selectedSubject,
       'date': DateTime.now().toIso8601String(),
       'teacherId': widget.currentUser?.id,
+      'teacherName': widget.currentUser?.name,
     };
 
     try {
@@ -68,20 +119,42 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
       });
       _fetchMyHistory();
       _tabController.animateTo(1);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cahier de texte mis à jour !")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Cahier de texte mis à jour !")),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Erreur lors de l'enregistrement")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Erreur lors de l'enregistrement")),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_canWriteNotebook) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Aperçu du cahier de texte', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text)),
+          SizedBox(height: 8),
+          Text('Consultation uniquement : la rédaction et la publication sont réservées aux enseignants.'),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           _isEditing ? "Modification de la Leçon" : "Cahier de Texte",
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text,
+          ),
         ),
         const SizedBox(height: 20),
 
@@ -94,17 +167,14 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
             Tab(text: "Mes Publications"),
           ],
         ),
-        
+
         const SizedBox(height: 25),
 
         SizedBox(
           height: 600,
           child: TabBarView(
             controller: _tabController,
-            children: [
-              _buildSaisieView(),
-              _buildHistoryView(),
-            ],
+            children: [_buildSaisieView(), _buildHistoryView()],
           ),
         ),
       ],
@@ -116,9 +186,25 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildDropdown("Classe", _selectedClasse, ['6ème A', '3ème A', 'Terminale S1'], (val) => setState(() => _selectedClasse = val!)),
+          _buildDropdown(
+            "Classe",
+            _selectedClasse,
+            _classes.map((item) => item.name).toList(),
+            (val) => setState(() => _selectedClasse = val),
+          ),
           const SizedBox(height: 20),
-          MyTextfield(controller: _titleController, hintText: "Titre de la leçon", icon: Icons.title),
+          _buildDropdown(
+            "Matière",
+            _selectedSubject,
+            _subjects.map((item) => item.name).toList(),
+            (val) => setState(() => _selectedSubject = val),
+          ),
+          const SizedBox(height: 20),
+          MyTextfield(
+            controller: _titleController,
+            hintText: "Titre de la leçon",
+            icon: Icons.title,
+          ),
           const SizedBox(height: 20),
           TextField(
             controller: _contentController,
@@ -127,7 +213,10 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
               hintText: "Détaillez le cours ici...",
               filled: true,
               fillColor: AppColors.bg,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
             ),
           ),
           const SizedBox(height: 25),
@@ -146,7 +235,9 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
 
   Widget _buildHistoryView() {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
-    if (_myHistory.isEmpty) return const Center(child: Text("Aucune leçon publiée."));
+    if (_myHistory.isEmpty) {
+      return const Center(child: Text("Aucune leçon publiée."));
+    }
 
     return ListView.builder(
       itemCount: _myHistory.length,
@@ -154,17 +245,28 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
         final lesson = _myHistory[index];
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: AppColors.border)),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: AppColors.border),
+          ),
           child: ListTile(
-            title: Text(lesson['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text("${lesson['className']} • ${lesson['date'].toString().substring(0,10)}"),
+            title: Text(
+              lesson['title'] ?? '',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              "${lesson['className']} • ${lesson['date'].toString().substring(0, 10)}"
+              "${lesson['teacherName']?.toString().trim().isNotEmpty == true ? ' • Par ${lesson['teacherName']}' : ''}",
+            ),
             trailing: IconButton(
               icon: const Icon(Icons.edit_note, color: AppColors.primary),
               onPressed: () {
                 setState(() {
                   _isEditing = true;
                   _editingId = lesson['id'].toString();
-                  _selectedClasse = lesson['className'];
+                  _selectedClasse = lesson['className']?.toString();
+                  _selectedSubject = lesson['subject']?.toString();
                   _titleController.text = lesson['title'];
                   _contentController.text = lesson['content'];
                   _tabController.animateTo(0);
@@ -177,20 +279,37 @@ class _CahierTexteState extends State<CahierTexte> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildDropdown(String label, String val, List<String> items, Function(String?) onChange) {
+  Widget _buildDropdown(
+    String label,
+    String? val,
+    List<String> items,
+    Function(String?) onChange,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textMuted,
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(8),
+          ),
           child: DropdownButton<String>(
-            value: val,
+            value: items.contains(val) ? val : null,
             isExpanded: true,
             underline: const SizedBox(),
-            items: items.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            items: items
+                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .toList(),
             onChanged: onChange,
           ),
         ),

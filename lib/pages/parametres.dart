@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
+import '../components/responsive_layout.dart';
 import '../localization/app_localizations.dart';
 import '../localization/locale_notifier.dart';
 import '../models/app_user.dart';
@@ -40,6 +41,7 @@ class _ParametresState extends State<Parametres> {
   bool _isClosingYear = false;
   bool _isLoadingSchool = false;
   SchoolInfo? _currentSchool;
+  Map<String, dynamic>? _paymentSettings;
 
   @override
   void initState() {
@@ -48,10 +50,25 @@ class _ParametresState extends State<Parametres> {
     _emailController = TextEditingController(text: widget.currentUser.email);
 
     if (widget.currentUser.displayRole == 'Fondateur' ||
-        widget.currentUser.displayRole == 'Proviseur') {
+        widget.currentUser.displayRole == 'Proviseur' ||
+        widget.currentUser.displayRole == 'Secrétaire' ||
+        widget.currentUser.displayRole == 'Comptable') {
       _fetchSchoolInfo();
     }
+    if (widget.currentUser.displayRole == 'Fondateur' ||
+        widget.currentUser.displayRole == 'Comptable') {
+      _loadSubscriptionPaymentDetails();
+    }
     _loadNotificationPreference();
+  }
+
+  Future<void> _loadSubscriptionPaymentDetails() async {
+    try {
+      final settings = await ApiService.getSaasSettings();
+      if (mounted) setState(() => _paymentSettings = settings);
+    } catch (error) {
+      debugPrint('Erreur chargement moyens de paiement: $error');
+    }
   }
 
   Future<void> _loadNotificationPreference() async {
@@ -275,7 +292,10 @@ class _ParametresState extends State<Parametres> {
               ],
             ),
             content: SizedBox(
-              width: 450,
+              width: (MediaQuery.sizeOf(context).width - 80).clamp(
+                280.0,
+                450.0,
+              ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -421,9 +441,11 @@ class _ParametresState extends State<Parametres> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final bool canEditSchool =
-        widget.currentUser.displayRole == 'Fondateur' ||
-        widget.currentUser.displayRole == 'Proviseur';
+    final bool canEditSchool = widget.currentUser.displayRole == 'Fondateur';
+    final bool canViewSchool =
+        canEditSchool ||
+        widget.currentUser.displayRole == 'Proviseur' ||
+        widget.currentUser.displayRole == 'Secrétaire';
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -442,8 +464,14 @@ class _ParametresState extends State<Parametres> {
           _buildAccountCard(),
           const SizedBox(height: 25),
 
-          if (canEditSchool) ...[
+          if (canViewSchool) ...[
             _buildSchoolSection(),
+            const SizedBox(height: 25),
+          ],
+
+          if (widget.currentUser.displayRole == 'Fondateur' ||
+              widget.currentUser.displayRole == 'Comptable') ...[
+            _buildSubscriptionPaymentSection(),
             const SizedBox(height: 25),
           ],
 
@@ -462,6 +490,88 @@ class _ParametresState extends State<Parametres> {
                     setState(() => _notificationsEnabled = value);
                     await NotificationService.instance.setEnabled(value);
                   },
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.desktop_windows,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Notifications Desktop / Bureau",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.text,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              "Alertes en temps réel sur Windows, macOS et Linux",
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryPale,
+                          foregroundColor: AppColors.primary,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: () async {
+                          final ok = await NotificationService.instance
+                              .showTestNotification();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  ok
+                                      ? "Notification envoyée au bureau !"
+                                      : "Erreur lors de l'envoi de la notification.",
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.send, size: 14),
+                        label: const Text(
+                          "Tester",
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _buildDropdownOption(
@@ -504,14 +614,252 @@ class _ParametresState extends State<Parametres> {
     );
   }
 
+  Widget _buildSubscriptionPaymentSection() {
+    final settings = _paymentSettings;
+    final expiresAt = _currentSchool?.subscriptionExpiresAt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Paiement de votre abonnement EduGest'),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.orange.shade200),
+          ),
+          child: settings == null
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Effectuez le dépôt sur l’un des numéros ci-dessous, puis contactez l’administration pour la validation.',
+                      style: TextStyle(color: AppColors.text),
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPaymentNumber(
+                      icon: Icons.phone_android,
+                      label: 'MTN Mobile Money',
+                      number: settings['mtnNumber']?.toString() ?? '',
+                      owner: settings['mtnName']?.toString() ?? '',
+                      color: Colors.amber.shade800,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildPaymentNumber(
+                      icon: Icons.phone_android,
+                      label: 'Orange Money',
+                      number: settings['orangeNumber']?.toString() ?? '',
+                      owner: settings['orangeName']?.toString() ?? '',
+                      color: Colors.deepOrange,
+                    ),
+                    if ((settings['paymentInstructions']?.toString() ?? '')
+                        .isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        settings['paymentInstructions'].toString(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                    if (expiresAt != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'Abonnement valide jusqu’au ${DateFormat('dd/MM/yyyy').format(expiresAt)}.',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: _currentSchool == null
+                          ? null
+                          : _showRenewSubscriptionDialog,
+                      icon: const Icon(Icons.receipt_long),
+                      label: const Text('Enregistrer un paiement'),
+                    ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showRenewSubscriptionDialog() async {
+    final schoolId = _currentSchool?.id.replaceFirst('SCHOOL_', '');
+    if (schoolId == null || int.tryParse(schoolId) == null) return;
+    final amountController = TextEditingController();
+    final referenceController = TextEditingController();
+    final notesController = TextEditingController();
+    int months = 1;
+    String method = 'MTN Mobile Money';
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Paiement de l’abonnement'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<int>(
+                    initialValue: months,
+                    decoration: const InputDecoration(labelText: 'Durée'),
+                    items: const [1, 3, 12]
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text('$value mois'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => months = value ?? 1),
+                  ),
+                  TextFormField(
+                    controller: amountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Montant'),
+                    validator: (value) => double.tryParse(value ?? '') == null
+                        ? 'Montant invalide'
+                        : null,
+                  ),
+                  DropdownButtonFormField<String>(
+                    initialValue: method,
+                    decoration: const InputDecoration(
+                      labelText: 'Moyen de paiement',
+                    ),
+                    items:
+                        const [
+                              'MTN Mobile Money',
+                              'Orange Money',
+                              'Espèces',
+                              'Virement',
+                            ]
+                            .map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: Text(value),
+                              ),
+                            )
+                            .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => method = value ?? method),
+                  ),
+                  TextField(
+                    controller: referenceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Référence (facultatif)',
+                    ),
+                  ),
+                  TextField(
+                    controller: notesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Note (facultatif)',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Annuler'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  final amount = double.tryParse(amountController.text.trim());
+                  if (amount == null || amount <= 0) return;
+                  try {
+                    await ApiService.renewSubscription(
+                      schoolId: schoolId,
+                      actorId: widget.currentUser.id,
+                      months: months,
+                      amount: amount,
+                      paymentMethod: method,
+                      transactionRef: referenceController.text,
+                      notes: notesController.text,
+                    );
+                    if (dialogContext.mounted) Navigator.pop(dialogContext);
+                    await _fetchSchoolInfo();
+                  } catch (error) {
+                    if (dialogContext.mounted) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        SnackBar(content: Text('Paiement impossible : $error')),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Valider'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } finally {
+      amountController.dispose();
+      referenceController.dispose();
+      notesController.dispose();
+    }
+  }
+
+  Widget _buildPaymentNumber({
+    required IconData icon,
+    required String label,
+    required String number,
+    required String owner,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(number.isEmpty ? 'Non renseigné' : number),
+                if (owner.isNotEmpty)
+                  Text(
+                    owner,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSchoolSection() {
     final isWaiting = _currentSchool?.waitingForNewYear == true;
+    final canEditSchool = widget.currentUser.role == UserRole.fondateur;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             _buildSectionTitle(
               "Paramètres de l'Établissement & Année Académique",
@@ -613,6 +961,7 @@ class _ParametresState extends State<Parametres> {
                   "Code privé de l'école",
                   _schoolCodeCtrl,
                   "Requis",
+                  readOnly: !canEditSchool,
                 ),
                 const SizedBox(height: 12),
                 _buildInputField(
@@ -632,116 +981,131 @@ class _ParametresState extends State<Parametres> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _selectDate(context, false),
-                        borderRadius: BorderRadius.circular(15),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.bg,
-                            borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.date_range,
-                                color: AppColors.primary,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      "Date début de l'année",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.textMuted,
-                                      ),
+                Builder(
+                  builder: (context) {
+                    final isMobile = ResponsiveLayout.isMobile(context);
+                    final startWidget = InkWell(
+                      onTap: () => _selectDate(context, false),
+                      borderRadius: BorderRadius.circular(15),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.bg,
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.date_range,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Date début de l'année",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textMuted,
                                     ),
-                                    Text(
-                                      _startDate != null
-                                          ? DateFormat(
-                                              'dd/MM/yyyy',
-                                            ).format(_startDate!)
-                                          : "Non définie",
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.text,
-                                      ),
+                                  ),
+                                  Text(
+                                    _startDate != null
+                                        ? DateFormat(
+                                            'dd/MM/yyyy',
+                                          ).format(_startDate!)
+                                        : "Non définie",
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.text,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _selectDate(context, true),
-                        borderRadius: BorderRadius.circular(15),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.bg,
-                            borderRadius: BorderRadius.circular(15),
-                            border: Border.all(color: Colors.orange.shade300),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.archive_outlined,
-                                color: Colors.orange,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      "Date de sauvegarde & clôture",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.orange,
-                                      ),
+                    );
+
+                    final endWidget = InkWell(
+                      onTap: () => _selectDate(context, true),
+                      borderRadius: BorderRadius.circular(15),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.bg,
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(color: Colors.orange.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.archive_outlined,
+                              color: Colors.orange,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Date de sauvegarde & clôture",
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.orange,
                                     ),
-                                    Text(
-                                      _archiveDate != null
-                                          ? DateFormat(
-                                              'dd/MM/yyyy',
-                                            ).format(_archiveDate!)
-                                          : "Non définie",
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.deepOrange,
-                                      ),
+                                  ),
+                                  Text(
+                                    _archiveDate != null
+                                        ? DateFormat(
+                                            'dd/MM/yyyy',
+                                          ).format(_archiveDate!)
+                                        : "Non définie",
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.deepOrange,
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                    );
+
+                    if (isMobile) {
+                      return Column(
+                        children: [
+                          startWidget,
+                          const SizedBox(height: 10),
+                          endWidget,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: startWidget),
+                        const SizedBox(width: 12),
+                        Expanded(child: endWidget),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 6),
                 const Text(
@@ -904,8 +1268,9 @@ class _ParametresState extends State<Parametres> {
   Widget _buildInputField(
     String label,
     TextEditingController controller,
-    String validationMessage,
-  ) {
+    String validationMessage, {
+    bool readOnly = false,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
       decoration: BoxDecoration(
@@ -915,6 +1280,7 @@ class _ParametresState extends State<Parametres> {
       ),
       child: TextFormField(
         controller: controller,
+        readOnly: readOnly,
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 13),

@@ -18,6 +18,13 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
   final _schoolNameController = TextEditingController();
   final _schoolCodeController = TextEditingController();
   bool _isSubmitting = false;
+  late UserRole _selectedRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRole = widget.user.role;
+  }
 
   @override
   void dispose() {
@@ -36,7 +43,11 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      await ApiService.joinSchoolByCode(userId: widget.user.id, code: code);
+      await ApiService.joinSchoolByCode(
+        userId: widget.user.id,
+        code: code,
+        role: _selectedRole,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vous avez rejoint cette école.')),
@@ -115,6 +126,31 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
                   style: TextStyle(color: AppColors.textMuted),
                 ),
                 const SizedBox(height: 24),
+                DropdownButtonFormField<UserRole>(
+                  value: _selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'Rôle dans cette école',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.badge),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: UserRole.proviseur, child: Text('Proviseur')),
+                    DropdownMenuItem(value: UserRole.censeur, child: Text('Censeur')),
+                    DropdownMenuItem(value: UserRole.secretaire, child: Text('Secrétaire')),
+                    DropdownMenuItem(value: UserRole.comptable, child: Text('Comptable')),
+                    DropdownMenuItem(value: UserRole.enseignant, child: Text('Enseignant')),
+                    DropdownMenuItem(value: UserRole.parent, child: Text('Parent')),
+                    DropdownMenuItem(value: UserRole.fondateur, child: Text('Fondateur')),
+                    DropdownMenuItem(value: UserRole.surveillantGeneral, child: Text('Surveillant Général')),
+                    DropdownMenuItem(value: UserRole.membre, child: Text('Membre')),
+                  ],
+                  onChanged: (role) {
+                    if (role != null) {
+                      setState(() => _selectedRole = role);
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: _codeController,
                   decoration: const InputDecoration(

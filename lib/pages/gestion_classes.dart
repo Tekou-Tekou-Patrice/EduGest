@@ -132,65 +132,100 @@ class _GestionClassesState extends State<GestionClasses> {
         else if (_classes.isEmpty)
           const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucune classe. Créez-en une.")))
         else
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: isMobile ? 1 : 2,
-              childAspectRatio: isMobile ? 2.8 : 1.8,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: _classes.length,
-            itemBuilder: (context, index) {
-              final c = _classes[index];
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
-                  border: Border.all(color: AppColors.border),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double aspectRatio = isMobile
+                  ? (constraints.maxWidth < 360 ? 1.45 : 1.65)
+                  : 1.8;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isMobile ? 1 : 2,
+                  childAspectRatio: aspectRatio,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(c.name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    Text(
-                      "${c.studentCount} Élèves • Capacité ${c.capacity}",
-                      style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                itemCount: _classes.length,
+                itemBuilder: (context, index) {
+                  final c = _classes[index];
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(15),
+                      border: Border.all(color: AppColors.border),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "Pension : ${c.tuitionFee.toInt()} FCFA",
-                      style: const TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w600),
-                    ),
-                    if (c.teacherName != null && c.teacherName!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryPale,
-                          borderRadius: BorderRadius.circular(8),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          c.name,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        child: Text(
-                          "Prof: ${c.teacherName}",
-                          style: const TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.w600),
+                        const SizedBox(height: 6),
+                        Text(
+                          "${c.studentCount} Élèves • Capacité ${c.capacity}",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textMuted,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 8),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                      onPressed: () async {
-                        try {
-                          await ApiService.deleteClassroom(c.id);
-                          await _fetchClasses();
-                        } catch (_) {}
-                      },
+                        const SizedBox(height: 4),
+                        Text(
+                          "Pension : ${c.tuitionFee.toInt()} FCFA",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (c.teacherName != null && c.teacherName!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryPale,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              "Prof: ${c.teacherName}",
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 6),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          onPressed: () async {
+                            try {
+                              await ApiService.deleteClassroom(c.id);
+                              await _fetchClasses();
+                            } catch (_) {}
+                          },
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               );
             },
           ),

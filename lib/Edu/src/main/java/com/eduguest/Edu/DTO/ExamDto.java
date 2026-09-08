@@ -12,5 +12,6 @@ public class ExamDto {
     private LocalDateTime date;
     private Double coefficient;
     private LocalDateTime submittedAt;
+    private String teacherName;
     private boolean editable;
 }

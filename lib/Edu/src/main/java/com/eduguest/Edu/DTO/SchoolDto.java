@@ -26,6 +26,9 @@ public class SchoolDto {
     private String founderName;
     private String founderPhone;
     private String founderEmail;
+    private String secretaryName;
+    private String secretaryPhone;
+    private String secretaryEmail;
 
     private Long studentCount;
     private Long teacherCount;
