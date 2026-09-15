@@ -30,6 +30,18 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
     _schools = ApiService.getUserSchools(widget.user.id);
   }
 
+  /// Reloads memberships from the server. This lets a user see a school that
+  /// was added to their account by an administrator without signing out.
+  Future<void> _refreshSchools() async {
+    final request = ApiService.getUserSchools(_user.id);
+    setState(() => _schools = request);
+    try {
+      await request;
+    } catch (_) {
+      // The FutureBuilder renders the loading error in the page.
+    }
+  }
+
   Future<void> _select(School school) async {
     try {
       final effectiveRole = school.role ?? _user.role;
@@ -62,7 +74,7 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Erreur de sélection : ${e.toString()}"),
+            content: Text('${context.tr('selectionError')} : ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -76,7 +88,7 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
       MaterialPageRoute(builder: (_) => SchoolAccessPage(user: _user)),
     );
     if (joined == true && mounted) {
-      setState(() => _schools = ApiService.getUserSchools(_user.id));
+      await _refreshSchools();
     }
   }
 
@@ -92,6 +104,11 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
         elevation: 0,
         backgroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            tooltip: 'Actualiser la liste des ecoles',
+            onPressed: _refreshSchools,
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: AppColors.textMuted),
             tooltip: loc.translate('logout'),
@@ -117,9 +134,7 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text(loc.translate('schoolLoadingError')),
-            );
+            return Center(child: Text(loc.translate('schoolLoadingError')));
           }
           final schools = snapshot.data ?? [];
           if (schools.isEmpty) {
@@ -130,7 +145,11 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                   constraints: const BoxConstraints(maxWidth: 480),
                   child: Column(
                     children: [
-                      const Icon(Icons.school_outlined, size: 80, color: Colors.grey),
+                      const Icon(
+                        Icons.school_outlined,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         loc.translate('noSchoolMembership'),
@@ -144,9 +163,13 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                       FilledButton.icon(
                         onPressed: _openSchoolAccess,
                         icon: const Icon(Icons.add_business),
-                        label: Text(
-                          loc.translate('joinOrCreateSchool'),
-                        ),
+                        label: Text(loc.translate('joinOrCreateSchool')),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _refreshSchools,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Actualiser la liste'),
                       ),
                     ],
                   ),
@@ -163,7 +186,7 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
               ),
               const SizedBox(height: 16),
               ...schools.map(
-                    (school) => Padding(
+                (school) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Card(
                     elevation: 0,
@@ -172,26 +195,49 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                       side: BorderSide(color: Colors.grey.shade200),
                     ),
                     child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: AppColors.primaryPale,
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.business, color: AppColors.primary),
+                        child: const Icon(
+                          Icons.business,
+                          color: AppColors.primary,
+                        ),
                       ),
                       title: Text(
                         school.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(school.address ?? loc.translate('undefinedAddress')),
+                          Text(
+                            school.address ?? loc.translate('undefinedAddress'),
+                          ),
+                          Text(
+                            switch (school.schoolLevel) {
+                              'PRIMARY' => context.tr('schoolLevelPrimary'),
+                              'COLLEGE' => context.tr('schoolLevelCollege'),
+                              'LYCEE' => context.tr('schoolLevelLycee'),
+                              _ => context.tr('schoolLevelCollege'),
+                            },
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textMuted,
+                            ),
+                          ),
                           if (school.role != null)
                             Text(
-                              'Rôle: ${school.roleLabel}',
+                              '${context.tr('role')}: ${school.roleLabel}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.primary,

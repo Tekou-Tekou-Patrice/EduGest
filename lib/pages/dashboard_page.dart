@@ -3,7 +3,6 @@ import 'package:edugest/models/app_user.dart';
 import 'package:edugest/pages/absences.dart';
 import 'package:edugest/pages/cahier_texte.dart';
 import 'package:edugest/pages/depenses.dart';
-import 'package:edugest/pages/finances_page.dart';
 import 'package:edugest/pages/discipline.dart';
 import 'package:edugest/pages/emploi_du_temps.dart';
 import 'package:edugest/pages/evenement.dart';
@@ -30,6 +29,9 @@ import 'package:edugest/pages/recap_annees.dart';
 import 'package:edugest/pages/bulletins_page.dart';
 import 'package:edugest/pages/programme_page.dart';
 import 'package:edugest/pages/teacher_room_check_page.dart';
+import 'package:edugest/pages/pensions_page.dart';
+import 'package:edugest/pages/exam_classes_page.dart';
+import 'package:edugest/pages/suivi_cours_page.dart';
 import 'package:edugest/pages/school_selection_page.dart';
 import 'package:edugest/models/school_info.dart';
 import 'package:edugest/service/school_notifier.dart';
@@ -38,7 +40,7 @@ import '../components/my_sidebar.dart';
 
 class DashboardPage extends StatefulWidget {
   final AppUser currentUser;
-  const DashboardPage({super.key, required this.currentUser});
+  DashboardPage({super.key, required this.currentUser});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -94,7 +96,7 @@ class _DashboardPageState extends State<DashboardPage> {
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const LoginPage()),
+      MaterialPageRoute(builder: (context) => LoginPage()),
     );
   }
 
@@ -105,51 +107,55 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'timetable':
         return loc.translate('timetable');
       case 'appel':
-        return 'Faire l\'appel';
+        return loc.translate('appel');
       case 'students':
         return loc.translate('students');
       case 'teachers':
-        return 'Liste Enseignants';
+        return loc.translate('teacherList');
       case 'myNotes':
-        return 'Notes & Évaluations';
+        return loc.translate('notesAndAssessments');
       case 'myNotebook':
-        return 'Cahier de Texte';
+        return context.tr('lessonBook');
+      case 'courseTracking':
+        return loc.translate('courseTracking');
       case 'adminAnnouncements':
-        return 'Notifications & Annonces';
+        return loc.translate('notificationsAndAnnouncements');
       case 'receptionNotes':
-        return 'Mes Notes / Enfants';
+        return loc.translate('notesForChildren');
       case 'receptionNotebooks':
-        return 'Cahier de Texte';
+        return context.tr('lessonBook');
       case 'events':
-        return 'Événements';
+        return loc.translate('events');
       case 'discipline':
-        return 'Discipline & Sanctions';
+        return loc.translate('disciplineAndSanctions');
       case 'absences':
-        return 'Absences';
+        return loc.translate('schoolAbsences');
       case 'managementStaff':
-        return 'Gestion du Staff';
+        return loc.translate('schoolStaffManagement');
       case 'payments':
-        return 'Paiements Scolaires';
+        return loc.translate('schoolPayments');
       case 'expenses':
-        return 'Dépenses';
-      case 'finances':
-        return 'Tableau de Bord Financier';
+        return loc.translate('expenses');
+      case 'pensions':
+        return loc.translate('tuitionTracking');
+      case 'examClasses':
+        return loc.translate('examClasses');
       case 'classes':
-        return 'Gestion des Classes';
+        return loc.translate('classManagement');
       case 'subjects':
-        return 'Gestion des Matières';
+        return loc.translate('subjectManagement');
       case 'bulletins':
-        return 'Bulletins Scolaires';
+        return loc.translate('bulletins');
       case 'recapYears':
-        return 'Récapitulatif Années';
+        return loc.translate('recapYears');
       case 'settings':
         return 'Paramètres';
       case 'profile':
-        return 'Mon Profil';
+        return loc.translate('myProfile');
       case 'programme':
-        return 'Programme et progression';
+        return loc.translate('programProgress');
       case 'teacherRoomChecks':
-        return 'Présence des enseignants';
+        return loc.translate('teacherRoomChecks');
       default:
         return loc.translate('dashboard');
     }
@@ -197,7 +203,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     // 2. VIE SCOLAIRE & PEDAGOGIE
     final List<SidebarItem> acadItems = [];
-    if (isFondateur || isSecretaire) {
+    if (isFondateur || isProviseur || isSecretaire) {
       acadItems.add(_navItem(loc, Icons.school, 'students'));
     }
     if (isFondateur || isProviseur) {
@@ -206,10 +212,18 @@ class _DashboardPageState extends State<DashboardPage> {
     if (isFondateur || isCenseur || isEnseignant) {
       acadItems.add(_navItem(loc, Icons.edit_note, 'myNotes'));
     }
-    if (isFondateur || isCenseur || isEnseignant) {
-      acadItems.add(_navItem(loc, Icons.menu_book, 'myNotebook'));
+    if (isFondateur || isProviseur || isCenseur || isEnseignant) {
+      acadItems.add(_navItem(loc, Icons.menu_book, 'courseTracking'));
     }
-    if (isFondateur || isProviseur || isCenseur || isSecretaire) {
+    if (isEnseignant) {
+      acadItems.add(_navItem(loc, Icons.book, 'programme'));
+    }
+    if (isFondateur ||
+        isProviseur ||
+        isCenseur ||
+        isSecretaire ||
+        isComptable ||
+        isSG) {
       acadItems.add(_navItem(loc, Icons.event, 'events'));
     }
     if (isFondateur || isSG) {
@@ -221,14 +235,19 @@ class _DashboardPageState extends State<DashboardPage> {
     if (isFondateur || isProviseur || isCenseur) {
       acadItems.add(_navItem(loc, Icons.assignment, 'bulletins'));
     }
-    if (isFondateur || isProviseur || isSecretaire || isEnseignant || isParent) {
+    if (isParent) {
       acadItems.add(_navItem(loc, Icons.menu_book, 'programme'));
     }
     if (isFondateur || isProviseur || isSecretaire || isSG || isEnseignant) {
       acadItems.add(_navItem(loc, Icons.fact_check, 'teacherRoomChecks'));
     }
     if (acadItems.isNotEmpty) {
-      sections.add(SidebarSection(title: 'Vie Scolaire', items: acadItems));
+      sections.add(
+        SidebarSection(
+          title: context.tr('auto_vie_scolaire'),
+          items: acadItems,
+        ),
+      );
     }
 
     // 3. ADMINISTRATION & FINANCE
@@ -236,22 +255,31 @@ class _DashboardPageState extends State<DashboardPage> {
     if (isFondateur || isProviseur) {
       adminItems.add(_navItem(loc, Icons.history_edu, 'recapYears'));
     }
-    if (isFondateur || isSecretaire) {
+    if (isFondateur || isProviseur || isSecretaire) {
       adminItems.add(
         _navItem(loc, Icons.admin_panel_settings, 'managementStaff'),
       );
     }
-    if (isFondateur || isComptable || isParent) {
+    if (isFondateur || isProviseur || isComptable || isCenseur || isParent) {
       adminItems.add(_navItem(loc, Icons.payments, 'payments'));
     }
-    if (isFondateur || isComptable) {
+    if (isFondateur || isProviseur || isComptable) {
       adminItems.add(_navItem(loc, Icons.account_balance, 'expenses'));
     }
-    if (isFondateur || isComptable) {
-      adminItems.add(_navItem(loc, Icons.bar_chart, 'finances'));
+    if (isFondateur || isProviseur || isCenseur || isComptable) {
+      adminItems.add(_navItem(loc, Icons.fact_check, 'pensions'));
+    }
+    if (isFondateur ||
+        isProviseur ||
+        isCenseur ||
+        isSecretaire ||
+        isComptable) {
+      adminItems.add(_navItem(loc, Icons.assignment_turned_in, 'examClasses'));
+    }
+    if (isFondateur || isProviseur || isCenseur || isEnseignant) {
+      adminItems.add(_navItem(loc, Icons.meeting_room, 'classes'));
     }
     if (isFondateur || isProviseur || isCenseur) {
-      adminItems.add(_navItem(loc, Icons.meeting_room, 'classes'));
       adminItems.add(_navItem(loc, Icons.book_outlined, 'subjects'));
     }
     if (isFondateur) {
@@ -274,7 +302,12 @@ class _DashboardPageState extends State<DashboardPage> {
       commItems.add(_navItem(loc, Icons.library_books, 'receptionNotebooks'));
     }
     if (commItems.isNotEmpty) {
-      sections.add(SidebarSection(title: "Communication", items: commItems));
+      sections.add(
+        SidebarSection(
+          title: context.tr('auto_communication'),
+          items: commItems,
+        ),
+      );
     }
 
     return sections;
@@ -317,7 +350,7 @@ class _DashboardPageState extends State<DashboardPage> {
         _buildHeader(isMobile),
         Expanded(
           child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
+            physics: BouncingScrollPhysics(),
             padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,11 +367,11 @@ class _DashboardPageState extends State<DashboardPage> {
       valueListenable: currentSchoolNotifier,
       builder: (context, school, _) {
         if (school == null || !school.waitingForNewYear) {
-          return const SizedBox.shrink();
+          return SizedBox.shrink();
         }
         return Container(
-          margin: const EdgeInsets.only(bottom: 20),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          margin: EdgeInsets.only(bottom: 20),
+          padding: EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.orange.shade50,
             borderRadius: BorderRadius.circular(15),
@@ -354,13 +387,13 @@ class _DashboardPageState extends State<DashboardPage> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 8,
                         ),
                       ),
-                      child: const Text(
-                        "Paramètres",
+                      child: Text(
+                        context.tr('settings'),
                         style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                     )
@@ -368,27 +401,27 @@ class _DashboardPageState extends State<DashboardPage> {
               final message = Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.pause_circle_filled,
                     color: Colors.deepOrange,
                     size: 24,
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Année scolaire sauvegardée et archivée — En attente de renouvellement",
+                        Text(
+                          context.tr('yearWaitingRenewal'),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
                             color: Colors.deepOrange,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        SizedBox(height: 2),
                         Text(
-                          "L'exercice précédent a été clôturé. Rendez-vous dans les Paramètres pour démarrer la nouvelle année académique.",
+                          context.tr('previousYearClosed'),
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.orange.shade900,
@@ -406,7 +439,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     Expanded(child: message),
                     if (button != null)
                       Padding(
-                        padding: const EdgeInsets.only(left: 10),
+                        padding: EdgeInsets.only(left: 10),
                         child: button,
                       ),
                   ],
@@ -419,7 +452,7 @@ class _DashboardPageState extends State<DashboardPage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 10),
+                      padding: EdgeInsets.only(top: 10),
                       child: button,
                     ),
                   ),
@@ -437,13 +470,13 @@ class _DashboardPageState extends State<DashboardPage> {
     return Container(
       height: 80,
       color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
           if (isMobile)
             Builder(
               builder: (context) => IconButton(
-                icon: const Icon(Icons.menu),
+                icon: Icon(Icons.menu),
                 onPressed: () {
                   Scaffold.of(context).openDrawer();
                 },
@@ -467,16 +500,16 @@ class _DashboardPageState extends State<DashboardPage> {
                     Text(
                       _tabLabel(loc, selectedTab),
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
                       "${widget.currentUser.name} • ${widget.currentUser.displayRole} • $schoolText$yearText",
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 12,
                       ),
@@ -487,11 +520,8 @@ class _DashboardPageState extends State<DashboardPage> {
             ),
           ),
           IconButton(
-            icon: const Icon(
-              Icons.swap_horiz,
-              color: AppColors.textMuted,
-            ),
-            tooltip: 'Changer d’école',
+            icon: Icon(Icons.swap_horiz, color: AppColors.textMuted),
+            tooltip: context.tr('changeSchool'),
             onPressed: () {
               Navigator.pushReplacement(
                 context,
@@ -502,14 +532,11 @@ class _DashboardPageState extends State<DashboardPage> {
             },
           ),
           IconButton(
-            icon: const Icon(
-              Icons.notifications_none,
-              color: AppColors.textMuted,
-            ),
-            tooltip: 'Notifications',
+            icon: Icon(Icons.notifications_none, color: AppColors.textMuted),
+            tooltip: context.tr('notifications'),
             onPressed: _showNotifications,
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12),
           GestureDetector(
             onTap: () => setState(() => selectedTab = "profile"),
             child: CircleAvatar(
@@ -517,7 +544,7 @@ class _DashboardPageState extends State<DashboardPage> {
               backgroundColor: AppColors.primaryPale,
               child: Text(
                 widget.currentUser.initials,
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.primary,
                   fontWeight: FontWeight.bold,
                 ),
@@ -538,15 +565,15 @@ class _DashboardPageState extends State<DashboardPage> {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Notifications'),
+          title: Text(context.tr('notifications')),
           content: SizedBox(
             width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 460.0),
             child: notifications.isEmpty
-                ? const Text('Aucune notification non lue.')
+                ? Text(context.tr('noUnreadNotifications'))
                 : ListView.separated(
                     shrinkWrap: true,
                     itemCount: notifications.length,
-                    separatorBuilder: (_, _) => const Divider(),
+                    separatorBuilder: (_, _) => Divider(),
                     itemBuilder: (_, index) {
                       final notification = notifications[index];
                       return ListTile(
@@ -573,7 +600,7 @@ class _DashboardPageState extends State<DashboardPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Fermer'),
+              child: Text(context.tr('close')),
             ),
           ],
         ),
@@ -596,43 +623,52 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'students':
         return ListeEleves(currentUser: widget.currentUser);
       case 'teachers':
-        return const ListeEnseignant();
+        return ListeEnseignant();
       case 'myNotes':
         return Notes(currentUser: widget.currentUser);
       case 'receptionNotes':
-        return const ReceptionNotes();
+        return ReceptionNotes();
       case 'events':
-        return const Evenement();
+        return Evenement();
       case 'adminAnnouncements':
-        return const ReceptionEvenements();
+        return ReceptionEvenements();
       case 'timetable':
         return EmploiDuTemps(currentUser: widget.currentUser);
       case 'payments':
         return Paiements(currentUser: widget.currentUser);
-      case 'finances':
-        return FinancesPage(currentUser: widget.currentUser);
+      case 'pensions':
+        return PensionsPage();
+      case 'examClasses':
+        return ExamClassesPage(currentUser: widget.currentUser);
       case 'discipline':
         return Discipline(currentUser: widget.currentUser);
       case 'absences':
-        return const Absences();
+        return Absences();
       case 'myNotebook':
         return CahierTexte(currentUser: widget.currentUser);
       case 'receptionNotebooks':
-        return const ReceptionCahierTexte();
+        return ReceptionCahierTexte();
       case 'expenses':
         return Depenses(currentUser: widget.currentUser);
       case 'classes':
-        return const GestionClasses();
+        return GestionClasses(
+          readOnly: widget.currentUser.role == UserRole.enseignant,
+        );
       case 'subjects':
-        return const GestionMatieres();
+        return GestionMatieres();
       case 'bulletins':
         return BulletinsPage(currentUser: widget.currentUser);
       case 'recapYears':
         return RecapAnnees(currentUser: widget.currentUser);
       case 'settings':
-        return Parametres(currentUser: widget.currentUser);
+        return Parametres(
+          currentUser: widget.currentUser,
+          onBack: () => setState(() => selectedTab = 'dashboard'),
+        );
       case 'programme':
         return ProgrammePage(currentUser: widget.currentUser);
+      case 'courseTracking':
+        return SuiviCoursPage(currentUser: widget.currentUser);
       case 'teacherRoomChecks':
         return TeacherRoomCheckPage(currentUser: widget.currentUser);
       case 'profile':
@@ -659,20 +695,29 @@ class _DashboardPageState extends State<DashboardPage> {
         isTablet,
         stats: [
           _statCard(
-            "Recettes Globales",
+            context.tr('globalRevenue'),
             financeStr,
             Icons.trending_up,
             Colors.green,
           ),
-          _statCard("Total Élèves", elevesStr, Icons.people, Colors.blue),
-          _statCard("Membres du Staff", staffStr, Icons.badge, Colors.purple),
-          _statCard("Taux de Réussite", "98%", Icons.insights, Colors.orange),
+          _statCard(
+            context.tr('totalStudents'),
+            elevesStr,
+            Icons.people,
+            Colors.blue,
+          ),
+          _statCard(
+            context.tr('staffMembers'),
+            staffStr,
+            Icons.badge,
+            Colors.purple,
+          ),
         ],
-        title: "Vision Stratégique — Fondateur",
+        title: context.tr('founderVision'),
         activities: [
-          "Consolidation des finances",
-          "Rapport annuel des établissements",
-          "Gestion des rôles critiques",
+          context.tr('financeConsolidation'),
+          context.tr('annualSchoolReport'),
+          context.tr('criticalRolesManagement'),
         ],
       );
     } else if (role == UserRole.proviseur) {
@@ -680,31 +725,30 @@ class _DashboardPageState extends State<DashboardPage> {
         isMobile,
         isTablet,
         stats: [
-          _statCard("Élèves Inscrits", elevesStr, Icons.school, Colors.blue),
           _statCard(
-            "Assiduité Globale",
-            "95%",
-            Icons.check_circle,
-            Colors.green,
+            context.tr('enrolledStudents'),
+            elevesStr,
+            Icons.school,
+            Colors.blue,
           ),
           _statCard(
-            "Situation Financière",
+            context.tr('financialSituation'),
             financeStr,
             Icons.payments,
             Colors.orange,
           ),
           _statCard(
-            "Personnel Staff",
+            context.tr('staffMembers'),
             staffStr,
             Icons.admin_panel_settings,
             Colors.purple,
           ),
         ],
-        title: "Supervision et Pilotage — Direction",
+        title: context.tr('leadershipSupervision'),
         activities: [
-          "Validation des bulletins en cours",
-          "Revue du personnel enseignant",
-          "Contrôle disciplinaire",
+          context.tr('reportCardsValidation'),
+          context.tr('teacherStaffReview'),
+          context.tr('disciplineControl'),
         ],
       );
     } else if (role == UserRole.censeur) {
@@ -712,21 +756,24 @@ class _DashboardPageState extends State<DashboardPage> {
         isMobile,
         isTablet,
         stats: [
-          _statCard("Total Élèves", elevesStr, Icons.school, Colors.blue),
-          _statCard("Cahiers remplis", "88%", Icons.menu_book, Colors.teal),
           _statCard(
-            "Moyenne Générale",
-            "12.5",
-            Icons.trending_up,
-            Colors.indigo,
+            context.tr('totalStudents'),
+            elevesStr,
+            Icons.school,
+            Colors.blue,
           ),
-          _statCard("Classes", "18", Icons.meeting_room, Colors.green),
+          _statCard(
+            context.tr('courseTracking'),
+            context.tr('open'),
+            Icons.menu_book,
+            Colors.teal,
+          ),
         ],
-        title: "Suivi Pédagogique — Censeur",
+        title: context.tr('academicMonitoring'),
         activities: [
-          "Vérification des emplois du temps",
-          "Clôture de la saisie des notes",
-          "Contrôle des cahiers de texte",
+          context.tr('timetableVerification'),
+          context.tr('gradeEntryClosure'),
+          context.tr('lessonBookControl'),
         ],
       );
     } else if (role == UserRole.surveillantGeneral) {
@@ -734,21 +781,18 @@ class _DashboardPageState extends State<DashboardPage> {
         isMobile,
         isTablet,
         stats: [
-          _statCard("Élèves présents", "92%", Icons.how_to_reg, Colors.green),
           _statCard(
-            "Absences du jour",
-            "12",
-            Icons.warning_amber_rounded,
-            Colors.red,
+            context.tr('enrolledStudents'),
+            elevesStr,
+            Icons.school,
+            Colors.blue,
           ),
-          _statCard("Retards", "5", Icons.timer, Colors.orange),
-          _statCard("Sanctions actives", "3", Icons.gavel, Colors.brown),
         ],
         title: "Vie Scolaire et Discipline — SG",
         activities: [
-          "Appel des classes du matin",
-          "Traitement des billets d'absence",
-          "Rapport de conduite quotidien",
+          context.tr('morningAttendance'),
+          context.tr('absenceSlipProcessing'),
+          context.tr('dailyConductReport'),
         ],
       );
     } else if (role == UserRole.comptable) {
@@ -757,25 +801,23 @@ class _DashboardPageState extends State<DashboardPage> {
         isTablet,
         stats: [
           _statCard(
-            "Recettes",
+            context.tr('revenue'),
             financeStr,
             Icons.account_balance_wallet,
             Colors.green,
           ),
-          _statCard("Dépenses", "...", Icons.shopping_cart, Colors.red),
-          _statCard("Impayés", "15%", Icons.money_off, Colors.orange),
           _statCard(
-            "Relances envoyées",
-            "8",
-            Icons.notification_important,
-            Colors.blue,
+            context.tr('expenses'),
+            context.tr('toReview'),
+            Icons.shopping_cart,
+            Colors.red,
           ),
         ],
-        title: "Gestion Financière — Comptable",
+        title: context.tr('financialManagement'),
         activities: [
-          "Enregistrement des versements",
-          "Paiement des fournisseurs",
-          "Rapport de trésorerie",
+          context.tr('paymentRecording'),
+          context.tr('supplierPayments'),
+          context.tr('cashReport'),
         ],
       );
     } else if (role == UserRole.enseignant) {
@@ -783,16 +825,24 @@ class _DashboardPageState extends State<DashboardPage> {
         isMobile,
         isTablet,
         stats: [
-          _statCard("Mes Classes", "4", Icons.groups, Colors.blue),
-          _statCard("Mes Matières", "2", Icons.book, Colors.orange),
-          _statCard("Heures de cours", "18h", Icons.schedule, Colors.purple),
-          _statCard("Notes saisies", "75%", Icons.percent, Colors.green),
+          _statCard(
+            context.tr('lessonBook'),
+            context.tr('open'),
+            Icons.menu_book,
+            Colors.blue,
+          ),
+          _statCard(
+            context.tr('courseProgram'),
+            context.tr('open'),
+            Icons.book,
+            Colors.orange,
+          ),
         ],
-        title: "Espace Enseignant",
+        title: context.tr('teacherSpace'),
         activities: [
-          "Remplir le cahier de texte",
-          "Prendre les présences",
-          "Saisir les notes d'interrogation",
+          context.tr('fillLessonBook'),
+          context.tr('takeAttendance'),
+          context.tr('enterQuizGrades'),
         ],
       );
     } else {
@@ -801,21 +851,29 @@ class _DashboardPageState extends State<DashboardPage> {
         isTablet,
         stats: [
           _statCard(
-            "Mon Profil",
+            context.tr('myProfile'),
             widget.currentUser.name,
             Icons.person,
             Colors.blue,
           ),
           _statCard(
-            "Rôle",
+            context.tr('role'),
             widget.currentUser.displayRole,
             Icons.badge,
             Colors.green,
           ),
-          _statCard("École", "Active", Icons.school, Colors.orange),
+          _statCard(
+            context.tr('schoolLabel'),
+            context.tr('selected'),
+            Icons.school,
+            Colors.orange,
+          ),
         ],
-        title: "Tableau de Bord - ${widget.currentUser.displayRole}",
-        activities: ["Consulter vos informations", "Contacter l'établissement"],
+        title: "${context.tr('dashboard')} - ${widget.currentUser.displayRole}",
+        activities: [
+          context.tr('auto_consulter_vos_informations'),
+          context.tr('contactSchool'),
+        ],
       );
     }
   }
@@ -836,7 +894,7 @@ class _DashboardPageState extends State<DashboardPage> {
             double aspectRatio = constraints.maxWidth < 600 ? 3.0 : 1.4;
             return GridView.count(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               crossAxisCount: crossAxisCount,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
@@ -845,12 +903,12 @@ class _DashboardPageState extends State<DashboardPage> {
             );
           },
         ),
-        const SizedBox(height: 32),
+        SizedBox(height: 32),
         Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -859,18 +917,15 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           child: ListView.separated(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: activities.length,
-            separatorBuilder: (context, index) => const Divider(height: 1),
+            separatorBuilder: (context, index) => Divider(height: 1),
             itemBuilder: (context, index) => ListTile(
-              leading: const CircleAvatar(
+              leading: CircleAvatar(
                 radius: 4,
                 backgroundColor: AppColors.primary,
               ),
-              title: Text(
-                activities[index],
-                style: const TextStyle(fontSize: 14),
-              ),
+              title: Text(activities[index], style: TextStyle(fontSize: 14)),
             ),
           ),
         ),
@@ -880,7 +935,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _statCard(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
@@ -894,20 +949,14 @@ class _DashboardPageState extends State<DashboardPage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Icon(icon, color: color, size: 28),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],
           ),

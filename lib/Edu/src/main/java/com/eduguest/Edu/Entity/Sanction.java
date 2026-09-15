@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -30,6 +31,7 @@ public class Sanction implements SchoolScoped {
     private String type; // Avertissement, Blâme, Exclusion, etc.
 
     @Column(columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String reason;
 
     @Column(nullable = false)

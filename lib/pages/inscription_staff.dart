@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
+import '../localization/locale_notifier.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
 import '../components/my_textfield.dart';
@@ -20,27 +22,41 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
-  String _selectedRole = 'Enseignant';
+  String _selectedRole = 'ENSEIGNANT';
   bool _isLoading = false;
 
   List<String> get _roles {
     switch (widget.currentUser?.role) {
       case UserRole.fondateur:
         return [
-          'Proviseur',
-          'Censeur',
-          'Surveillant Général',
-          'Secrétaire',
-          'Comptable',
-          'Enseignant',
+          'PROVISEUR',
+          'CENSEUR',
+          'SURVEILLANT_GENERAL',
+          'SECRETAIRE',
+          'COMPTABLE',
+          'ENSEIGNANT',
         ];
       case UserRole.proviseur:
-        return ['Secrétaire'];
+        return ['SECRETAIRE'];
       case UserRole.secretaire:
-        return ['Censeur', 'Surveillant Général', 'Comptable', 'Enseignant'];
+        return ['CENSEUR', 'SURVEILLANT_GENERAL', 'COMPTABLE', 'ENSEIGNANT'];
       default:
         return [];
     }
+
+  }
+
+  String _roleLabel(String role) {
+    final english = Localizations.localeOf(context).languageCode == 'en';
+    const labels = {
+      'PROVISEUR': ['Proviseur', 'Principal'],
+      'CENSEUR': ['Censeur', 'Dean'],
+      'SURVEILLANT_GENERAL': ['Surveillant Général', 'General Supervisor'],
+      'SECRETAIRE': ['Secrétaire', 'Secretary'],
+      'COMPTABLE': ['Comptable', 'Accountant'],
+      'ENSEIGNANT': ['Enseignant', 'Teacher'],
+    };
+    return labels[role]?[english ? 1 : 0] ?? role;
   }
 
   Future<void> _handleRegister() async {
@@ -49,11 +65,7 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
         _passwordController.text.isEmpty ||
         _phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Veuillez renseigner le nom, le téléphone, l'email et le mot de passe.",
-          ),
-        ),
+        SnackBar(content: Text(context.tr('staffFieldsRequired'))),
       );
       return;
     }
@@ -68,6 +80,7 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
         role: _selectedRole,
         registeredByUserId: widget.currentUser!.id,
         phone: _phoneController.text.trim(),
+        language: appLocale.value.languageCode,
       );
 
       if (mounted) {
@@ -75,7 +88,7 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                "Le compte $_selectedRole a été créé avec succès !",
+                "${context.tr('staffAccountCreated')} ${_roleLabel(_selectedRole)} !",
               ),
             ),
           );
@@ -86,7 +99,7 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(result['message'] ?? "Erreur lors de la création"),
+              content: Text(result['message'] ?? context.tr('saveError')),
             ),
           );
         }
@@ -114,7 +127,7 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
   Widget build(BuildContext context) {
     final roles = _roles;
     if (roles.isEmpty) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -122,7 +135,7 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
             Icon(Icons.lock_outline, size: 42, color: AppColors.textMuted),
             SizedBox(height: 12),
             Text(
-              "Vous n'avez pas l'autorisation de recruter un membre du staff.",
+              context.tr('staffRecruitmentForbidden'),
               textAlign: TextAlign.center,
             ),
           ],
@@ -134,23 +147,23 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Inscription du Personnel",
+        Text(
+          context.tr('staffRegistrationTitle'),
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
             color: AppColors.text,
           ),
         ),
-        const SizedBox(height: 8),
-        const Text(
-          "Créez les accès pour les membres de votre administration.",
+        SizedBox(height: 8),
+        Text(
+          context.tr('staffSignupDescription'),
           style: TextStyle(color: AppColors.textMuted, fontSize: 14),
         ),
-        const SizedBox(height: 30),
+        SizedBox(height: 30),
 
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -161,34 +174,34 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
             children: [
               MyTextfield(
                 controller: _nameController,
-                hintText: "Nom complet",
+                hintText: context.tr('fullName'),
                 icon: Icons.person_outline,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               MyTextfield(
                 controller: _phoneController,
-                hintText: "Téléphone *",
+                hintText: context.tr('phoneRequired'),
                 icon: Icons.phone_android,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               MyTextfield(
                 controller: _emailController,
-                hintText: "Email professionnel (Identifiant)",
+                hintText: context.tr('professionalEmail'),
                 icon: Icons.email_outlined,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               MyTextfield(
                 controller: _passwordController,
-                hintText: "Mot de passe temporaire",
+                hintText: context.tr('temporaryPassword'),
                 icon: Icons.lock_outline,
                 obscureText: true,
               ),
-              const SizedBox(height: 24),
-              const Text(
-                "Poste attribué",
+              SizedBox(height: 24),
+              Text(
+                context.tr('assignedPosition'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: roles.contains(_selectedRole)
                     ? _selectedRole
@@ -200,24 +213,24 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
                     borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide.none,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.admin_panel_settings,
                     color: AppColors.primary,
                   ),
                 ),
                 items: roles
-                    .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                    .map((r) => DropdownMenuItem(value: r, child: Text(_roleLabel(r))))
                     .toList(),
                 onChanged: (val) => setState(() => _selectedRole = val!),
               ),
-              const SizedBox(height: 40),
+              SizedBox(height: 40),
               _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Center(child: CircularProgressIndicator())
                   : SizedBox(
                       width: double.infinity,
                       child: MyButton(
                         icon: Icons.person_add_alt_1,
-                        text: "Créer le compte staff",
+                        text: context.tr('createStaffAccount'),
                         onTap: _handleRegister,
                       ),
                     ),

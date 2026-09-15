@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../models/app_user.dart';
 import '../models/student.dart';
 import '../models/school_class.dart';
@@ -16,6 +17,7 @@ import '../models/lesson.dart';
 import '../models/schedule.dart';
 import '../models/school.dart';
 import '../models/teacher.dart';
+import '../models/exam_class.dart';
 
 class ApiService {
   static final Dio _dio = _createDio();
@@ -23,10 +25,18 @@ class ApiService {
   static String? activeSchoolId;
   static AppUser? currentUser;
 
+  static String get _localBaseUrl {
+    if (kIsWeb) return 'http://51.178.53.56:8003/';
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://51.178.53.56:8003/';
+    }
+    return 'http://51.178.53.56:8003/';
+  }
+
   static Dio _createDio() {
     final dio = Dio(
       BaseOptions(
-        baseUrl: 'http://51.178.53.56:8003',
+        baseUrl: _localBaseUrl,
         connectTimeout: const Duration(seconds: 10),
         receiveTimeout: const Duration(seconds: 10),
         headers: {'Content-Type': 'application/json'},
@@ -39,6 +49,7 @@ class ApiService {
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+
           if (activeSchoolId != null) {
             options.headers['X-School-Id'] = activeSchoolId;
           }
@@ -91,15 +102,25 @@ class ApiService {
         e.type == DioExceptionType.sendTimeout) {
       return 'Problème de réseau, vérifiez votre accès à Internet.';
     }
-    if (e.response?.data != null && e.response?.data is Map) {
-      return e.response?.data['message']?.toString() ?? e.message ?? 'Erreur';
+    if (e.response?.statusCode == 401) {
+      return 'Votre session a expiré. Veuillez vous reconnecter.';
     }
-    return e.message ?? 'Erreur inconnue';
+    if (e.response?.statusCode == 403) {
+      return 'Vous n’avez pas les droits nécessaires pour cette action.';
+    }
+    if (e.response?.statusCode != null && e.response!.statusCode! >= 500) {
+      return 'Le service est temporairement indisponible. Réessayez plus tard.';
+    }
+    if (e.response?.data != null && e.response?.data is Map) {
+      final message = e.response?.data['message']?.toString();
+      if (message != null && message.trim().isNotEmpty) return message;
+    }
+    return 'Une erreur est survenue. Veuillez réessayer.';
   }
 
   static String friendlyErrorMessage(Object error) {
     if (error is DioException) return _errorMessage(error);
-    return error.toString().replaceFirst('Exception: ', '');
+    return 'Une erreur est survenue. Veuillez réessayer.';
   }
 
   // --- AUTH & USERS ---
@@ -122,7 +143,7 @@ class ApiService {
 
   static Future<Map<String, dynamic>> registerAccount({
     required String name,
-    required String email,
+    String? email,
     required String password,
     String? phone,
   }) async {
@@ -132,16 +153,64 @@ class ApiService {
         data: {
           'username': email,
           'name': name,
-          'email': email,
+          if (email != null && email.trim().isNotEmpty) 'email': email.trim(),
           'password': password,
           'phone': phone,
           'role': 'MEMBRE',
         },
       );
-      return {'success': true, 'user': AppUser.fromMap(_asMap(response.data))};
+      final data = _asMap(response.data);
+      return {
+        'success': true,
+        'user': AppUser.fromMap(data),
+        'verificationCode': data['verificationCode']?.toString(),
+      };
     } on DioException catch (e) {
       return {'success': false, 'message': _errorMessage(e)};
     }
+  }
+
+  static Future<void> verifyRegistration({
+    required String userId,
+    required String code,
+  }) async {
+    await _dio.post(
+      '/api/users/verify-registration',
+      data: {'userId': userId, 'code': code},
+    );
+  }
+
+  static Future<void> requestPasswordChangeCode(String userId) async {
+    await _dio.post('/api/users/$userId/request-password-change-code');
+  }
+
+  static Future<void> confirmPasswordChange({
+    required String userId,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _dio.post(
+      '/api/users/$userId/confirm-password-change',
+      data: {'code': code, 'newPassword': newPassword},
+    );
+  }
+
+  static Future<void> requestPasswordReset(String contact) async {
+    await _dio.post(
+      '/api/users/request-password-reset',
+      data: {'contact': contact},
+    );
+  }
+
+  static Future<void> resetPassword({
+    required String contact,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _dio.post(
+      '/api/users/reset-password',
+      data: {'contact': contact, 'code': code, 'newPassword': newPassword},
+    );
   }
 
   static Future<Map<String, dynamic>> registerStaff({
@@ -151,6 +220,7 @@ class ApiService {
     required String role,
     String? phone,
     String? registeredByUserId,
+    String language = 'fr',
   }) async {
     try {
       final response = await _dio.post(
@@ -165,6 +235,7 @@ class ApiService {
             'schoolId': int.parse(activeSchoolId!),
           if (registeredByUserId != null)
             'registeredByUserId': registeredByUserId,
+          'language': language,
         },
       );
       return {'success': true, 'user': AppUser.fromMap(_asMap(response.data))};
@@ -233,15 +304,17 @@ class ApiService {
     required String userId,
     required String name,
     required String code,
+    String schoolLevel = 'COLLEGE',
     String? address,
     String? phone,
   }) async {
     final response = await _dio.post(
       '/api/schools',
       data: {
-        'founderId': userId,
+        'userId': int.tryParse(userId) ?? userId,
         'name': name,
         'code': code,
+        'schoolLevel': schoolLevel,
         'address': address ?? '',
         'phone': phone ?? '',
       },
@@ -252,15 +325,10 @@ class ApiService {
   static Future<void> joinSchoolByCode({
     required String code,
     required String userId,
-    UserRole? role,
   }) async {
     await _dio.post(
       '/api/schools/join',
-      queryParameters: {
-        'code': code,
-        'userId': userId,
-        if (role != null) 'role': role.name.toUpperCase(),
-      },
+      queryParameters: {'code': code, 'userId': userId},
     );
   }
 
@@ -298,6 +366,17 @@ class ApiService {
     await _dio.delete('/api/scolarite/students/$id');
   }
 
+  static Future<Student> validateStudent({
+    required String studentId,
+    required String classroomId,
+  }) async {
+    final response = await _dio.post(
+      '/api/scolarite/students/$studentId/validate',
+      queryParameters: {'classroomId': classroomId},
+    );
+    return Student.fromMap(_asMap(response.data));
+  }
+
   static Future<List<SchoolClass>> getClassrooms() async {
     final response = await _dio.get('/api/scolarite/classrooms');
     return _asMapList(response.data).map(SchoolClass.fromMap).toList();
@@ -311,6 +390,57 @@ class ApiService {
 
   static Future<void> deleteClassroom(String id) async {
     await _dio.delete('/api/scolarite/classrooms/$id');
+  }
+
+  static Future<ExamClassConfig> getExamClassConfig(String classroomId) async {
+    final response = await _dio.get('/api/exam-classes/$classroomId/config');
+    return ExamClassConfig.fromMap(_asMap(response.data));
+  }
+
+  static Future<ExamClassConfig> saveExamClassConfig(
+    String classroomId,
+    ExamClassConfig config,
+  ) async {
+    final response = await _dio.put(
+      '/api/exam-classes/$classroomId/config',
+      data: config.toMap(),
+    );
+    return ExamClassConfig.fromMap(_asMap(response.data));
+  }
+
+  static Future<List<StudentExamStatus>> getExamClassStudents(
+    String classroomId,
+  ) async {
+    final response = await _dio.get('/api/exam-classes/$classroomId/students');
+    return _asMapList(response.data).map(StudentExamStatus.fromMap).toList();
+  }
+
+  static Future<StudentExamStatus> saveExamStudentStatus(
+    String classroomId,
+    StudentExamStatus status,
+  ) async {
+    final response = await _dio.put(
+      '/api/exam-classes/$classroomId/students/${status.studentId}',
+      data: status.toMap(),
+    );
+    return StudentExamStatus.fromMap(_asMap(response.data));
+  }
+
+  static Future<StudentExamStatus?> getParentExamStatus({
+    required String studentId,
+  }) async {
+    try {
+      final response = await _dio.get(
+        '/api/exam-classes/parent/students/$studentId',
+      );
+      return StudentExamStatus.fromMap(_asMap(response.data));
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404 ||
+          error.response?.statusCode == 400) {
+        return null;
+      }
+      rethrow;
+    }
   }
 
   // --- ACADÉMIQUE ---
@@ -469,7 +599,7 @@ class ApiService {
   }
 
   static ({int hour, int minute})? _parseScheduleTime(String value) {
-    final match = RegExp(r'^\\s*(\\d{1,2})[:.]([0-5]\\d)').firstMatch(value);
+    final match = RegExp(r'^\s*(\d{1,2})[:.]([0-5]\d)').firstMatch(value);
     if (match == null) return null;
     final hour = int.tryParse(match.group(1)!);
     final minute = int.tryParse(match.group(2)!);
@@ -495,6 +625,35 @@ class ApiService {
 
   static Future<void> saveTeacherRoomCheck(Map<String, dynamic> data) async {
     await _dio.post('/api/academique/teacher-room-checks', data: data);
+  }
+
+  static Future<List<Map<String, dynamic>>> getTeacherAttendance({
+    DateTime? date,
+  }) async {
+    final response = await _dio.get(
+      '/api/scolarite/teacher-attendance',
+      queryParameters: {
+        if (date != null) 'date': date.toIso8601String().substring(0, 10),
+      },
+    );
+    return _asMapList(response.data);
+  }
+
+  static Future<void> saveTeacherAttendance({
+    required String teacherId,
+    required String status,
+    DateTime? date,
+  }) async {
+    await _dio.post(
+      '/api/scolarite/teacher-attendance',
+      data: {
+        'teacherId': int.tryParse(teacherId) ?? teacherId,
+        'status': status,
+        'attendanceDate': (date ?? DateTime.now())
+            .toIso8601String()
+            .substring(0, 10),
+      },
+    );
   }
 
   static Future<void> justifyTeacherRoomAbsence(
@@ -582,6 +741,11 @@ class ApiService {
   static Future<Map<String, dynamic>> getFinanceStats() async {
     final response = await _dio.get('/api/finance/stats');
     return _asMap(response.data);
+  }
+
+  static Future<List<Map<String, dynamic>>> getTuitionStatus() async {
+    final response = await _dio.get('/api/finance/tuition-status');
+    return _asMapList(response.data);
   }
 
   static Future<bool> deletePayment(String paymentId) async {
@@ -710,6 +874,16 @@ class ApiService {
     await _dio.put(
       '/api/notifications/$id/read',
       queryParameters: {if (userId != null) 'userId': userId},
+    );
+  }
+
+  static Future<void> registerPushToken({
+    required String token,
+    required String platform,
+  }) async {
+    await _dio.post(
+      '/api/notifications/devices',
+      data: {'token': token, 'platform': platform},
     );
   }
 

@@ -98,7 +98,9 @@ class AdminPortalService {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return _defaultSchools();
-      return decoded.map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item)).toList();
+      return decoded
+          .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
+          .toList();
     } catch (_) {
       await prefs.setString(_schoolsKey, jsonEncode(_defaultSchools()));
       return _defaultSchools();
@@ -114,21 +116,31 @@ class AdminPortalService {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_paymentMethodsKey);
     if (raw == null || raw.isEmpty) {
-      await prefs.setString(_paymentMethodsKey, jsonEncode(_defaultPaymentMethods()));
+      await prefs.setString(
+        _paymentMethodsKey,
+        jsonEncode(_defaultPaymentMethods()),
+      );
       return _defaultPaymentMethods();
     }
 
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return _defaultPaymentMethods();
-      return decoded.map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item)).toList();
+      return decoded
+          .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
+          .toList();
     } catch (_) {
-      await prefs.setString(_paymentMethodsKey, jsonEncode(_defaultPaymentMethods()));
+      await prefs.setString(
+        _paymentMethodsKey,
+        jsonEncode(_defaultPaymentMethods()),
+      );
       return _defaultPaymentMethods();
     }
   }
 
-  static Future<void> savePaymentMethods(List<Map<String, dynamic>> methods) async {
+  static Future<void> savePaymentMethods(
+    List<Map<String, dynamic>> methods,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_paymentMethodsKey, jsonEncode(methods));
   }
@@ -144,14 +156,18 @@ class AdminPortalService {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is! List) return _defaultPromotions();
-      return decoded.map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item)).toList();
+      return decoded
+          .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
+          .toList();
     } catch (_) {
       await prefs.setString(_promotionsKey, jsonEncode(_defaultPromotions()));
       return _defaultPromotions();
     }
   }
 
-  static Future<void> savePromotions(List<Map<String, dynamic>> promotions) async {
+  static Future<void> savePromotions(
+    List<Map<String, dynamic>> promotions,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_promotionsKey, jsonEncode(promotions));
   }

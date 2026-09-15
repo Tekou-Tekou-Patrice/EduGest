@@ -20,4 +20,8 @@ public class StudentDto {
     private Long registeredById;
     private String registeredByName;
     private LocalDateTime registrationDate;
+    private String registrationStatus;
+    private Long validatedById;
+    private String validatedByName;
+    private LocalDateTime validatedAt;
 }

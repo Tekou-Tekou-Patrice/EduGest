@@ -4,13 +4,14 @@ import 'package:edugest/models/school_class.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:edugest/components/my_textfield.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
 
 class ListeEleves extends StatefulWidget {
   final AppUser currentUser;
-  const ListeEleves({super.key, required this.currentUser});
+  ListeEleves({super.key, required this.currentUser});
 
   @override
   State<ListeEleves> createState() => _ListeElevesState();
@@ -66,19 +67,86 @@ class _ListeElevesState extends State<ListeEleves> {
     }
   }
 
+  Future<void> _validateStudent(Student student) async {
+    String? selectedClass = _availableClasses.isNotEmpty
+        ? _availableClasses.first.name
+        : null;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Valider l’inscription'),
+          content: DropdownButtonFormField<String>(
+            value: selectedClass,
+            decoration: const InputDecoration(
+              labelText: 'Classe à affecter',
+              border: OutlineInputBorder(),
+            ),
+            items: _availableClasses
+                .map(
+                  (schoolClass) => DropdownMenuItem(
+                    value: schoolClass.name,
+                    child: Text(schoolClass.name),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setDialogState(() => selectedClass = value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: Text(context.tr('cancel')),
+            ),
+            FilledButton(
+              onPressed: selectedClass == null
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              child: const Text('Valider'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true || selectedClass == null) return;
+    final classroom = _availableClasses.firstWhere(
+      (schoolClass) => schoolClass.name == selectedClass,
+    );
+    try {
+      await ApiService.validateStudent(
+        studentId: student.id,
+        classroomId: classroom.id,
+      );
+      await _fetchData();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ApiService.friendlyErrorMessage(error))),
+        );
+      }
+    }
+  }
+
   void _showStudentDialog({Student? student}) {
     final prenomCtrl = TextEditingController(text: student?.firstName ?? '');
     final nomCtrl = TextEditingController(text: student?.lastName ?? '');
-    final parentNomCtrl = TextEditingController(text: student?.parentName ?? '');
-    final parentPhoneCtrl = TextEditingController(text: student?.parentPhone ?? '');
-    final parentEmailCtrl = TextEditingController(text: student?.parentEmail ?? '');
+    final parentNomCtrl = TextEditingController(
+      text: student?.parentName ?? '',
+    );
+    final parentPhoneCtrl = TextEditingController(
+      text: student?.parentPhone ?? '',
+    );
+    final parentEmailCtrl = TextEditingController(
+      text: student?.parentEmail ?? '',
+    );
     final parentPasswordCtrl = TextEditingController();
-    
+
     DateTime? selectedBirthDate = student?.birthDate;
     final birthDateCtrl = TextEditingController(
-      text: selectedBirthDate != null ? DateFormat('dd/MM/yyyy').format(selectedBirthDate!) : ''
+      text: selectedBirthDate != null
+          ? DateFormat('dd/MM/yyyy').format(selectedBirthDate!)
+          : '',
     );
-    
+
     String? currentClass = student?.className;
     if (currentClass == null || currentClass.isEmpty) {
       if (selectedClasse != 'Toutes') {
@@ -92,18 +160,35 @@ class _ListeElevesState extends State<ListeEleves> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(student == null ? "Inscrire un Élève" : "Modifier l'Élève"),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(
+            student == null
+                ? context.tr('registerStudent')
+                : context.tr('editStudent'),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text("Informations Élève", style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                MyTextfield(controller: prenomCtrl, hintText: "Prénom", icon: Icons.person_outline),
-                const SizedBox(height: 12),
-                MyTextfield(controller: nomCtrl, hintText: "Nom", icon: Icons.person),
-                const SizedBox(height: 12),
+                Text(
+                  context.tr('studentInformation'),
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 12),
+                MyTextfield(
+                  controller: prenomCtrl,
+                  hintText: context.tr('firstName'),
+                  icon: Icons.person_outline,
+                ),
+                SizedBox(height: 12),
+                MyTextfield(
+                  controller: nomCtrl,
+                  hintText: context.tr('lastName'),
+                  icon: Icons.person,
+                ),
+                SizedBox(height: 12),
                 GestureDetector(
                   onTap: () async {
                     final DateTime? picked = await showDatePicker(
@@ -115,64 +200,95 @@ class _ListeElevesState extends State<ListeEleves> {
                     if (picked != null) {
                       setDialogState(() {
                         selectedBirthDate = picked;
-                        birthDateCtrl.text = DateFormat('dd/MM/yyyy').format(picked);
+                        birthDateCtrl.text = DateFormat(
+                          'dd/MM/yyyy',
+                        ).format(picked);
                       });
                     }
                   },
                   child: AbsorbPointer(
                     child: MyTextfield(
                       controller: birthDateCtrl,
-                      hintText: "Date de naissance",
+                      hintText: context.tr('birthDate'),
                       icon: Icons.calendar_today,
                     ),
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _availableClasses.any((c) => c.name == currentClass) ? currentClass : null,
-                  hint: const Text("Sélectionner une classe"),
+                  value: _availableClasses.any((c) => c.name == currentClass)
+                      ? currentClass
+                      : null,
+                  hint: Text(context.tr('selectClass')),
                   decoration: InputDecoration(
-                    labelText: "Classe",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    labelText: context.tr('classLabel'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   items: _availableClasses
-                      .map((c) => DropdownMenuItem(value: c.name, child: Text(c.name)))
+                      .map(
+                        (c) => DropdownMenuItem(
+                          value: c.name,
+                          child: Text(c.name),
+                        ),
+                      )
                       .toList(),
                   onChanged: (val) {
                     if (val != null) setDialogState(() => currentClass = val);
                   },
                 ),
-                
-                const SizedBox(height: 24),
-                const Text("Informations Parent", style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
-                MyTextfield(controller: parentNomCtrl, hintText: "Nom du Parent", icon: Icons.family_restroom),
-                const SizedBox(height: 12),
-                MyTextfield(controller: parentPhoneCtrl, hintText: "Téléphone du Parent", icon: Icons.phone_callback),
-                const SizedBox(height: 12),
-                MyTextfield(controller: parentEmailCtrl, hintText: "Email du Parent", icon: Icons.email_outlined),
-                const SizedBox(height: 12),
+
+                SizedBox(height: 24),
+                Text(
+                  context.tr('parentInformation'),
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 12),
+                MyTextfield(
+                  controller: parentNomCtrl,
+                  hintText: context.tr('parentName'),
+                  icon: Icons.family_restroom,
+                ),
+                SizedBox(height: 12),
+                MyTextfield(
+                  controller: parentPhoneCtrl,
+                  hintText: context.tr('parentPhone'),
+                  icon: Icons.phone_callback,
+                ),
+                SizedBox(height: 12),
+                MyTextfield(
+                  controller: parentEmailCtrl,
+                  hintText: context.tr('parentEmail'),
+                  icon: Icons.email_outlined,
+                ),
+                SizedBox(height: 12),
                 if (student == null)
                   MyTextfield(
                     controller: parentPasswordCtrl,
-                    hintText: "Mot de passe temporaire du Parent (facultatif)",
+                    hintText: context.tr('parentTemporaryPassword'),
                     icon: Icons.lock_outline,
                     obscureText: true,
                   ),
                 if (student == null)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 6),
                     child: Text(
-                      "Si laissé vide, le numéro du parent sera utilisé comme mot de passe temporaire.",
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                      context.tr('parentPasswordFallback'),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textMuted,
+                      ),
                     ),
                   ),
-                
+
                 if (_availableClasses.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 8.0),
-                    child: Text("Aucune classe disponible. Créez-en une d'abord.", 
-                      style: TextStyle(color: Colors.red, fontSize: 12)),
+                    child: Text(
+                      context.tr('noClassesAvailable'),
+                      style: TextStyle(color: Colors.red, fontSize: 12),
+                    ),
                   ),
               ],
             ),
@@ -185,18 +301,27 @@ class _ListeElevesState extends State<ListeEleves> {
                   if (mounted) Navigator.pop(context);
                   _fetchData();
                 },
-                child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
+                child: Text(
+                  context.tr('delete'),
+                  style: TextStyle(color: Colors.red),
+                ),
               ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Annuler"),
+              child: Text(context.tr('cancel')),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               onPressed: () async {
-                if (prenomCtrl.text.trim().isEmpty || nomCtrl.text.trim().isEmpty || currentClass == null) {
+                if (prenomCtrl.text.trim().isEmpty ||
+                    nomCtrl.text.trim().isEmpty ||
+                    currentClass == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Veuillez remplir le nom, prénom et choisir une classe"))
+                    SnackBar(
+                      content: Text(context.tr('studentFieldsRequired')),
+                    ),
                   );
                   return;
                 }
@@ -216,7 +341,10 @@ class _ListeElevesState extends State<ListeEleves> {
                 if (mounted) Navigator.pop(context);
                 _fetchData();
               },
-              child: const Text("Valider", style: TextStyle(color: Colors.white)),
+              child: Text(
+                context.tr('validate'),
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -226,7 +354,10 @@ class _ListeElevesState extends State<ListeEleves> {
 
   @override
   Widget build(BuildContext context) {
-    final allFilterClasses = ['Toutes', ..._availableClasses.map((e) => e.name)];
+    final allFilterClasses = [
+      'Toutes',
+      ..._availableClasses.map((e) => e.name),
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,93 +368,165 @@ class _ListeElevesState extends State<ListeEleves> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            const Text("Gestion des Élèves", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            Text(
+              context.tr('studentManagement'),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onPressed: () => _showStudentDialog(),
-                  icon: const Icon(Icons.add, color: Colors.white),
-                  label: const Text("Ajouter", style: TextStyle(color: Colors.white)),
+                  icon: Icon(Icons.add, color: Colors.white),
+                  label: Text(
+                    context.tr('add'),
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
-                const SizedBox(width: 10),
-                MyButton(icon: Icons.refresh, text: "Actualiser", onTap: _loadInitialData),
+                SizedBox(width: 10),
+                MyButton(
+                  icon: Icons.refresh,
+                  text: context.tr('refresh'),
+                  onTap: _loadInitialData,
+                ),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.border)),
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
           child: TextField(
             onChanged: (val) {
               searchQuery = val;
               _fetchData();
             },
-            decoration: const InputDecoration(hintText: "Rechercher un élève...", icon: Icon(Icons.search), border: InputBorder.none),
+            decoration: InputDecoration(
+              hintText: context.tr('searchStudent'),
+              icon: Icon(Icons.search),
+              border: InputBorder.none,
+            ),
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: allFilterClasses.map((c) => Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: ChoiceChip(
-                label: Text(c),
-                selected: selectedClasse == c,
-                onSelected: (s) {
-                  setState(() => selectedClasse = c);
-                  _fetchData();
-                },
-              ),
-            )).toList(),
+            children: allFilterClasses
+                .map(
+                  (c) => Padding(
+                    padding: EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      label: Text(c),
+                      selected: selectedClasse == c,
+                      onSelected: (s) {
+                        setState(() => selectedClasse = c);
+                        _fetchData();
+                      },
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ),
-        const SizedBox(height: 25),
+        SizedBox(height: 25),
 
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (_eleves.isEmpty)
-          const Center(child: Text("Aucun élève trouvé."))
+          Center(child: Text(context.tr('noStudents')))
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _eleves.length,
             itemBuilder: (context, index) {
               final student = _eleves[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(15), border: Border.all(color: AppColors.border)),
+                margin: EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: AppColors.border),
+                ),
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primaryPale,
-                    child: const Icon(Icons.person, color: AppColors.primary),
+                    child: Icon(Icons.person, color: AppColors.primary),
                   ),
-                  title: Text("${student.firstName} ${student.lastName}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    "${student.firstName} ${student.lastName}",
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text("Classe: ${student.className}"),
                       if (student.birthDate != null)
-                        Text("Né(e) le: ${DateFormat('dd/MM/yyyy').format(student.birthDate!)}", style: const TextStyle(fontSize: 12)),
-                      if (student.parentName != null && student.parentName!.isNotEmpty)
-                        Text("Parent: ${student.parentName} (${student.parentPhone ?? ''})", style: const TextStyle(fontSize: 12)),
+                        Text(
+                          "${context.tr('bornOn')} ${DateFormat('dd/MM/yyyy').format(student.birthDate!)}",
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      if (student.parentName != null &&
+                          student.parentName!.isNotEmpty)
+                        Text(
+                          "Parent: ${student.parentName} (${student.parentPhone ?? ''})",
+                          style: TextStyle(fontSize: 12),
+                        ),
                       if (student.registeredByName != null)
-                        Text("Inscrit par: ${student.registeredByName}", style: const TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
+                        Text(
+                          "Inscrit par: ${student.registeredByName}",
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      if (student.registrationStatus == 'PENDING')
+                        const Text(
+                          'Inscription en attente de validation',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
                     ],
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit_outlined, color: AppColors.primary),
-                    onPressed: () => _showStudentDialog(student: student),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (student.registrationStatus == 'PENDING' &&
+                          (widget.currentUser.role == UserRole.proviseur ||
+                              widget.currentUser.role == UserRole.fondateur))
+                        IconButton(
+                          tooltip: 'Valider l’inscription',
+                          icon: const Icon(
+                            Icons.verified_outlined,
+                            color: Colors.green,
+                          ),
+                          onPressed: () => _validateStudent(student),
+                        ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          color: AppColors.primary,
+                        ),
+                        onPressed: () => _showStudentDialog(student: student),
+                      ),
+                    ],
                   ),
                 ),
               );

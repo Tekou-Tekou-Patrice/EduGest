@@ -27,7 +27,7 @@ public class FinanceController {
     }
 
     @GetMapping("/payments")
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.COMPTABLE})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.COMPTABLE})
     public ResponseEntity<List<PaymentDto>> getAllPayments() {
         try {
             return ResponseEntity.ok(financeService.getAllPayments());
@@ -47,7 +47,7 @@ public class FinanceController {
     }
 
     @GetMapping("/recent")
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.COMPTABLE})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.COMPTABLE})
     public ResponseEntity<List<PaymentDto>> getRecentPayments() {
         try {
             return ResponseEntity.ok(financeService.getRecentPayments());
@@ -57,7 +57,7 @@ public class FinanceController {
     }
 
     @GetMapping("/stats")
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.COMPTABLE})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.COMPTABLE})
     public ResponseEntity<Map<String, Object>> getFinanceStats() {
         try {
             return ResponseEntity.ok(financeService.getFinanceStats());
@@ -66,8 +66,14 @@ public class FinanceController {
         }
     }
 
+    @GetMapping("/tuition-status")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.COMPTABLE})
+    public ResponseEntity<List<Map<String, Object>>> getTuitionStatus() {
+        return ResponseEntity.ok(financeService.getTuitionStatus());
+    }
+
     @PostMapping("/payments")
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.COMPTABLE})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.COMPTABLE})
     public ResponseEntity<PaymentDto> createPayment(@Valid @RequestBody PaymentDto dto) {
         return ResponseEntity.ok(financeService.createPayment(dto));
     }
@@ -80,6 +86,7 @@ public class FinanceController {
     }
 
     @GetMapping("/expenses")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.COMPTABLE})
     public ResponseEntity<List<ExpenseDto>> getAllExpenses() {
         try {
             return ResponseEntity.ok(financeService.getAllExpenses());

@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,7 +21,9 @@ public class Event implements SchoolScoped {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Lob
+    @Column(nullable = false, columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String title;
 
     @Column(nullable = false)

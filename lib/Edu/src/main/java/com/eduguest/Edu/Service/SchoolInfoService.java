@@ -107,6 +107,7 @@ public class SchoolInfoService {
         School currentSchool = schoolContextService.currentSchool();
         if (currentSchool != null) {
             dto.setCode(currentSchool.getCode());
+            dto.setSchoolLevel(normalizeSchoolLevel(currentSchool.getSchoolLevel()));
             dto.setSubscriptionStatus(currentSchool.getSubscriptionStatus());
             dto.setSubscriptionExpiresAt(currentSchool.getSubscriptionExpiresAt());
             dto.setMonthlyFee(currentSchool.getMonthlyFee());
@@ -133,5 +134,12 @@ public class SchoolInfoService {
             dto.setWaitingForNewYear(waiting);
         }
         return dto;
+    }
+
+    private String normalizeSchoolLevel(String value) {
+        if ("PRIMARY".equalsIgnoreCase(value)) return "PRIMARY";
+        if ("COLLEGE".equalsIgnoreCase(value)) return "COLLEGE";
+        if ("LYCEE".equalsIgnoreCase(value)) return "LYCEE";
+        return "COLLEGE";
     }
 }

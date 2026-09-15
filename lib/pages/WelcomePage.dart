@@ -39,7 +39,9 @@ class Welcomepage extends StatelessWidget {
                             borderRadius: BorderRadius.circular(32),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.28),
+                                color: AppColors.primary.withValues(
+                                  alpha: 0.28,
+                                ),
                                 blurRadius: 28,
                                 offset: const Offset(0, 14),
                               ),
@@ -54,7 +56,9 @@ class Welcomepage extends StatelessWidget {
 
                         // Titre de bienvenue
                         Text(
-                          AppLocalizations.of(context).translate('welcomeTitle'),
+                          AppLocalizations.of(
+                            context,
+                          ).translate('welcomeTitle'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 28,
@@ -68,7 +72,9 @@ class Welcomepage extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Text(
-                            AppLocalizations.of(context).translate('welcomeDescription'),
+                            AppLocalizations.of(
+                              context,
+                            ).translate('welcomeDescription'),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontSize: 14,
@@ -84,20 +90,26 @@ class Welcomepage extends StatelessWidget {
                           width: double.infinity,
                           child: MyButton(
                             icon: Icons.arrow_right_alt,
-                            text: AppLocalizations.of(context).translate('getStarted'),
+                            text: AppLocalizations.of(
+                              context,
+                            ).translate('getStarted'),
                             onTap: () async {
                               await AuthSessionService.markWelcomeSeen();
                               if (!context.mounted) return;
                               Navigator.pushReplacement(
                                 context,
-                                MaterialPageRoute(builder: (context) => const LoginPage()),
+                                MaterialPageRoute(
+                                  builder: (context) => const LoginPage(),
+                                ),
                               );
                             },
                           ),
                         ),
                         const SizedBox(height: 20),
                         Text(
-                          AppLocalizations.of(context).translate('developerCredit'),
+                          AppLocalizations.of(
+                            context,
+                          ).translate('developerCredit'),
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             color: AppColors.textMuted,

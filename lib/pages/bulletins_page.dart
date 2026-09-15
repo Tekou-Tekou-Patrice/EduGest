@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../components/responsive_layout.dart';
@@ -16,7 +17,7 @@ import '../service/school_notifier.dart';
 
 class BulletinsPage extends StatefulWidget {
   final AppUser currentUser;
-  const BulletinsPage({super.key, required this.currentUser});
+  BulletinsPage({super.key, required this.currentUser});
 
   @override
   State<BulletinsPage> createState() => _BulletinsPageState();
@@ -53,9 +54,9 @@ class _BulletinsPageState extends State<BulletinsPage> {
       widget.currentUser.role == UserRole.secretaire;
 
   Map<String, double> get _subjectCoefficients => {
-        for (final subject in _subjects)
-          subject.name.trim().toLowerCase(): subject.coefficient,
-      };
+    for (final subject in _subjects)
+      subject.name.trim().toLowerCase(): subject.coefficient,
+  };
 
   double _coefficientFor(Exam exam) =>
       _subjectCoefficients[exam.subject.trim().toLowerCase()] ??
@@ -243,36 +244,42 @@ class _BulletinsPageState extends State<BulletinsPage> {
 
           String alertMessage = '';
           if (missing.isNotEmpty) {
-            alertMessage += 'Notes manquantes détectées :\n$missing\n\n';
+            alertMessage +=
+                '${context.tr('missingGradesDetected')}:\n$missing\n\n';
           }
           if (zeroCoeffs.isNotEmpty) {
-            alertMessage += 'Coefficients nuls ou non définis :\n$zeroCoeffs\n\n';
+            alertMessage +=
+                '${context.tr('invalidCoefficients')}:\n$zeroCoeffs\n\n';
           }
           if (alertMessage.isEmpty) {
-            alertMessage = readiness['message']?.toString() ??
-                'Toutes les évaluations de la période doivent être notées sans coefficient nul avant de publier.';
+            alertMessage =
+                readiness['message']?.toString() ??
+                context.tr('allGradesRequiredBeforePublish');
           } else {
-            alertMessage += 'Veuillez compléter toutes les notes et coefficients avant la publication officielle.';
+            alertMessage += context.tr('completeGradesBeforePublish');
           }
 
           if (mounted) {
             await showDialog<void>(
               context: context,
               builder: (context) => AlertDialog(
-                title: const Row(
+                title: Row(
                   children: [
                     Icon(Icons.block, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Publication Bloquée'),
+                    Text(context.tr('publicationBlocked')),
                   ],
                 ),
                 content: SingleChildScrollView(
-                  child: Text(alertMessage, style: const TextStyle(fontSize: 13, height: 1.4)),
+                  child: Text(
+                    alertMessage,
+                    style: TextStyle(fontSize: 13, height: 1.4),
+                  ),
                 ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Compris'),
+                    child: Text(context.tr('understood')),
                   ),
                 ],
               ),
@@ -286,11 +293,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
           final confirmed = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Row(
+              title: Row(
                 children: [
                   Icon(Icons.verified, color: Colors.green),
                   SizedBox(width: 8),
-                  Text('Confirmer la Publication'),
+                  Text(context.tr('confirmPublication')),
                 ],
               ),
               content: Column(
@@ -298,14 +305,16 @@ class _BulletinsPageState extends State<BulletinsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Voulez-vous publier les bulletins de la classe $_selectedClass pour la période "$_selectedPeriod" ?',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    context.tr(
+                      'auto_voulez_vous_publier_les_bulletins_de_la_classe_s',
+                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    '✓ Aucune note manquante détectée.\n'
-                    '✓ Tous les coefficients sont valides (> 0).\n'
-                    '✓ Les parents d\'élèves seront notifiés et pourront immédiatement consulter et télécharger le bulletin en PDF.',
+                  SizedBox(height: 12),
+                  Text(
+                    '✓ ${context.tr('noMissingGrades')}.\n'
+                    '✓ ${context.tr('validCoefficients')}.\n'
+                    '✓ ${context.tr('parentsNotifiedBulletin')}',
                     style: TextStyle(fontSize: 13, color: Colors.black87),
                   ),
                 ],
@@ -313,13 +322,18 @@ class _BulletinsPageState extends State<BulletinsPage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Annuler'),
+                  child: Text(context.tr('cancel')),
                 ),
                 ElevatedButton.icon(
                   onPressed: () => Navigator.pop(context, true),
-                  icon: const Icon(Icons.check, size: 18, color: Colors.white),
-                  label: const Text('Confirmer & Publier', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  icon: Icon(Icons.check, size: 18, color: Colors.white),
+                  label: Text(
+                    context.tr('confirmAndPublish'),
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                  ),
                 ),
               ],
             ),
@@ -340,19 +354,24 @@ class _BulletinsPageState extends State<BulletinsPage> {
           final confirmed = await showDialog<bool>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Retirer la publication ?'),
+              title: Text(context.tr('auto_retirer_la_publication')),
               content: Text(
-                'Voulez-vous masquer les bulletins de la classe $_selectedClass pour la période "$_selectedPeriod" ? Les parents ne pourront plus y accéder.',
+                context.tr(
+                  'auto_voulez_vous_masquer_les_bulletins_de_la_classe_s',
+                ),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Annuler'),
+                  child: Text(context.tr('cancel')),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context, true),
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  child: const Text('Retirer', style: TextStyle(color: Colors.white)),
+                  child: Text(
+                    context.tr('remove'),
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -369,15 +388,19 @@ class _BulletinsPageState extends State<BulletinsPage> {
       await _loadPublicationStatus();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_classPublication == null
-              ? 'Bulletins retirés de l’espace Parent.'
-              : 'Bulletins publiés avec succès : les parents peuvent désormais les consulter et les télécharger.')),
+          SnackBar(
+            content: Text(
+              _classPublication == null
+                  ? context.tr('bulletinsUnpublished')
+                  : context.tr('bulletinsPublished'),
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Impossible de modifier la publication : $e')),
+          SnackBar(content: Text('${context.tr('publicationUpdateError')} $e')),
         );
       }
     } finally {
@@ -432,7 +455,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
         gradesByStudent: _gradesByStudent,
         exams: _exams,
         absencesByStudent: _absencesByStudent,
-        className: _selectedClass ?? "Classe",
+        className: _selectedClass ?? context.tr('classLabel'),
         schoolInfo: currentSchoolNotifier.value,
         period: _selectedPeriod,
         subjects: _subjects,
@@ -440,7 +463,9 @@ class _BulletinsPageState extends State<BulletinsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur génération des bulletins: $e")),
+          SnackBar(
+            content: Text('${context.tr('bulletinGenerationError')} $e'),
+          ),
         );
       }
     } finally {
@@ -478,37 +503,37 @@ class _BulletinsPageState extends State<BulletinsPage> {
     final isMobile = ResponsiveLayout.isMobile(context);
 
     return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
+      physics: BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(isMobile),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           _buildControlBar(isMobile),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
 
           if (_isLoading)
-            const Center(
+            Center(
               child: Padding(
                 padding: EdgeInsets.all(50),
                 child: CircularProgressIndicator(),
               ),
             )
           else if (_selectedClass == null || _classes.isEmpty)
-            _buildEmptyState("Aucune classe configurée dans l'établissement.")
+            _buildEmptyState(context.tr('noClassesConfigured'))
           else if (_students.isEmpty)
             _buildEmptyState(
-              "Aucun élève trouvé dans la classe $_selectedClass.",
+              "${context.tr('noStudentsInClassPrefix')} $_selectedClass.",
             )
           else ...[
             _buildClassStatsKpi(isMobile),
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
             if (_selectedStudentForPreview != null)
               _buildStudentPreviewSection(isMobile)
             else
               _buildStudentsList(isMobile),
           ],
-          const SizedBox(height: 40),
+          SizedBox(height: 40),
         ],
       ),
     );
@@ -516,7 +541,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
 
   Widget _buildHeader(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -525,39 +550,35 @@ class _BulletinsPageState extends State<BulletinsPage> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppColors.primaryPale,
               borderRadius: BorderRadius.circular(15),
             ),
-            child: const Icon(
-              Icons.assignment,
-              color: AppColors.primary,
-              size: 28,
-            ),
+            child: Icon(Icons.assignment, color: AppColors.primary, size: 28),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16),
           Expanded(
             child: ValueListenableBuilder<SchoolInfo?>(
               valueListenable: currentSchoolNotifier,
               builder: (context, school, _) {
                 final currentYear = school?.currentYearId.isNotEmpty == true
-                    ? "Année ${school!.currentYearId}"
-                    : "Session en cours";
+                    ? "${context.tr('academicYear')} ${school!.currentYearId}"
+                    : context.tr('currentSession');
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Génération des Bulletins Scolaires",
+                    Text(
+                      context.tr('reportCardGeneration'),
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: AppColors.text,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    SizedBox(height: 4),
                     Text(
-                      "Bulletins officiels avec notes par matière, moyennes pondérées, classement et heures d'absence • $currentYear",
+                      "${context.tr('officialReportCardsDescription')} • $currentYear",
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: isMobile ? 12 : 13,
@@ -571,20 +592,19 @@ class _BulletinsPageState extends State<BulletinsPage> {
           if (!isMobile && _students.isNotEmpty)
             ElevatedButton.icon(
               onPressed: _isExportingAll ? null : _handlePrintAll,
-              icon: const Icon(Icons.print, size: 18, color: Colors.white),
+              icon: Icon(Icons.print, size: 18, color: Colors.white),
               label: Text(
-                _isExportingAll ? "Génération..." : "Imprimer Toute la Classe",
-                style: const TextStyle(
+                _isExportingAll
+                    ? context.tr('generationInProgress')
+                    : context.tr('printEntireClass'),
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -597,7 +617,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
 
   Widget _buildControlBar(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -613,13 +633,13 @@ class _BulletinsPageState extends State<BulletinsPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 "Classe : ",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: AppColors.bg,
                   borderRadius: BorderRadius.circular(10),
@@ -628,7 +648,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedClass,
-                    hint: const Text("Choisir"),
+                    hint: Text("Choisir"),
                     items: _classes
                         .map(
                           (c) => DropdownMenuItem(
@@ -656,13 +676,13 @@ class _BulletinsPageState extends State<BulletinsPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 "Période : ",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
                   color: AppColors.bg,
                   borderRadius: BorderRadius.circular(10),
@@ -693,17 +713,17 @@ class _BulletinsPageState extends State<BulletinsPage> {
               onChanged: (val) => setState(() => _searchQuery = val),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: "Chercher élève...",
-                prefixIcon: const Icon(Icons.search, size: 18),
+                hintText: context.tr('searchStudent'),
+                prefixIcon: Icon(Icons.search, size: 18),
                 filled: true,
                 fillColor: AppColors.bg,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
+                  borderSide: BorderSide(color: AppColors.border),
                 ),
               ),
             ),
@@ -721,11 +741,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
               ),
               label: Text(
                 _isPublishing
-                    ? 'Mise à jour...'
+                    ? context.tr('updateInProgress')
                     : _classPublication == null
-                        ? 'Publier aux parents'
-                        : 'Retirer des parents',
-                style: const TextStyle(color: Colors.white),
+                    ? context.tr('publishToParents')
+                    : context.tr('removeFromParents'),
+                style: TextStyle(color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _classPublication == null
@@ -736,8 +756,8 @@ class _BulletinsPageState extends State<BulletinsPage> {
 
           if (_classPublication != null)
             Text(
-              'Publié par ${_classPublication!.publishedBy}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+              '${context.tr('publishedBy')} ${_classPublication!.publishedBy}',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
             ),
 
           if (isMobile && _students.isNotEmpty)
@@ -745,12 +765,12 @@ class _BulletinsPageState extends State<BulletinsPage> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _isExportingAll ? null : _handlePrintAll,
-                icon: const Icon(Icons.print, size: 18, color: Colors.white),
+                icon: Icon(Icons.print, size: 18, color: Colors.white),
                 label: Text(
                   _isExportingAll
-                      ? "Génération..."
-                      : "Imprimer Tous les Bulletins",
-                  style: const TextStyle(color: Colors.white),
+                      ? context.tr('generationInProgress')
+                      : context.tr('printAllReportCards'),
+                  style: TextStyle(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -765,7 +785,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
   Widget _buildClassStatsKpi(bool isMobile) {
     if (isMobile) {
       return Container(
-        padding: const EdgeInsets.all(14),
+        padding: EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AppColors.primaryPale,
           borderRadius: BorderRadius.circular(16),
@@ -778,12 +798,16 @@ class _BulletinsPageState extends State<BulletinsPage> {
           children: [
             SizedBox(
               width: 140,
-              child: _statMini("Effectif", "${_students.length} élèves", Icons.groups),
+              child: _statMini(
+                context.tr('studentCount'),
+                "${_students.length} ${context.tr('students').toLowerCase()}",
+                Icons.groups,
+              ),
             ),
             SizedBox(
               width: 140,
               child: _statMini(
-                "Moyenne Classe",
+                context.tr('classAverage'),
                 "${_classGeneralAvg.toStringAsFixed(2)}/20",
                 Icons.insights,
               ),
@@ -791,7 +815,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
             SizedBox(
               width: 140,
               child: _statMini(
-                "Note Min / Max",
+                context.tr('minMaxGrade'),
                 "${_classMinAvg.toStringAsFixed(1)} - ${_classMaxAvg.toStringAsFixed(1)}",
                 Icons.show_chart,
               ),
@@ -799,7 +823,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
             SizedBox(
               width: 140,
               child: _statMini(
-                "Examens Inclus",
+                context.tr('includedExams'),
                 "${_exams.length}",
                 Icons.assignment_outlined,
               ),
@@ -810,7 +834,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.primaryPale,
         borderRadius: BorderRadius.circular(16),
@@ -819,19 +843,23 @@ class _BulletinsPageState extends State<BulletinsPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _statMini("Effectif", "${_students.length} élèves", Icons.groups),
           _statMini(
-            "Moyenne Classe",
+            context.tr('studentCount'),
+            "${_students.length} ${context.tr('students').toLowerCase()}",
+            Icons.groups,
+          ),
+          _statMini(
+            context.tr('classAverage'),
             "${_classGeneralAvg.toStringAsFixed(2)}/20",
             Icons.insights,
           ),
           _statMini(
-            "Note Min / Max",
+            context.tr('minMaxGrade'),
             "${_classMinAvg.toStringAsFixed(1)} - ${_classMaxAvg.toStringAsFixed(1)}",
             Icons.show_chart,
           ),
           _statMini(
-            "Examens Inclus",
+            context.tr('includedExams'),
             "${_exams.length}",
             Icons.assignment_outlined,
           ),
@@ -845,11 +873,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, color: AppColors.primary, size: 20),
-        const SizedBox(height: 4),
+        SizedBox(height: 4),
         Text(
           value,
           textAlign: TextAlign.center,
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,
             color: AppColors.primary,
@@ -858,7 +886,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
         Text(
           label,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+          style: TextStyle(fontSize: 11, color: AppColors.textMuted),
         ),
       ],
     );
@@ -872,8 +900,9 @@ class _BulletinsPageState extends State<BulletinsPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              "Liste des Élèves — Classe de $_selectedClass (${_filteredStudents.length})",
-              style: const TextStyle(
+              "${context.tr('studentList')} — ${context.tr('classLabel')} "
+              "$_selectedClass (${_filteredStudents.length})",
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
                 color: AppColors.text,
@@ -881,12 +910,12 @@ class _BulletinsPageState extends State<BulletinsPage> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         ListView.separated(
           shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: NeverScrollableScrollPhysics(),
           itemCount: _filteredStudents.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 10),
+          separatorBuilder: (_, _) => SizedBox(height: 10),
           itemBuilder: (context, index) {
             final student = _filteredStudents[index];
             final avg = _averagesByStudent[student.id] ?? 0.0;
@@ -895,7 +924,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
 
             if (isMobile) {
               return Container(
-                padding: const EdgeInsets.all(14),
+                padding: EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
@@ -910,29 +939,30 @@ class _BulletinsPageState extends State<BulletinsPage> {
                           backgroundColor: AppColors.primaryPale,
                           child: Text(
                             "$rank",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               color: AppColors.primary,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 student.fullName,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 2),
+                              SizedBox(height: 2),
                               Text(
-                                "Matricule : ${student.id} • Rang : ${rank == 1 ? '1er' : '$rankème'} / ${_students.length}",
-                                style: const TextStyle(
+                                "${context.tr('studentId')} : ${student.id} • "
+                                "${context.tr('rank')} : ${rank == 1 ? '1er' : '$rankème'} / ${_students.length}",
+                                style: TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textMuted,
                                 ),
@@ -943,13 +973,13 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: 6,
                             vertical: 2,
                           ),
@@ -976,7 +1006,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: 6,
                             vertical: 2,
                           ),
@@ -1001,7 +1031,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                     ? Colors.deepOrange
                                     : Colors.blue,
                               ),
-                              const SizedBox(width: 4),
+                              SizedBox(width: 4),
                               Text(
                                 "$absenceHours h d'absence",
                                 style: TextStyle(
@@ -1017,45 +1047,53 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12),
                     Row(
                       children: [
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: () {
-                              setState(() => _selectedStudentForPreview = student);
+                              setState(
+                                () => _selectedStudentForPreview = student,
+                              );
                             },
-                            icon: const Icon(Icons.visibility, size: 15),
-                            label: const Text("Aperçu", style: TextStyle(fontSize: 12)),
+                            icon: Icon(Icons.visibility, size: 15),
+                            label: Text(
+                              context.tr('preview'),
+                              style: TextStyle(fontSize: 12),
+                            ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.primary,
-                              side: const BorderSide(color: AppColors.primary),
+                              side: BorderSide(color: AppColors.primary),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              padding: EdgeInsets.symmetric(vertical: 8),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
                             onPressed: () => _handlePrintSingle(student),
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.print,
                               size: 15,
                               color: Colors.white,
                             ),
-                            label: const Text(
+                            label: Text(
                               "Bulletin PDF",
-                              style: TextStyle(color: Colors.white, fontSize: 12),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
                             ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              padding: EdgeInsets.symmetric(vertical: 8),
                             ),
                           ),
                         ),
@@ -1067,7 +1105,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
             }
 
             return Container(
-              padding: const EdgeInsets.all(14),
+              padding: EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
@@ -1079,38 +1117,39 @@ class _BulletinsPageState extends State<BulletinsPage> {
                     backgroundColor: AppColors.primaryPale,
                     child: Text(
                       "$rank",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.primary,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           student.fullName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        SizedBox(height: 3),
                         Text(
-                          "Matricule : ${student.id} • Rang : ${rank == 1 ? '1er' : '$rankème'} / ${_students.length}",
-                          style: const TextStyle(
+                          "${context.tr('studentId')} : ${student.id} • "
+                          "${context.tr('rank')} : ${rank == 1 ? '1er' : '$rankème'} / ${_students.length}",
+                          style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textMuted,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: 4),
                         Wrap(
                           spacing: 8,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(
+                              padding: EdgeInsets.symmetric(
                                 horizontal: 6,
                                 vertical: 2,
                               ),
@@ -1137,7 +1176,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(
+                              padding: EdgeInsets.symmetric(
                                 horizontal: 6,
                                 vertical: 2,
                               ),
@@ -1162,7 +1201,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                         ? Colors.deepOrange
                                         : Colors.blue,
                                   ),
-                                  const SizedBox(width: 4),
+                                  SizedBox(width: 4),
                                   Text(
                                     "$absenceHours h d'absence",
                                     style: TextStyle(
@@ -1181,7 +1220,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1189,25 +1228,21 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         onPressed: () {
                           setState(() => _selectedStudentForPreview = student);
                         },
-                        icon: const Icon(Icons.visibility, size: 16),
-                        label: const Text("Aperçu"),
+                        icon: Icon(Icons.visibility, size: 16),
+                        label: Text(context.tr('preview')),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
-                          side: const BorderSide(color: AppColors.primary),
+                          side: BorderSide(color: AppColors.primary),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      SizedBox(width: 8),
                       ElevatedButton.icon(
                         onPressed: () => _handlePrintSingle(student),
-                        icon: const Icon(
-                          Icons.print,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        label: const Text(
+                        icon: Icon(Icons.print, size: 16, color: Colors.white),
+                        label: Text(
                           "Bulletin PDF",
                           style: TextStyle(color: Colors.white),
                         ),
@@ -1248,18 +1283,18 @@ class _BulletinsPageState extends State<BulletinsPage> {
             IconButton(
               onPressed: () =>
                   setState(() => _selectedStudentForPreview = null),
-              icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+              icon: Icon(Icons.arrow_back, color: AppColors.primary),
             ),
-            const SizedBox(width: 8),
+            SizedBox(width: 8),
             Text(
-              "Aperçu du Bulletin — ${student.fullName}",
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              "${context.tr('reportCardPreview')} — ${student.fullName}",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             ElevatedButton.icon(
               onPressed: () => _handlePrintSingle(student),
-              icon: const Icon(Icons.print, size: 18, color: Colors.white),
-              label: const Text(
-                "Télécharger / Imprimer ce Bulletin",
+              icon: Icon(Icons.print, size: 18, color: Colors.white),
+              label: Text(
+                context.tr('downloadPrintReportCard'),
                 style: TextStyle(color: Colors.white),
               ),
               style: ElevatedButton.styleFrom(
@@ -1268,11 +1303,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
 
         // Carte stylisée représentant le bulletin
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -1281,7 +1316,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 15,
-                offset: const Offset(0, 5),
+                offset: Offset(0, 5),
               ),
             ],
           ),
@@ -1310,23 +1345,23 @@ class _BulletinsPageState extends State<BulletinsPage> {
                           children: [
                             Text(
                               schoolName.toUpperCase(),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
                               ),
                             ),
                             Text(
-                              school?.address ?? "Établissement Scolaire",
-                              style: const TextStyle(
+                              school?.address ?? context.tr('schoolLabel'),
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textMuted,
                               ),
                             ),
                             if (school?.phone.isNotEmpty == true)
                               Text(
-                                "Tél: ${school!.phone}",
-                                style: const TextStyle(
+                                "${context.tr('contactPhone')}: ${school!.phone}",
+                                style: TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textMuted,
                                 ),
@@ -1335,7 +1370,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
+                        padding: EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 8,
                         ),
@@ -1349,7 +1384,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            const Text(
+                            Text(
                               "BULLETIN DE NOTES",
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -1359,7 +1394,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                             ),
                             Text(
                               "Session $currentYear • $_selectedPeriod",
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 color: AppColors.text,
                               ),
@@ -1371,13 +1406,13 @@ class _BulletinsPageState extends State<BulletinsPage> {
                   );
                 },
               ),
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 12),
+              SizedBox(height: 16),
+              Divider(),
+              SizedBox(height: 12),
 
               // Identité élève
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppColors.bg,
                   borderRadius: BorderRadius.circular(12),
@@ -1393,16 +1428,17 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "Élève : ${student.fullName}",
-                            style: const TextStyle(
+                            "${context.tr('studentName')} : ${student.fullName}",
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          SizedBox(height: 2),
                           Text(
-                            "Matricule : ${student.id} • Classe : ${student.className}",
-                            style: const TextStyle(
+                            "${context.tr('studentId')} : ${student.id} • "
+                            "${context.tr('classLabel')} : ${student.className}",
+                            style: TextStyle(
                               fontSize: 12,
                               color: AppColors.textMuted,
                             ),
@@ -1418,12 +1454,12 @@ class _BulletinsPageState extends State<BulletinsPage> {
                           if (student.birthDate != null)
                             Text(
                               "Date de Naissance : ${DateFormat('dd/MM/yyyy').format(student.birthDate!)}",
-                              style: const TextStyle(fontSize: 12),
+                              style: TextStyle(fontSize: 12),
                             ),
                           if (student.parentName != null)
                             Text(
                               "Tuteur : ${student.parentName} (${student.parentPhone ?? ''})",
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textMuted,
                               ),
@@ -1434,18 +1470,18 @@ class _BulletinsPageState extends State<BulletinsPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // Tableau des notes
-              const Text(
-                "Détail des Notes & Coefficients :",
+              Text(
+                context.tr('gradesAndCoefficients'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Table(
-                  defaultColumnWidth: const IntrinsicColumnWidth(),
+                  defaultColumnWidth: IntrinsicColumnWidth(),
                   border: TableBorder.all(
                     color: AppColors.border,
                     width: 1,
@@ -1454,11 +1490,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
                   children: [
                     TableRow(
                       decoration: BoxDecoration(color: Colors.grey.shade100),
-                      children: const [
+                      children: [
                         Padding(
                           padding: EdgeInsets.all(8),
                           child: Text(
-                            "Matière",
+                            context.tr('subject'),
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -1489,37 +1525,39 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         Padding(
                           padding: EdgeInsets.all(8),
                           child: Text(
-                            "Appréciation",
+                            context.tr('appreciation'),
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
                     ),
                     ..._exams.map((exam) {
-                      final Grade? g = sGrades.where((item) => item.examId == exam.id).firstOrNull;
+                      final Grade? g = sGrades
+                          .where((item) => item.examId == exam.id)
+                          .firstOrNull;
                       final coefficient = _coefficientFor(exam);
                       final hasGrade = g != null;
-                      final pts = hasGrade ? (g.score * coefficient).toStringAsFixed(2) : "—";
+                      final pts = hasGrade
+                          ? (g.score * coefficient).toStringAsFixed(2)
+                          : "—";
                       return TableRow(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(8),
                             child: Text(
                               exam.subject,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(8),
                             child: Text(
                               "${coefficient % 1 == 0 ? coefficient.toInt() : coefficient}",
                               textAlign: TextAlign.center,
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(8),
                             child: hasGrade
                                 ? Text(
                                     g.score.toStringAsFixed(2),
@@ -1533,14 +1571,19 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                   )
                                 : Center(
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: Colors.orange.shade50,
                                         borderRadius: BorderRadius.circular(4),
-                                        border: Border.all(color: Colors.orange.shade200),
+                                        border: Border.all(
+                                          color: Colors.orange.shade200,
+                                        ),
                                       ),
                                       child: Text(
-                                        "Non noté",
+                                        context.tr('notGraded'),
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontStyle: FontStyle.italic,
@@ -1553,20 +1596,23 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                   ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Text(
-                              pts,
-                              textAlign: TextAlign.center,
-                            ),
+                            padding: EdgeInsets.all(8),
+                            child: Text(pts, textAlign: TextAlign.center),
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(8),
+                            padding: EdgeInsets.all(8),
                             child: Text(
-                              hasGrade ? _getAppreciation(g.score) : "En attente",
+                              hasGrade
+                                  ? _getAppreciation(g.score)
+                                  : "En attente",
                               style: TextStyle(
                                 fontSize: 12,
-                                color: hasGrade ? AppColors.textMuted : Colors.orange.shade700,
-                                fontStyle: hasGrade ? FontStyle.normal : FontStyle.italic,
+                                color: hasGrade
+                                    ? AppColors.textMuted
+                                    : Colors.orange.shade700,
+                                fontStyle: hasGrade
+                                    ? FontStyle.normal
+                                    : FontStyle.italic,
                               ),
                             ),
                           ),
@@ -1576,7 +1622,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               // Bilan et Assiduité
               if (isMobile)
@@ -1585,7 +1631,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                   children: [
                     // Bilan académique
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: AppColors.primaryPale,
                         borderRadius: BorderRadius.circular(12),
@@ -1596,20 +1642,20 @@ class _BulletinsPageState extends State<BulletinsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "RÉSULTAT DU TRIMESTRE",
+                          Text(
+                            context.tr('termResult'),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                               color: AppColors.primary,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                "Moyenne Générale :",
+                              Text(
+                                context.tr('overallAverage'),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
@@ -1627,17 +1673,18 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
-                            "Rang dans la classe : $rank${rank == 1 ? 'er' : 'ème'} sur ${_students.length} élèves",
-                            style: const TextStyle(
+                            "${context.tr('classRank')} : $rank${rank == 1 ? 'er' : 'ème'} "
+                            "${context.tr('outOf')} ${_students.length} ${context.tr('students').toLowerCase()}",
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             "Moyenne de classe : ${_classGeneralAvg.toStringAsFixed(2)} | Min : ${_classMinAvg.toStringAsFixed(2)} | Max : ${_classMaxAvg.toStringAsFixed(2)}",
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textMuted,
                             ),
@@ -1645,11 +1692,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    SizedBox(height: 14),
 
                     // Suivi des Absences
                     Container(
-                      padding: const EdgeInsets.all(14),
+                      padding: EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: absenceHours > 6
                             ? Colors.orange.shade50
@@ -1664,7 +1711,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             "VIE SCOLAIRE & ABSENCES",
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -1672,19 +1719,19 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               color: AppColors.text,
                             ),
                           ),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
-                                "Total Absences :",
+                              Text(
+                                context.tr('totalAbsences'),
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                 ),
                               ),
                               Text(
-                                "$absenceHours Heure(s)",
+                                "$absenceHours ${context.tr('hours')}",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1695,21 +1742,23 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
-                            "Nombre d'incidents enregistrés : ${sAbsences.length}",
-                            style: const TextStyle(
+                            "${context.tr('recordedIncidents')}: ${sAbsences.length}",
+                            style: TextStyle(
                               fontSize: 12,
                               color: AppColors.textMuted,
                             ),
                           ),
                           Text(
                             absenceHours == 0
-                                ? "Assiduité exemplaire"
+                                ? context.tr('excellentAttendance')
                                 : (absenceHours <= 4
-                                      ? "Assiduité satisfaisante"
-                                      : "Absences à surveiller"),
-                            style: const TextStyle(
+                                      ? context.tr('satisfactoryAttendance')
+                                      : context.tr(
+                                          'attendanceNeedsMonitoring',
+                                        )),
+                            style: TextStyle(
                               fontSize: 11,
                               fontStyle: FontStyle.italic,
                             ),
@@ -1726,7 +1775,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                     // Bilan académique
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.all(14),
+                        padding: EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: AppColors.primaryPale,
                           borderRadius: BorderRadius.circular(12),
@@ -1737,20 +1786,20 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "RÉSULTAT DU TRIMESTRE",
+                            Text(
+                              context.tr('termResult'),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                                 color: AppColors.primary,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  "Moyenne Générale :",
+                                Text(
+                                  context.tr('overallAverage'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -1768,17 +1817,20 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
                             Text(
-                              "Rang dans la classe : $rank${rank == 1 ? 'er' : 'ème'} sur ${_students.length} élèves",
-                              style: const TextStyle(
+                              "${context.tr('classRank')} : $rank${rank == 1 ? 'er' : 'ème'} "
+                              "${context.tr('outOf')} ${_students.length} ${context.tr('students').toLowerCase()}",
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              "Moyenne de classe : ${_classGeneralAvg.toStringAsFixed(2)} | Min : ${_classMinAvg.toStringAsFixed(2)} | Max : ${_classMaxAvg.toStringAsFixed(2)}",
-                              style: const TextStyle(
+                              "${context.tr('classAverage')}: ${_classGeneralAvg.toStringAsFixed(2)} | "
+                              "${context.tr('min')}: ${_classMinAvg.toStringAsFixed(2)} | "
+                              "${context.tr('max')}: ${_classMaxAvg.toStringAsFixed(2)}",
+                              style: TextStyle(
                                 fontSize: 11,
                                 color: AppColors.textMuted,
                               ),
@@ -1787,12 +1839,12 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16),
 
                     // Suivi des Absences
                     Expanded(
                       child: Container(
-                        padding: const EdgeInsets.all(14),
+                        padding: EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           color: absenceHours > 6
                               ? Colors.orange.shade50
@@ -1807,27 +1859,27 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "VIE SCOLAIRE & ABSENCES",
+                            Text(
+                              context.tr('schoolLifeAndAbsences'),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                                 color: AppColors.text,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  "Total Absences :",
+                                Text(
+                                  context.tr('totalAbsences'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
                                 ),
                                 Text(
-                                  "$absenceHours Heure(s)",
+                                  "$absenceHours ${context.tr('hours')}",
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -1838,21 +1890,23 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4),
                             Text(
-                              "Nombre d'incidents enregistrés : ${sAbsences.length}",
-                              style: const TextStyle(
+                              "${context.tr('recordedIncidents')}: ${sAbsences.length}",
+                              style: TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textMuted,
                               ),
                             ),
                             Text(
                               absenceHours == 0
-                                  ? "Assiduité exemplaire"
+                                  ? context.tr('excellentAttendance')
                                   : (absenceHours <= 4
-                                        ? "Assiduité satisfaisante"
-                                        : "Absences à surveiller"),
-                              style: const TextStyle(
+                                        ? context.tr('satisfactoryAttendance')
+                                        : context.tr(
+                                            'attendanceNeedsMonitoring',
+                                          )),
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontStyle: FontStyle.italic,
                               ),
@@ -1873,7 +1927,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
   Widget _buildEmptyState(String message) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(40),
+      padding: EdgeInsets.all(40),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -1882,16 +1936,16 @@ class _BulletinsPageState extends State<BulletinsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.assignment_late_outlined,
             color: AppColors.textMuted,
             size: 40,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 14),
           ),
         ],
       ),

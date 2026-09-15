@@ -15,6 +15,7 @@ public class SchoolDto {
     private Long id;
     private String name;
     private String code;
+    private String schoolLevel;
     private boolean active;
     private LocalDateTime createdAt;
     private UserRole membershipRole;

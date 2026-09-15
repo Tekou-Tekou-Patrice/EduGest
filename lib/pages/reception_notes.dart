@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:edugest/models/grade.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:edugest/service/export_service.dart';
 import '../components/app_colors.dart';
 
 class ReceptionNotes extends StatefulWidget {
-  const ReceptionNotes({super.key});
+  ReceptionNotes({super.key});
 
   @override
   State<ReceptionNotes> createState() => _ReceptionNotesState();
@@ -16,7 +17,16 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
   List<Exam> _exams = [];
   bool _isLoading = true;
 
-  final List<String> _classes = ['Toutes', '6eme', '5eme', '4eme', '3eme', '2nd', '1ere', 'Terminale'];
+  final List<String> _classes = [
+    'Toutes',
+    '6eme',
+    '5eme',
+    '4eme',
+    '3eme',
+    '2nd',
+    '1ere',
+    'Terminale',
+  ];
 
   @override
   void initState() {
@@ -52,17 +62,21 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
           spacing: 12,
           runSpacing: 8,
           children: [
-            const Text(
-              "Réception & Validation des Notes",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
+            Text(
+              context.tr('notesReceptionValidation'),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
             ),
             IconButton(
-              icon: const Icon(Icons.refresh, color: AppColors.primary),
+              icon: Icon(Icons.refresh, color: AppColors.primary),
               onPressed: _fetchExams,
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         // Filtre de classe
         SingleChildScrollView(
@@ -70,7 +84,7 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
           child: Row(
             children: _classes.map((c) {
               return Padding(
-                padding: const EdgeInsets.only(right: 8.0),
+                padding: EdgeInsets.only(right: 8.0),
                 child: ChoiceChip(
                   label: Text(c),
                   selected: selectedClasse == c,
@@ -85,43 +99,50 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
             }).toList(),
           ),
         ),
-        const SizedBox(height: 25),
+        SizedBox(height: 25),
 
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (_exams.isEmpty)
-          const Center(
+          Center(
             child: Padding(
               padding: EdgeInsets.all(40),
-              child: Text("Aucune soumission d'examen trouvée pour cette classe."),
+              child: Text(context.tr('noExamSubmission')),
             ),
           )
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _exams.length,
             itemBuilder: (context, index) {
               final exam = _exams[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
                   border: Border.all(color: AppColors.border),
                 ),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.primaryPale,
-                    child: Icon(Icons.assignment_turned_in, color: AppColors.primary),
+                    child: Icon(
+                      Icons.assignment_turned_in,
+                      color: AppColors.primary,
+                    ),
                   ),
-                  title: Text(exam.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    exam.title,
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Text(
-                    "Matière: ${exam.subject} • Classe: ${exam.className}"
-                    "${exam.teacherName?.trim().isNotEmpty == true ? ' • Envoyé par ${exam.teacherName}' : ''}",
+                    "${context.tr('subject')}: ${exam.subject} • "
+                    "${context.tr('classLabel')}: ${exam.className}"
+                    "${exam.teacherName?.trim().isNotEmpty == true ? ' • ${context.tr('sentBy')} ${exam.teacherName}' : ''}",
                   ),
                   isThreeLine: exam.teacherName?.trim().isNotEmpty == true,
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: Icon(Icons.chevron_right),
                   onTap: () => _showGradesTable(context, exam),
                 ),
               );
@@ -136,13 +157,13 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+      builder: (context) => Center(child: CircularProgressIndicator()),
     );
 
     try {
       final grades = await ApiService.getGradesByExam(exam.id);
       final students = await ApiService.getStudents(className: exam.className);
-      
+
       if (!context.mounted) return;
       Navigator.pop(context); // Remove loading
 
@@ -158,30 +179,32 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.red),
                     onPressed: () => ExportService.generatePdf(
                       exam: exam,
                       grades: grades,
                       students: students,
                     ),
-                    tooltip: "Télécharger PDF",
+                    tooltip: context.tr('downloadPdf'),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.table_view, color: Colors.green),
+                    icon: Icon(Icons.table_view, color: Colors.green),
                     onPressed: () => ExportService.generateExcel(
                       exam: exam,
                       grades: grades,
                       students: students,
                     ),
-                    tooltip: "Télécharger Excel",
+                    tooltip: context.tr('downloadExcel'),
                   ),
                 ],
-              )
+              ),
             ],
           ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           content: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
+            constraints: BoxConstraints(maxWidth: 600),
             child: SizedBox(
               width: double.maxFinite,
               child: SingleChildScrollView(
@@ -189,42 +212,77 @@ class _ReceptionNotesState extends State<ReceptionNotes> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                  Text("Matière : ${exam.subject} | Classe : ${exam.className}"),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  Table(
-                    border: TableBorder.all(color: AppColors.border, width: 1, borderRadius: BorderRadius.circular(8)),
-                    columnWidths: const {
-                      0: FlexColumnWidth(3),
-                      1: FixedColumnWidth(60),
-                    },
-                    children: [
-                      const TableRow(
-                        decoration: BoxDecoration(color: AppColors.bg),
-                        children: [
-                          Padding(padding: EdgeInsets.all(8), child: Text("Élève", style: TextStyle(fontWeight: FontWeight.bold))),
-                          Padding(padding: EdgeInsets.all(8), child: Text("Note", style: TextStyle(fontWeight: FontWeight.bold))),
-                        ],
+                    Text(
+                      "${context.tr('subject')} : ${exam.subject} | "
+                      "${context.tr('classLabel')} : ${exam.className}",
+                    ),
+                    SizedBox(height: 16),
+                    Divider(),
+                    Table(
+                      border: TableBorder.all(
+                        color: AppColors.border,
+                        width: 1,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      ...grades.map((g) => TableRow(
-                        children: [
-                          Padding(padding: const EdgeInsets.all(8), child: Text(studentMap[g.studentId] ?? "Inconnu (${g.studentId})")),
-                          Padding(padding: const EdgeInsets.all(8), child: Text(g.score.toStringAsFixed(1))),
-                        ],
-                      )),
-                    ],
-                  ),
-                  if (grades.isEmpty)
-                    const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("Aucune note enregistrée."))),
-                ],
+                      columnWidths: {
+                        0: FlexColumnWidth(3),
+                        1: FixedColumnWidth(60),
+                      },
+                      children: [
+                        TableRow(
+                          decoration: BoxDecoration(color: AppColors.bg),
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Text(
+                                context.tr('studentName'),
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Text(
+                                "Note",
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        ...grades.map(
+                          (g) => TableRow(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text(
+                                  studentMap[g.studentId] ??
+                                      "Inconnu (${g.studentId})",
+                                ),
+                              ),
+                              Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Text(g.score.toStringAsFixed(1)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (grades.isEmpty)
+                      Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(20),
+                          child: Text(context.tr('noGrades')),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Fermer"),
+              child: Text(context.tr('close')),
             ),
           ],
         ),

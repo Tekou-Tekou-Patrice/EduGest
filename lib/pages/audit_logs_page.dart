@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../models/app_user.dart';
@@ -59,7 +60,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur chargement journal d\'audit: $e')),
+        SnackBar(content: Text('${context.tr('auditLogLoadError')} $e')),
       );
     }
   }
@@ -105,22 +106,22 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
     }
   }
 
-  String _actionLabel(String action) {
+  String _actionLabel(BuildContext context, String action) {
     switch (action.toUpperCase()) {
       case 'CREATE':
-        return 'Création';
+        return AppLocalizations.of(context).translate('actionCreate');
       case 'UPDATE':
-        return 'Modification';
+        return context.tr('actionUpdate');
       case 'DELETE':
-        return 'Suppression';
+        return context.tr('actionDelete');
       case 'PUBLISH':
-        return 'Publication';
+        return context.tr('actionPublish');
       case 'UNPUBLISH':
-        return 'Retrait';
+        return context.tr('actionUnpublish');
       case 'EXPORT':
-        return 'Exportation';
+        return context.tr('actionExport');
       case 'IMPORT':
-        return 'Restauration';
+        return context.tr('actionImport');
       default:
         return action;
     }
@@ -141,8 +142,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Journal d'Audit & Historique des Actions",
+                Text(
+                  context.tr('auditLogTitle'),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -151,7 +152,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "Traçabilité complète des créations, modifications et suppressions",
+                  context.tr('auditLogDescription'),
                   style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                 ),
               ],
@@ -159,7 +160,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
             IconButton.filledTonal(
               onPressed: _fetchLogs,
               icon: const Icon(Icons.refresh),
-              tooltip: "Rafraîchir",
+              tooltip: context.tr('refresh'),
             ),
           ],
         ),
@@ -179,8 +180,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText:
-                      "Rechercher par auteur, description, élève, matière...",
+                  hintText: context.tr('auditLogSearch'),
                   prefixIcon: const Icon(Icons.search, size: 20),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -195,8 +195,10 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: AppColors.border),
                   ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                 ),
                 onSubmitted: (_) => _fetchLogs(),
               ),
@@ -210,7 +212,11 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                       padding: const EdgeInsets.only(right: 8.0),
                       child: FilterChip(
                         selected: isSelected,
-                        label: Text(cat['label']!),
+                        label: Text(
+                          context.tr(
+                            'auditCategory_${cat['key']!.toLowerCase()}',
+                          ),
+                        ),
                         onSelected: (selected) {
                           if (selected) {
                             setState(() => _selectedEntityType = cat['key']!);
@@ -221,10 +227,12 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                         checkmarkColor: AppColors.primary,
                         labelStyle: TextStyle(
                           fontSize: 12,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
-                          color:
-                              isSelected ? AppColors.primary : AppColors.text,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.text,
                         ),
                       ),
                     );
@@ -251,16 +259,19 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.history_toggle_off,
-                      size: 56, color: AppColors.textMuted),
+                  Icon(
+                    Icons.history_toggle_off,
+                    size: 56,
+                    color: AppColors.textMuted,
+                  ),
                   const SizedBox(height: 12),
-                  const Text(
-                    "Aucune action enregistrée pour ces critères.",
+                  Text(
+                    context.tr('noAuditActions'),
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "Les opérations de saisie de notes, cahiers de texte, paiements et publications apparaîtront ici.",
+                    context.tr('auditLogEmptyDescription'),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                   ),
@@ -278,8 +289,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
               final log = _logs[index];
               final color = _actionColor(log.action);
               final icon = _actionIcon(log.action);
-              final hasComparison = (log.oldValue != null &&
-                      log.oldValue!.trim().isNotEmpty) ||
+              final hasComparison =
+                  (log.oldValue != null && log.oldValue!.trim().isNotEmpty) ||
                   (log.newValue != null && log.newValue!.trim().isNotEmpty);
 
               return Container(
@@ -299,7 +310,9 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
                             decoration: BoxDecoration(
                               color: color.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(8),
@@ -310,7 +323,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                 Icon(icon, color: color, size: 16),
                                 const SizedBox(width: 6),
                                 Text(
-                                  _actionLabel(log.action),
+                                  _actionLabel(context, log.action),
                                   style: TextStyle(
                                     color: color,
                                     fontWeight: FontWeight.bold,
@@ -323,7 +336,9 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 5),
+                              horizontal: 8,
+                              vertical: 5,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(8),
@@ -339,8 +354,9 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                           ),
                           const Spacer(),
                           Text(
-                            DateFormat('dd/MM/yyyy à HH:mm:ss')
-                                .format(log.timestamp),
+                            DateFormat(
+                              'dd/MM/yyyy à HH:mm:ss',
+                            ).format(log.timestamp),
                             style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 12,
@@ -364,11 +380,14 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                       // Auteur et rôle
                       Row(
                         children: [
-                          const Icon(Icons.person_pin,
-                              size: 16, color: AppColors.primary),
+                          const Icon(
+                            Icons.person_pin,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
                           const SizedBox(width: 6),
                           Text(
-                            "Effectué par : ${log.performedBy}",
+                            "${context.tr('performedBy')} : ${log.performedBy}",
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
@@ -418,7 +437,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: Colors.red.shade900,
-                                          decoration: TextDecoration.lineThrough,
+                                          decoration:
+                                              TextDecoration.lineThrough,
                                         ),
                                       ),
                                     ),

@@ -1,10 +1,11 @@
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/models/absence.dart';
 import 'package:edugest/models/grade.dart';
-import 'package:edugest/models/sanction.dart';
 import 'package:edugest/models/event.dart';
 import 'package:edugest/models/payment.dart';
+import 'package:edugest/pages/programme_page.dart';
 import 'package:edugest/models/student.dart';
+import 'package:edugest/models/exam_class.dart';
 import 'package:edugest/pages/login_page.dart';
 import 'package:edugest/pages/profil.dart';
 import 'package:edugest/pages/school_selection_page.dart';
@@ -13,12 +14,13 @@ import 'package:edugest/service/auth_session_service.dart';
 import 'package:edugest/service/notification_service.dart';
 import 'package:edugest/service/export_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 
 /// Read-only space. The child list is supplied by the dedicated parent endpoint.
 class ParentPortal extends StatefulWidget {
   final AppUser parent;
-  const ParentPortal({super.key, required this.parent});
+  ParentPortal({super.key, required this.parent});
 
   @override
   State<ParentPortal> createState() => _ParentPortalState();
@@ -49,8 +51,8 @@ class _ParentPortalState extends State<ParentPortal> {
     child: Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: "Changer d'établissement",
+          icon: Icon(Icons.arrow_back),
+          tooltip: context.tr('changeSchool'),
           onPressed: () {
             Navigator.pushReplacement(
               context,
@@ -60,11 +62,11 @@ class _ParentPortalState extends State<ParentPortal> {
             );
           },
         ),
-        title: const Text('Espace Parent'),
+        title: Text(context.tr('parentSpace')),
         actions: [
           IconButton(
-            icon: const Icon(Icons.swap_horiz),
-            tooltip: "Changer d'établissement",
+            icon: Icon(Icons.swap_horiz),
+            tooltip: context.tr('changeSchool'),
             onPressed: () {
               Navigator.pushReplacement(
                 context,
@@ -75,17 +77,17 @@ class _ParentPortalState extends State<ParentPortal> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Mon profil',
+            icon: Icon(Icons.person_outline),
+            tooltip: context.tr('myProfile'),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => Scaffold(
-                    appBar: AppBar(title: const Text('Mon profil')),
+                    appBar: AppBar(title: Text(context.tr('myProfile'))),
                     body: SafeArea(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.all(16),
                         child: Profil(user: widget.parent),
                       ),
                     ),
@@ -95,8 +97,8 @@ class _ParentPortalState extends State<ParentPortal> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Déconnexion',
+            icon: Icon(Icons.logout),
+            tooltip: context.tr('logout'),
             onPressed: () async {
               NotificationService.instance.stop();
               ApiService.activeSchoolId = null;
@@ -105,130 +107,227 @@ class _ParentPortalState extends State<ParentPortal> {
               if (!context.mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
-                MaterialPageRoute(builder: (_) => const LoginPage()),
+                MaterialPageRoute(builder: (_) => LoginPage()),
                 (route) => false,
               );
             },
           ),
         ],
       ),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: FutureBuilder<List<Student>>(
-          future: _children,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
-                ),
-              );
-            }
-            if (snapshot.hasError) {
-              return const Text(
-                "Impossible de charger les informations de vos enfants.",
-              );
-            }
-            final children = snapshot.data ?? [];
-            if (children.isEmpty) {
-              return const Text(
-                "Aucun enfant n'est associé à ce compte Parent.",
-              );
-            }
-            _selected ??= children.first;
-            final double tabViewHeight = (MediaQuery.of(context).size.height * 0.55)
-                .clamp(360.0, 700.0);
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Espace Parent",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  "Consultez uniquement les informations de vos enfants.",
-                ),
-                const SizedBox(height: 18),
-                DropdownButtonFormField<Student>(
-                  initialValue: _selected,
-                  decoration: const InputDecoration(
-                    labelText: "Enfant",
-                    border: OutlineInputBorder(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(16),
+          child: FutureBuilder<List<Student>>(
+            future: _children,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
                   ),
-                  items: children
-                      .map(
-                        (s) => DropdownMenuItem(
-                          value: s,
-                          child: Text('${s.fullName} — ${s.className}'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (s) => setState(() => _selected = s),
-                ),
-                const SizedBox(height: 18),
-                DefaultTabController(
-                  length: 7,
-                  child: Column(
-                    children: [
-                      const TabBar(
-                        isScrollable: true,
-                        tabs: [
-                          Tab(text: 'Notes'),
-                          Tab(text: 'Absences'),
-                          Tab(text: 'Discipline'),
-                          Tab(text: 'Bulletin'),
-                          Tab(text: 'Cahier de texte'),
-                          Tab(text: 'Événements'),
-                          Tab(text: 'Paiements'),
-                        ],
-                      ),
-                      SizedBox(
-                        height: tabViewHeight,
-                        child: TabBarView(
-                          children: [
-                            _GradesView(student: _selected!),
-                            _AbsencesView(student: _selected!),
-                            _SanctionsView(student: _selected!),
-                            _PublishedBulletinView(student: _selected!),
-                            _NotebookView(student: _selected!),
-                            const _EventsView(),
-                            _PaymentsView(
-                              student: _selected!,
-                              parentUserId: widget.parent.id,
-                            ),
+                );
+              }
+              if (snapshot.hasError) {
+                return Text(context.tr('parentChildrenLoadError'));
+              }
+              final children = snapshot.data ?? [];
+              if (children.isEmpty) {
+                return Text(context.tr('noChildren'));
+              }
+              _selected ??= children.first;
+              final double tabViewHeight =
+                  (MediaQuery.of(context).size.height * 0.55).clamp(
+                    360.0,
+                    700.0,
+                  );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr('parentSpace'),
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 6),
+                  Text(context.tr('parentReadOnly')),
+                  SizedBox(height: 18),
+                  DropdownButtonFormField<Student>(
+                    initialValue: _selected,
+                    decoration: InputDecoration(
+                      labelText: context.tr('auto_enfant'),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: children
+                        .map(
+                          (s) => DropdownMenuItem(
+                            value: s,
+                            child: Text('${s.fullName} — ${s.className}'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (s) => setState(() => _selected = s),
+                  ),
+                  SizedBox(height: 18),
+                  DefaultTabController(
+                    length: 7,
+                    child: Column(
+                      children: [
+                        TabBar(
+                          isScrollable: true,
+                          tabs: [
+                            Tab(text: context.tr('myNotes')),
+                            Tab(text: context.tr('schoolAbsences')),
+                            Tab(text: context.tr('bulletins')),
+                            Tab(text: context.tr('programTracking')),
+                            Tab(text: context.tr('events')),
+                            Tab(text: context.tr('payments')),
+                            Tab(text: context.tr('exam')),
                           ],
                         ),
-                      ),
-                    ],
+                        SizedBox(
+                          height: tabViewHeight,
+                          child: TabBarView(
+                            children: [
+                              _GradesView(student: _selected!),
+                              _AbsencesView(student: _selected!),
+                              _PublishedBulletinView(student: _selected!),
+                              ProgrammePage(currentUser: widget.parent),
+                              _EventsView(),
+                              _PaymentsView(
+                                student: _selected!,
+                                parentUserId: widget.parent.id,
+                              ),
+                              _ParentExamView(student: _selected!),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         ),
       ),
     ),
-  ),
   );
+}
+
+class _ParentExamView extends StatelessWidget {
+  final Student student;
+
+  _ParentExamView({required this.student});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<StudentExamStatus?>(
+      future: ApiService.getParentExamStatus(studentId: student.id),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              context.tr('parentExamLoadError'),
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+        final status = snapshot.data;
+        if (status == null) {
+          return Center(
+            child: Text(
+              context.tr('parentExamUnavailable'),
+              textAlign: TextAlign.center,
+            ),
+          );
+        }
+        final complete = status.dossierComplete && status.feesComplete;
+        return ListView(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          children: [
+            Card(
+              color: complete ? Colors.green.shade50 : Colors.orange.shade50,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      complete ? Icons.verified : Icons.assignment_late,
+                      color: complete ? Colors.green : Colors.orange,
+                      size: 32,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        complete
+                            ? '${context.tr('statusUpToDate')}\n${context.tr('parentExamComplete').replaceAll('{student}', student.fullName)}'
+                            : '${context.tr('statusNotUpToDate')}\n${context.tr('parentExamIncomplete').replaceAll('{student}', student.fullName)}',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 8),
+            ListTile(
+              leading: Icon(Icons.payments_outlined),
+              title: Text(context.tr('officialFees')),
+              subtitle: Text(
+                '${status.paidAmount.toInt()} / ${status.officialFee.toInt()} FCFA',
+              ),
+              trailing: Icon(
+                status.feesComplete ? Icons.check_circle : Icons.pending,
+                color: status.feesComplete ? Colors.green : Colors.orange,
+              ),
+            ),
+            Divider(),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                context.tr('requiredDocuments'),
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            ...status.documents.map(
+              (document) => ListTile(
+                dense: true,
+                leading: Icon(
+                  document.submitted ? Icons.check_circle : Icons.cancel,
+                  color: document.submitted ? Colors.green : Colors.red,
+                ),
+                title: Text(document.name),
+                subtitle: Text(
+                  document.required
+                      ? context.tr('required')
+                      : context.tr('optional'),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class _GradesView extends StatelessWidget {
   final Student student;
-  const _GradesView({required this.student});
+  _GradesView({required this.student});
   @override
   Widget build(BuildContext context) => FutureBuilder(
     future: ApiService.getExams(className: student.className),
     builder: (context, examsSnapshot) {
       final exams = examsSnapshot.data ?? [];
       if (examsSnapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(child: CircularProgressIndicator());
       }
       if (exams.isEmpty) {
-        return const Center(child: Text('Aucune note publiée.'));
+        return Center(child: Text(context.tr('noPublishedGrades')));
       }
       return FutureBuilder<List<Grade>>(
         future:
@@ -243,10 +342,10 @@ class _GradesView extends StatelessWidget {
         builder: (context, gradesSnapshot) {
           final grades = gradesSnapshot.data ?? [];
           if (gradesSnapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CircularProgressIndicator());
           }
           if (grades.isEmpty) {
-            return const Center(child: Text('Aucune note publiée.'));
+            return Center(child: Text(context.tr('noPublishedGrades')));
           }
           return ListView(
             children: grades
@@ -261,7 +360,7 @@ class _GradesView extends StatelessWidget {
                                     : exam.title,
                               )
                               .firstOrNull ??
-                          'Évaluation ${g.examId}',
+                          '${context.tr('evaluation')} ${g.examId}',
                     ),
                     subtitle: Text(
                       exams
@@ -271,7 +370,7 @@ class _GradesView extends StatelessWidget {
                                     'Coefficient ${exam.coefficient.toStringAsFixed(2)}',
                               )
                               .firstOrNull ??
-                          'Évaluation ${g.examId}',
+                          '${context.tr('evaluation')} ${g.examId}',
                     ),
                     trailing: Text('${g.score.toStringAsFixed(2)} / 20'),
                   ),
@@ -286,7 +385,7 @@ class _GradesView extends StatelessWidget {
 
 class _AbsencesView extends StatelessWidget {
   final Student student;
-  const _AbsencesView({required this.student});
+  _AbsencesView({required this.student});
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Absence>>(
     future: ApiService.getAbsences(),
@@ -295,10 +394,10 @@ class _AbsencesView extends StatelessWidget {
           .where((a) => a.studentId == student.id)
           .toList();
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(child: CircularProgressIndicator());
       }
       return data.isEmpty
-          ? const Center(child: Text('Aucune absence enregistrée.'))
+          ? Center(child: Text(context.tr('noRecordedAbsences')))
           : ListView(
               children: data
                   .map(
@@ -315,127 +414,89 @@ class _AbsencesView extends StatelessWidget {
   );
 }
 
-class _SanctionsView extends StatelessWidget {
-  final Student student;
-  const _SanctionsView({required this.student});
-  @override
-  Widget build(BuildContext context) => FutureBuilder<List<Sanction>>(
-    future: ApiService.getSanctions(),
-    builder: (context, snapshot) {
-      final data = (snapshot.data ?? [])
-          .where((s) => s.studentId == student.id)
-          .toList();
-      if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      return data.isEmpty
-          ? const Center(child: Text('Aucune sanction enregistrée.'))
-          : ListView(
-              children: data
-                  .map(
-                    (s) =>
-                        ListTile(title: Text(s.type), subtitle: Text(s.reason)),
-                  )
-                  .toList(),
-            );
-    },
-  );
-}
-
-class _BulletinView extends StatelessWidget {
-  final Student student;
-  const _BulletinView({required this.student});
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.assignment_turned_in_outlined, size: 52),
-        const SizedBox(height: 12),
-        Text(
-          'Bulletin de ${student.fullName}',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Les notes et absences affichées dans les autres onglets composent le bulletin.',
-        ),
-      ],
-    ),
-  );
-}
-
 class _PublishedBulletinView extends StatelessWidget {
   final Student student;
-  const _PublishedBulletinView({required this.student});
+  _PublishedBulletinView({required this.student});
 
   @override
   Widget build(BuildContext context) => FutureBuilder(
-        future: ApiService.getBulletinPublications(className: student.className),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final publications = (snapshot.data ?? [])
-              .where((publication) =>
-                  publication.published &&
-                  (publication.studentId == null ||
-                      publication.studentId!.isEmpty ||
-                      publication.studentId == student.id))
+    future: ApiService.getBulletinPublications(className: student.className),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState != ConnectionState.done) {
+        return Center(child: CircularProgressIndicator());
+      }
+      final publications =
+          (snapshot.data ?? [])
+              .where(
+                (publication) =>
+                    publication.published &&
+                    (publication.studentId == null ||
+                        publication.studentId!.isEmpty ||
+                        publication.studentId == student.id),
+              )
               .toList()
             ..sort((a, b) => b.publishedAt.compareTo(a.publishedAt));
-          if (publications.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.lock_outline, size: 52),
-                    const SizedBox(height: 12),
-                    Text('Aucun bulletin publié pour ${student.fullName}.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Le bulletin apparaîtra ici uniquement après publication par le proviseur ou la secrétaire.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+      if (publications.isEmpty) {
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_outline, size: 52),
+                SizedBox(height: 12),
+                Text(
+                  '${context.tr('noPublishedBulletin')} ${student.fullName}.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  context.tr('bulletinPendingPublication'),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return ListView(
+        children: publications
+            .map(
+              (publication) => Card(
+                child: ListTile(
+                  leading: Icon(
+                    Icons.assignment_turned_in,
+                    color: Colors.green,
+                  ),
+                  title: Text('Bulletin — ${publication.period}'),
+                  subtitle: Text(
+                    '${context.tr('publishedOn')} ${DateFormat('dd/MM/yyyy à HH:mm').format(publication.publishedAt)}\n'
+                    '${context.tr('by')} ${publication.publishedBy} (${publication.publishedByRole})',
+                  ),
+                  isThreeLine: true,
+                  trailing: IconButton(
+                    icon: Icon(Icons.picture_as_pdf, color: Colors.red),
+                    tooltip: context.tr('viewReportPdf'),
+                    onPressed: () =>
+                        _downloadBulletin(context, publication.period),
+                  ),
                 ),
               ),
-            );
-          }
-          return ListView(
-            children: publications
-                .map((publication) => Card(
-                      child: ListTile(
-                        leading: const Icon(Icons.assignment_turned_in,
-                            color: Colors.green),
-                        title: Text('Bulletin — ${publication.period}'),
-                      subtitle: Text(
-                        'Publié le ${DateFormat('dd/MM/yyyy à HH:mm').format(publication.publishedAt)}\n'
-                        'Par ${publication.publishedBy} (${publication.publishedByRole})',
-                      ),
-                      isThreeLine: true,
-                      trailing: IconButton(
-                        icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                        tooltip: 'Consulter / télécharger le bulletin PDF',
-                        onPressed: () => _downloadBulletin(context, publication.period),
-                      ),
-                    ),
-                  ))
-              .toList(),
-        );
-      },
-    );
+            )
+            .toList(),
+      );
+    },
+  );
   Future<void> _downloadBulletin(BuildContext context, String period) async {
     try {
       final exams = await ApiService.getExams(className: student.className);
       final grades = <Grade>[];
       for (final exam in exams) {
         final examGrades = await ApiService.getGradesByExam(exam.id);
-        grades.addAll(examGrades.where((grade) => grade.studentId == student.id));
+        grades.addAll(
+          examGrades.where((grade) => grade.studentId == student.id),
+        );
       }
       final absences = (await ApiService.getAbsences())
           .where((absence) => absence.studentId == student.id)
@@ -452,71 +513,32 @@ class _PublishedBulletinView extends StatelessWidget {
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Impossible de générer le bulletin PDF : $error')),
+          SnackBar(content: Text('${context.tr('bulletinPdfError')} $error')),
         );
       }
     }
   }
 }
 
-class _NotebookView extends StatelessWidget {
-  final Student student;
-  const _NotebookView({required this.student});
-
-  @override
-  Widget build(BuildContext context) =>
-      FutureBuilder<List<Map<String, dynamic>>>(
-        future: ApiService.getLessonsByClass(student.className),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final lessons = snapshot.data ?? [];
-          if (lessons.isEmpty) {
-            return const Center(child: Text('Aucun contenu de cahier publié.'));
-          }
-          return ListView(
-            children: lessons
-                .map(
-                  (lesson) => ListTile(
-                    title: Text(
-                      lesson['title']?.toString() ??
-                          lesson['subject']?.toString() ??
-                          'Cours',
-                    ),
-                    subtitle: Text(
-                      '${lesson['content']?.toString() ?? lesson['description']?.toString() ?? ''}'
-                      '${lesson['teacherName']?.toString().trim().isNotEmpty == true ? '\nPublié par ${lesson['teacherName']}' : ''}',
-                    ),
-                    isThreeLine:
-                        lesson['teacherName']?.toString().trim().isNotEmpty == true,
-                  ),
-                )
-                .toList(),
-          );
-        },
-      );
-}
-
 class _EventsView extends StatelessWidget {
-  const _EventsView();
+  _EventsView();
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Event>>(
     future: ApiService.getEvents(),
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(child: CircularProgressIndicator());
       }
       final events = snapshot.data ?? [];
       if (events.isEmpty) {
-        return const Center(child: Text('Aucun événement annoncé.'));
+        return Center(child: Text(context.tr('noAnnouncedEvents')));
       }
       return ListView(
         children: events
             .map(
               (event) => ListTile(
-                leading: const Icon(Icons.event),
+                leading: Icon(Icons.event),
                 title: Text(event.title),
                 subtitle: Text(
                   event.description.isEmpty
@@ -537,28 +559,26 @@ class _EventsView extends StatelessWidget {
 class _PaymentsView extends StatelessWidget {
   final Student student;
   final String parentUserId;
-  const _PaymentsView({required this.student, required this.parentUserId});
+  _PaymentsView({required this.student, required this.parentUserId});
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Payment>>(
     future: ApiService.getParentPayments(parentUserId),
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(child: CircularProgressIndicator());
       }
       final payments = (snapshot.data ?? [])
           .where((payment) => payment.studentId == student.id)
           .toList();
       if (payments.isEmpty) {
-        return const Center(
-          child: Text('Aucun paiement enregistré pour cet enfant.'),
-        );
+        return Center(child: Text(context.tr('noChildPayments')));
       }
       return ListView(
         children: payments
             .map(
               (payment) => ListTile(
-                leading: const Icon(Icons.payments_outlined),
+                leading: Icon(Icons.payments_outlined),
                 title: Text('${payment.amount.toStringAsFixed(0)} FCFA'),
                 subtitle: Text(payment.description),
                 trailing: Text(

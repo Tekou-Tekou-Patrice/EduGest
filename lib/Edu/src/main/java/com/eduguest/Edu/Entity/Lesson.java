@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -24,6 +25,7 @@ public class Lesson implements SchoolScoped {
     private String title;
 
     @Column(columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String content;
 
     @Column(name = "class_name", nullable = false)

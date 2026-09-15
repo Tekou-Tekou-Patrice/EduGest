@@ -30,8 +30,12 @@ class Event {
   }
 
   factory Event.fromMap(Map<String, dynamic> map) {
-    final hour = map['hour'] is int ? map['hour'] as int : int.tryParse('${map['hour']}') ?? 0;
-    final minute = map['minute'] is int ? map['minute'] as int : int.tryParse('${map['minute']}') ?? 0;
+    final hour = map['hour'] is int
+        ? map['hour'] as int
+        : int.tryParse('${map['hour']}') ?? 0;
+    final minute = map['minute'] is int
+        ? map['minute'] as int
+        : int.tryParse('${map['minute']}') ?? 0;
     return Event(
       id: map['id']?.toString() ?? '',
       title: map['title']?.toString() ?? '',

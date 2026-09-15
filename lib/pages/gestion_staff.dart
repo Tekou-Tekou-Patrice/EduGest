@@ -2,6 +2,7 @@ import 'package:edugest/models/app_user.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:edugest/pages/inscription_staff.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import '../components/app_colors.dart';
 
 class GestionStaff extends StatefulWidget {
@@ -35,11 +36,9 @@ class _GestionStaffState extends State<GestionStaff> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Erreur lors du chargement du personnel"),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('loadStaffError'))));
       }
     }
   }
@@ -53,7 +52,7 @@ class _GestionStaffState extends State<GestionStaff> {
         content: SizedBox(
           width: MediaQuery.sizeOf(context).width - 32,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20),
             child: InscriptionStaff(
               currentUser: widget.currentUser,
               onSuccess: () {
@@ -77,7 +76,7 @@ class _GestionStaffState extends State<GestionStaff> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Text(
+            Text(
               "Gestion du Personnel",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
@@ -94,41 +93,41 @@ class _GestionStaffState extends State<GestionStaff> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      padding: const EdgeInsets.symmetric(
+                      padding: EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
                       ),
                     ),
                     onPressed: _showAddStaffDialog,
-                    icon: const Icon(Icons.person_add, color: Colors.white),
-                    label: const Text(
+                    icon: Icon(Icons.person_add, color: Colors.white),
+                    label: Text(
                       "Ajouter Staff",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: AppColors.primary),
+                  icon: Icon(Icons.refresh, color: AppColors.primary),
                   onPressed: _fetchStaff,
                 ),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 25),
+        SizedBox(height: 25),
 
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (_staffList.isEmpty)
-          const Center(child: Text("Aucun membre trouvé."))
+          Center(child: Text(context.tr('noStaff')))
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _staffList.length,
             itemBuilder: (context, index) {
               final member = _staffList[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -139,7 +138,7 @@ class _GestionStaffState extends State<GestionStaff> {
                     backgroundColor: AppColors.primaryPale,
                     child: Text(
                       member.initials,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                       ),
@@ -147,25 +146,22 @@ class _GestionStaffState extends State<GestionStaff> {
                   ),
                   title: Text(
                     member.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
                     "${member.displayRole} • ${member.email}"
-                    "${member.phone?.trim().isNotEmpty == true ? '\nTéléphone : ${member.phone}' : '\nTéléphone : Non renseigné'}",
+                    "${member.phone?.trim().isNotEmpty == true ? '\n${context.tr('contactPhone')} : ${member.phone}' : '\n${context.tr('contactPhone')} : ${context.tr('notProvided')}'}",
                   ),
                   trailing:
                       (widget.currentUser.role == UserRole.fondateur &&
                           member.displayRole != 'Fondateur')
                       ? IconButton(
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                          ),
+                          icon: Icon(Icons.delete_outline, color: Colors.red),
                           onPressed: () async {
                             final confirm = await showDialog<bool>(
                               context: context,
                               builder: (context) => AlertDialog(
-                                title: const Text("Confirmer"),
+                                title: Text(context.tr('confirm')),
                                 content: Text(
                                   "Voulez-vous supprimer ${member.name} ?",
                                 ),
@@ -173,13 +169,13 @@ class _GestionStaffState extends State<GestionStaff> {
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, false),
-                                    child: const Text("Annuler"),
+                                    child: Text(context.tr('cancel')),
                                   ),
                                   TextButton(
                                     onPressed: () =>
                                         Navigator.pop(context, true),
-                                    child: const Text(
-                                      "Supprimer",
+                                    child: Text(
+                                      context.tr('delete'),
                                       style: TextStyle(color: Colors.red),
                                     ),
                                   ),
@@ -187,8 +183,25 @@ class _GestionStaffState extends State<GestionStaff> {
                               ),
                             );
                             if (confirm == true) {
-                              await ApiService.deleteUser(member.id);
-                              _fetchStaff();
+                              try {
+                                await ApiService.deleteUser(member.id);
+                                await _fetchStaff();
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(context.tr('staffDeleted')),
+                                  ),
+                                );
+                              } catch (error) {
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      ApiService.friendlyErrorMessage(error),
+                                    ),
+                                  ),
+                                );
+                              }
                             }
                           },
                         )

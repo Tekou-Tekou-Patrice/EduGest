@@ -67,6 +67,18 @@ public class ScolariteController {
         return ResponseEntity.ok(scolariteService.createStudent(dto));
     }
 
+    @PostMapping("/students/{id}/validate")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR})
+    public ResponseEntity<StudentDto> validateStudent(
+            @PathVariable Long id,
+            @RequestParam Long classroomId) {
+        return ResponseEntity.ok(scolariteService.validateStudent(
+                id,
+                classroomId,
+                securityContextService.getCurrentUserId()
+        ));
+    }
+
     @DeleteMapping("/students/{id}")
     @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
     public ResponseEntity<Void> deleteStudent(@PathVariable Long id) {

@@ -3,6 +3,7 @@ import 'package:edugest/models/app_user.dart';
 import 'package:edugest/pages/home_router.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 
 class SchoolAccessPage extends StatefulWidget {
   final AppUser user;
@@ -17,13 +18,11 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
   final _codeController = TextEditingController();
   final _schoolNameController = TextEditingController();
   final _schoolCodeController = TextEditingController();
+  String _schoolLevel = 'COLLEGE';
   bool _isSubmitting = false;
-  late UserRole _selectedRole;
-
   @override
   void initState() {
     super.initState();
-    _selectedRole = widget.user.role;
   }
 
   @override
@@ -37,25 +36,21 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
   Future<void> _joinSchool() async {
     final code = _codeController.text.trim();
     if (code.isEmpty) {
-      _showMessage("Veuillez saisir le code de l'école.");
+      _showMessage(context.tr('schoolCodeRequired'));
       return;
     }
 
     setState(() => _isSubmitting = true);
     try {
-      await ApiService.joinSchoolByCode(
-        userId: widget.user.id,
-        code: code,
-        role: _selectedRole,
-      );
+      await ApiService.joinSchoolByCode(userId: widget.user.id, code: code);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous avez rejoint cette école.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('schoolJoined'))));
       Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        _showMessage('Impossible de rejoindre cette école: $e');
+        _showMessage(ApiService.friendlyErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -66,7 +61,7 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
     final name = _schoolNameController.text.trim();
     final code = _schoolCodeController.text.trim();
     if (name.isEmpty || code.isEmpty) {
-      _showMessage("Veuillez renseigner le nom et le code de l'école.");
+      _showMessage(context.tr('schoolNameCodeRequired'));
       return;
     }
 
@@ -76,6 +71,7 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
         userId: widget.user.id,
         name: name,
         code: code,
+        schoolLevel: _schoolLevel,
       );
       if (!mounted) return;
       ApiService.setActiveSchool(schoolId);
@@ -90,7 +86,7 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
       );
     } catch (e) {
       if (mounted) {
-        _showMessage('Impossible de créer cette école: $e');
+        _showMessage(ApiService.friendlyErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -107,7 +103,7 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bg,
-      appBar: AppBar(title: const Text('Rejoindre ou créer une école')),
+      appBar: AppBar(title: Text(context.tr('joinOrCreateSchool'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Center(
@@ -116,45 +112,25 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Accéder à une école',
+                Text(
+                  context.tr('accessSchool'),
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Utilisez le code communiqué par votre établissement ou créez votre propre école.',
+                Text(
+                  context.tr('accessSchoolDescription'),
                   style: TextStyle(color: AppColors.textMuted),
                 ),
                 const SizedBox(height: 24),
-                DropdownButtonFormField<UserRole>(
-                  value: _selectedRole,
-                  decoration: const InputDecoration(
-                    labelText: 'Rôle dans cette école',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.badge),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: UserRole.proviseur, child: Text('Proviseur')),
-                    DropdownMenuItem(value: UserRole.censeur, child: Text('Censeur')),
-                    DropdownMenuItem(value: UserRole.secretaire, child: Text('Secrétaire')),
-                    DropdownMenuItem(value: UserRole.comptable, child: Text('Comptable')),
-                    DropdownMenuItem(value: UserRole.enseignant, child: Text('Enseignant')),
-                    DropdownMenuItem(value: UserRole.parent, child: Text('Parent')),
-                    DropdownMenuItem(value: UserRole.fondateur, child: Text('Fondateur')),
-                    DropdownMenuItem(value: UserRole.surveillantGeneral, child: Text('Surveillant Général')),
-                    DropdownMenuItem(value: UserRole.membre, child: Text('Membre')),
-                  ],
-                  onChanged: (role) {
-                    if (role != null) {
-                      setState(() => _selectedRole = role);
-                    }
-                  },
+                Text(
+                  '${context.tr('assignedRole')} : ${widget.user.displayRole}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _codeController,
-                  decoration: const InputDecoration(
-                    labelText: "Code de l'école",
+                  decoration: InputDecoration(
+                    labelText: context.tr('schoolCode'),
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.key),
                   ),
@@ -163,20 +139,20 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
                 FilledButton.icon(
                   onPressed: _isSubmitting ? null : _joinSchool,
                   icon: const Icon(Icons.login),
-                  label: const Text('Se connecter par code'),
+                  label: Text(context.tr('joinByCode')),
                 ),
                 const SizedBox(height: 32),
                 const Divider(),
                 const SizedBox(height: 24),
-                const Text(
-                  'Créer une école',
+                Text(
+                  context.tr('createSchool'),
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _schoolNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom de la nouvelle école',
+                  decoration: InputDecoration(
+                    labelText: context.tr('newSchoolName'),
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.school),
                   ),
@@ -184,17 +160,43 @@ class _SchoolAccessPageState extends State<SchoolAccessPage> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _schoolCodeController,
-                  decoration: const InputDecoration(
-                    labelText: "Code privé de l'école",
+                  decoration: InputDecoration(
+                    labelText: context.tr('privateSchoolCode'),
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.lock),
                   ),
                 ),
                 const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _schoolLevel,
+                  decoration: const InputDecoration(
+                    labelText: 'Type d’établissement',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.account_balance),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: 'PRIMARY',
+                      child: Text(context.tr('schoolLevelPrimary')),
+                    ),
+                    DropdownMenuItem(
+                      value: 'COLLEGE',
+                      child: Text(context.tr('schoolLevelCollege')),
+                    ),
+                    DropdownMenuItem(
+                      value: 'LYCEE',
+                      child: Text(context.tr('schoolLevelLycee')),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) setState(() => _schoolLevel = value);
+                  },
+                ),
+                const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: _isSubmitting ? null : _createSchool,
                   icon: const Icon(Icons.add_business),
-                  label: const Text("Créer l'école"),
+                  label: Text(context.tr('createSchool')),
                 ),
                 if (_isSubmitting) ...[
                   const SizedBox(height: 20),

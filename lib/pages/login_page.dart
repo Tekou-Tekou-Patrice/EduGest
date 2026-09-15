@@ -4,10 +4,12 @@ import 'package:edugest/components/my_sidebar.dart';
 import 'package:edugest/components/my_textfield.dart';
 import 'package:edugest/components/responsive_layout.dart';
 import 'package:edugest/localization/app_localizations.dart';
+import 'package:edugest/localization/locale_notifier.dart';
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/pages/school_selection_page.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:edugest/service/auth_session_service.dart';
+import 'package:edugest/pages/verification_page.dart';
 import 'package:flutter/material.dart';
 
 class LoginPage extends StatefulWidget {
@@ -36,10 +38,10 @@ class _LoginPageState extends State<LoginPage> {
     SidebarSection(
       title: 'EduGest Info',
       items: [
-        SidebarItem(icon: Icons.check, label: 'Gestion de notes'),
-        SidebarItem(icon: Icons.check, label: 'Gestion de paiement'),
-        SidebarItem(icon: Icons.check, label: 'Gestion de élèves'),
-        SidebarItem(icon: Icons.check, label: 'Gestion de cours'),
+        SidebarItem(icon: Icons.check, label: context.tr('gradeManagement')),
+        SidebarItem(icon: Icons.check, label: context.tr('paymentManagement')),
+        SidebarItem(icon: Icons.check, label: context.tr('studentManagement')),
+        SidebarItem(icon: Icons.check, label: context.tr('courseManagement')),
       ],
     ),
   ];
@@ -58,10 +60,12 @@ class _LoginPageState extends State<LoginPage> {
           ? AppBar(
               backgroundColor: AppColors.sidebarBg,
               title: Text(
-                _isLogin ? loc.translate('loginTitle') : loc.translate('createAccount'),
-                style: const TextStyle(color: Colors.white, fontSize: 18),
+                _isLogin
+                    ? loc.translate('loginTitle')
+                    : loc.translate('createAccount'),
+                style: TextStyle(color: Colors.white, fontSize: 18),
               ),
-              iconTheme: const IconThemeData(color: Colors.white),
+              iconTheme: IconThemeData(color: Colors.white),
             )
           : null,
       body: Row(
@@ -80,30 +84,29 @@ class _LoginPageState extends State<LoginPage> {
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: isMobile ? 25 : 80),
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 500),
+          constraints: BoxConstraints(maxWidth: 500),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                _isLogin ? loc.translate('loginTitle') : loc.translate('createAccount'),
-                style: const TextStyle(
+                _isLogin
+                    ? loc.translate('loginTitle')
+                    : loc.translate('createAccount'),
+                style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: AppColors.text,
                 ),
               ),
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Text(
                 _isLogin
                     ? loc.translate('loginSubtitle')
                     : loc.translate('signupDescription'),
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 16),
               ),
-              const SizedBox(height: 40),
+              SizedBox(height: 40),
 
               if (!_isLogin) ...[
                 MyTextfield(
@@ -111,21 +114,23 @@ class _LoginPageState extends State<LoginPage> {
                   icon: Icons.person,
                   hintText: loc.translate('fullNameHint'),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 MyTextfield(
                   controller: _phoneController,
                   icon: Icons.phone_android,
                   hintText: loc.translate('contactPhone'),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
               ],
 
               MyTextfield(
                 controller: _emailController,
                 icon: Icons.mail_outline,
-                hintText: loc.translate('emailHint'),
+                hintText: _isLogin
+                    ? context.tr('emailOrPhone')
+                    : 'Email (facultatif)',
               ),
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
               MyTextfield(
                 controller: _passwordController,
                 icon: Icons.lock_outline,
@@ -133,12 +138,12 @@ class _LoginPageState extends State<LoginPage> {
                 obscureText: true,
               ),
 
-              const SizedBox(height: 40),
+              SizedBox(height: 40),
 
               SizedBox(
                 width: double.infinity,
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(child: CircularProgressIndicator())
                     : MyButton(
                         icon: _isLogin ? Icons.login : Icons.how_to_reg,
                         text: _isLogin
@@ -147,7 +152,14 @@ class _LoginPageState extends State<LoginPage> {
                         onTap: _isLogin ? _handleLogin : _handleRegister,
                       ),
               ),
-              const SizedBox(height: 18),
+              SizedBox(height: 18),
+              if (_isLogin)
+                Center(
+                  child: TextButton(
+                    onPressed: _showForgotPasswordDialog,
+                    child: Text(context.tr('auto_mot_de_passe_oublie')),
+                  ),
+                ),
               Center(
                 child: Text(
                   loc.translate('developerCredit'),
@@ -159,7 +171,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
+              SizedBox(height: 20),
 
               Center(
                 child: TextButton(
@@ -169,7 +181,7 @@ class _LoginPageState extends State<LoginPage> {
                         ? loc.translate('createAccount')
                         : loc.translate('alreadyHaveAccount'),
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.primary,
                       fontWeight: FontWeight.bold,
                     ),
@@ -208,6 +220,7 @@ class _LoginPageState extends State<LoginPage> {
       if (result['success'] == true) {
         final currentUser = result['user'] as AppUser;
         ApiService.setActiveUser(currentUser);
+        await appLocale.loadForUser(currentUser.id);
         await AuthSessionService.saveSession(currentUser);
         await AuthSessionService.saveActiveSchool(null);
         if (!mounted) return;
@@ -230,9 +243,7 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(ApiService.friendlyErrorMessage(e))),
       );
     }
@@ -240,21 +251,20 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _handleRegister() async {
     if (_nameController.text.trim().isEmpty ||
-        _emailController.text.trim().isEmpty ||
+        (_emailController.text.trim().isEmpty &&
+            _phoneController.text.trim().isEmpty) ||
         _passwordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Renseignez votre nom, un email valide et un mot de passe de 6 caractères minimum.',
-          ),
-        ),
+        SnackBar(content: Text(context.tr('signupFormDescription'))),
       );
       return;
     }
     setState(() => _isLoading = true);
     final result = await ApiService.registerAccount(
       name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
+      email: _emailController.text.trim().isEmpty
+          ? null
+          : _emailController.text.trim(),
       password: _passwordController.text,
       phone: _phoneController.text.trim(),
     );
@@ -262,12 +272,20 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Compte créé avec succès ! Connectez-vous."),
+      final user = result['user'] as AppUser;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerificationPage(
+            purpose: VerificationPurpose.registration,
+            contact: _emailController.text.trim().isEmpty
+                ? _phoneController.text.trim()
+                : _emailController.text.trim(),
+            userId: user.id,
+            initialCode: result['verificationCode']?.toString(),
+          ),
         ),
       );
-      setState(() => _isLogin = true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -277,5 +295,58 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
     }
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final contactController = TextEditingController();
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.tr('forgotPassword')),
+        content: MyTextfield(
+          controller: contactController,
+          icon: Icons.contact_mail,
+          hintText: context.tr('emailOrPhone'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.tr('cancel')),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (contactController.text.trim().isEmpty) return;
+              try {
+                await ApiService.requestPasswordReset(
+                  contactController.text.trim(),
+                );
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext);
+                if (!mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VerificationPage(
+                      purpose: VerificationPurpose.passwordReset,
+                      contact: contactController.text.trim(),
+                    ),
+                  ),
+                );
+              } catch (error) {
+                if (dialogContext.mounted) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    SnackBar(
+                      content: Text(ApiService.friendlyErrorMessage(error)),
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text('Envoyer le code'),
+          ),
+        ],
+      ),
+    );
+    contactController.dispose();
   }
 }

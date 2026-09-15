@@ -23,6 +23,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailIgnoreCase(@Param("email") String email);
 
     @Query("SELECT u FROM User u WHERE u.phone = :phone")
+    Optional<User> findFirstByPhone(@Param("phone") String phone);
+
+    @Query("SELECT u FROM User u WHERE u.phone = :phone")
     List<User> findByPhone(@Param("phone") String phone);
     
     @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.username = :username")

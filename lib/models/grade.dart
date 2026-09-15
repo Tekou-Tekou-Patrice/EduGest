@@ -80,7 +80,8 @@ class Exam {
           ? (map['coefficient'] as num).toDouble()
           : double.tryParse('${map['coefficient']}') ?? 1.0,
       editable: map['editable'] != false,
-      teacherName: map['teacherName']?.toString() ?? map['teacher_name']?.toString(),
+      teacherName:
+          map['teacherName']?.toString() ?? map['teacher_name']?.toString(),
     );
   }
 }

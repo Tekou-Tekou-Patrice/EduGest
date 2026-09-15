@@ -2,7 +2,10 @@ package com.eduguest.Edu.Controllers;
 
 import com.eduguest.Edu.DTO.AppNotificationDto;
 import com.eduguest.Edu.Service.AppNotificationService;
+import com.eduguest.Edu.Service.FirebasePushService;
 import com.eduguest.Edu.Service.UserSecurityContextService;
+import com.eduguest.Edu.Entity.User;
+import com.eduguest.Edu.Repository.UserRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,11 +17,17 @@ public class AppNotificationController {
 
     private final AppNotificationService notificationService;
     private final UserSecurityContextService securityContextService;
+    private final FirebasePushService firebasePushService;
+    private final UserRepository userRepository;
 
     public AppNotificationController(AppNotificationService notificationService,
-                                     UserSecurityContextService securityContextService) {
+                                     UserSecurityContextService securityContextService,
+                                     FirebasePushService firebasePushService,
+                                     UserRepository userRepository) {
         this.notificationService = notificationService;
         this.securityContextService = securityContextService;
+        this.firebasePushService = firebasePushService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping("/unread")
@@ -45,6 +54,14 @@ public class AppNotificationController {
     @PostMapping
     public ResponseEntity<AppNotificationDto> createNotification(@RequestBody AppNotificationDto dto) {
         return ResponseEntity.ok(notificationService.createNotification(dto));
+    }
+
+    @PostMapping("/devices")
+    public ResponseEntity<Void> registerDevice(@RequestBody java.util.Map<String, String> payload) {
+        Long userId = securityContextService.getCurrentUserId();
+        User user = userRepository.findById(userId).orElseThrow();
+        firebasePushService.register(user, payload.get("token"), payload.get("platform"));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/remind-payment")

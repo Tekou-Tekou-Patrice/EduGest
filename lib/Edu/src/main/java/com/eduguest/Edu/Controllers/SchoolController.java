@@ -85,11 +85,9 @@ public class SchoolController {
 
     @PostMapping("/join")
     public ResponseEntity<SchoolMembershipDto> join(@RequestParam Long userId,
-                                                     @RequestParam String code,
-                                                     @RequestParam(required = false) String role) {
+                                                     @RequestParam String code) {
         securityContextService.requireUserOrStaff(userId);
-        UserRole membershipRole = role == null || role.isBlank() ? null : UserRole.fromValue(role);
-        return ResponseEntity.ok(schoolService.joinByCode(userId, code, membershipRole));
+        return ResponseEntity.ok(schoolService.joinByCode(userId, code));
     }
 
     @GetMapping("/all")

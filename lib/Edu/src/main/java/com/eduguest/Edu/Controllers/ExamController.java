@@ -23,10 +23,15 @@ public class ExamController {
     }
 
     @GetMapping("/exams")
-    public ResponseEntity<List<ExamDto>> getAllExams(@RequestParam(required = false) String className) {
+    public ResponseEntity<List<ExamDto>> getAllExams(
+            @RequestParam(required = false) String className,
+            @RequestParam(required = false) String teacherName) {
         try {
             if (className != null && !className.isBlank()) {
                 return ResponseEntity.ok(examService.getExamsByClass(className));
+            }
+            if (teacherName != null && !teacherName.isBlank()) {
+                return ResponseEntity.ok(examService.getExamsByTeacher(teacherName));
             }
             return ResponseEntity.ok(examService.getAllExams());
         } catch (Exception e) {

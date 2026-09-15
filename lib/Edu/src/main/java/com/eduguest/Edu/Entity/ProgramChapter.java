@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -23,9 +24,11 @@ public class ProgramChapter implements SchoolScoped {
     private Long id;
 
     @Column(name = "major_chapter", nullable = false, columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String majorChapter;
 
     @Column(name = "sub_chapter", columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String subChapter;
 
     @Column(name = "class_name", nullable = false)

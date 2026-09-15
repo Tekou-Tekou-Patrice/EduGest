@@ -60,6 +60,7 @@ public class SchoolService {
         School school = new School();
         school.setName(request.getName().trim());
         school.setCode(normalizeCode(request.getCode(), request.getName()));
+        school.setSchoolLevel(normalizeSchoolLevel(request.getSchoolLevel()));
         school.setActive(true);
         school.setSubscriptionStatus("ACTIVE");
         school.setSubscriptionExpiresAt(LocalDate.now().plusMonths(1));
@@ -108,7 +109,7 @@ public class SchoolService {
     }
 
     @Transactional
-    public SchoolMembershipDto joinByCode(Long userId, String code, UserRole requestedRole) {
+    public SchoolMembershipDto joinByCode(Long userId, String code) {
         if (code == null || code.isBlank()) {
             throw new IllegalArgumentException("Le code de l'école est obligatoire");
         }
@@ -122,15 +123,30 @@ public class SchoolService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
-        boolean alreadyRegistered = membershipRepository.findByUserIdAndSchoolId(userId, school.getId())
-                .filter(SchoolMembership::isActive)
-                .isPresent();
-        if (!alreadyRegistered) {
-            throw new IllegalStateException("Vous devez deja etre enregistre dans cette ecole pour y acceder avec son code.");
+        SchoolMembership existingMembership = membershipRepository.findByUserIdAndSchoolId(userId, school.getId())
+                .orElse(null);
+        if (existingMembership == null) {
+            throw new IllegalStateException(
+                    "Vous devez deja etre enregistre par l'administration de cette ecole avant de la rejoindre.");
+        }
+        if (!existingMembership.isActive()) {
+            existingMembership.setActive(true);
+            existingMembership = membershipRepository.save(existingMembership);
         }
 
-        UserRole membershipRole = requestedRole != null ? requestedRole : user.getRole();
-        return toMembershipDto(addMembership(user, school, membershipRole));
+        // Le rôle est attribué par l'administration lors de l'inscription.
+        // Le code d'école ne doit jamais permettre à l'utilisateur de le modifier.
+        return toMembershipDto(existingMembership);
+    }
+
+    /**
+     * Compatibility overload for existing callers.
+     * The requested role is intentionally ignored: the stored membership role
+     * assigned by the school administration remains authoritative.
+     */
+    @Deprecated
+    public SchoolMembershipDto joinByCode(Long userId, String code, UserRole ignoredRole) {
+        return joinByCode(userId, code);
     }
 
     @Transactional
@@ -342,6 +358,7 @@ public class SchoolService {
         dto.setId(school.getId());
         dto.setName(school.getName());
         dto.setCode(school.getCode());
+        dto.setSchoolLevel(normalizeSchoolLevel(school.getSchoolLevel()));
         dto.setActive(school.isActive());
         dto.setCreatedAt(school.getCreatedAt());
         dto.setMembershipRole(role);
@@ -398,6 +415,7 @@ public class SchoolService {
         dto.setSchoolId(membership.getSchool().getId());
         dto.setSchoolName(membership.getSchool().getName());
         dto.setSchoolCode(membership.getSchool().getCode());
+        dto.setSchoolLevel(normalizeSchoolLevel(membership.getSchool().getSchoolLevel()));
         dto.setRole(membership.getRole());
         dto.setActive(membership.isActive());
         return dto;
@@ -408,8 +426,16 @@ public class SchoolService {
         dto.setSchoolId(school.getId());
         dto.setSchoolName(school.getName());
         dto.setSchoolCode(school.getCode());
+        dto.setSchoolLevel(normalizeSchoolLevel(school.getSchoolLevel()));
         dto.setActive(school.isActive());
         return dto;
+    }
+
+    private String normalizeSchoolLevel(String value) {
+        if ("PRIMARY".equalsIgnoreCase(value)) return "PRIMARY";
+        if ("COLLEGE".equalsIgnoreCase(value)) return "COLLEGE";
+        if ("LYCEE".equalsIgnoreCase(value)) return "LYCEE";
+        return "COLLEGE";
     }
 
     private SchoolMembershipDto toMembershipDto(SchoolDto school) {
@@ -417,6 +443,7 @@ public class SchoolService {
         dto.setSchoolId(school.getId());
         dto.setSchoolName(school.getName());
         dto.setSchoolCode(school.getCode());
+        dto.setSchoolLevel(normalizeSchoolLevel(school.getSchoolLevel()));
         dto.setActive(school.isActive());
         return dto;
     }

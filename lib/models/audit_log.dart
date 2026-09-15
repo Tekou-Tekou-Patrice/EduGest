@@ -37,7 +37,8 @@ class AuditLog {
       performedBy: map['performedBy']?.toString() ?? 'Utilisateur',
       performedByRole: map['performedByRole']?.toString() ?? '',
       performedById: map['performedById']?.toString(),
-      timestamp: DateTime.tryParse(map['timestamp']?.toString() ?? '') ??
+      timestamp:
+          DateTime.tryParse(map['timestamp']?.toString() ?? '') ??
           DateTime.now(),
     );
   }

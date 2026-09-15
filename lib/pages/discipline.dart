@@ -4,12 +4,13 @@ import 'package:edugest/models/student.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:edugest/components/my_button.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import '../components/app_colors.dart';
 import 'package:intl/intl.dart';
 
 class Discipline extends StatefulWidget {
   final AppUser? currentUser;
-  const Discipline({super.key, this.currentUser});
+  Discipline({super.key, this.currentUser});
 
   @override
   State<Discipline> createState() => _DisciplineState();
@@ -25,11 +26,17 @@ class _DisciplineState extends State<Discipline> {
         role == UserRole.surveillant ||
         role == UserRole.surveillantGeneral;
   }
+
   late Future<List<Sanction>> _sanctionsFuture;
   final TextEditingController _studentNameController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
   String _selectedType = 'Avertissement';
-  final List<String> _sanctionTypes = ['Avertissement', 'Blâme', 'Exclusion', 'Corvée'];
+  final List<String> _sanctionTypes = [
+    'Avertissement',
+    'Blâme',
+    'Exclusion',
+    'Corvée',
+  ];
 
   @override
   void initState() {
@@ -61,8 +68,12 @@ class _DisciplineState extends State<Discipline> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(sanction == null ? "Nouvelle Sanction" : "Modifier la Sanction"),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(
+            sanction == null ? "Nouvelle Sanction" : "Modifier la Sanction",
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -70,10 +81,12 @@ class _DisciplineState extends State<Discipline> {
                 TextField(
                   controller: _studentNameController,
                   decoration: InputDecoration(
-                    labelText: "Rechercher un élève existant",
-                    hintText: "Nom ou matricule",
-                    prefixIcon: const Icon(Icons.person_search),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    labelText: context.tr('searchExistingStudent'),
+                    hintText: context.tr('nameOrId'),
+                    prefixIcon: Icon(Icons.person_search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onChanged: (value) async {
                     selectedStudent = null;
@@ -83,81 +96,106 @@ class _DisciplineState extends State<Discipline> {
                     }
                     setDialogState(() => isSearching = true);
                     try {
-                      final students = await ApiService.getStudents(query: value.trim());
+                      final students = await ApiService.getStudents(
+                        query: value.trim(),
+                      );
                       if (context.mounted) {
                         setDialogState(() => matches = students);
                       }
                     } finally {
-                      if (context.mounted) setDialogState(() => isSearching = false);
+                      if (context.mounted)
+                        setDialogState(() => isSearching = false);
                     }
                   },
                 ),
                 if (isSearching)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: LinearProgressIndicator(),
                   ),
                 if (matches.isNotEmpty)
                   Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    constraints: const BoxConstraints(maxHeight: 150),
+                    margin: EdgeInsets.only(top: 8),
+                    constraints: BoxConstraints(maxHeight: 150),
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.border),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
-                      children: matches.map((student) => ListTile(
-                        dense: true,
-                        title: Text(student.fullName),
-                        subtitle: Text('${student.className} • ${student.id}'),
-                        onTap: () => setDialogState(() {
-                          selectedStudent = student;
-                          _studentNameController.text = student.fullName;
-                          matches = [];
-                        }),
-                      )).toList(),
+                      children: matches
+                          .map(
+                            (student) => ListTile(
+                              dense: true,
+                              title: Text(student.fullName),
+                              subtitle: Text(
+                                '${student.className} • ${student.id}',
+                              ),
+                              onTap: () => setDialogState(() {
+                                selectedStudent = student;
+                                _studentNameController.text = student.fullName;
+                                matches = [];
+                              }),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedType,
                   decoration: InputDecoration(
-                    labelText: "Type de sanction",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    labelText: context.tr('sanctionType'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  items: _sanctionTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                  onChanged: (val) => setDialogState(() => _selectedType = val!),
+                  items: _sanctionTypes
+                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .toList(),
+                  onChanged: (val) =>
+                      setDialogState(() => _selectedType = val!),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 TextField(
                   controller: _reasonController,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    labelText: "Motif",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    labelText: context.tr('reason'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(context.tr('cancel')),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               onPressed: () async {
                 final studentId = sanction?.studentId ?? selectedStudent?.id;
-                if (studentId == null || studentId.isEmpty || _reasonController.text.trim().isEmpty) {
+                if (studentId == null ||
+                    studentId.isEmpty ||
+                    _reasonController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Sélectionnez un élève existant et indiquez le motif.")),
+                    SnackBar(content: Text(context.tr('selectStudentReason'))),
                   );
                   return;
                 }
-                {
+                try {
                   final newSanction = Sanction(
                     id: sanction?.id ?? '',
                     studentId: studentId,
-                    studentName: selectedStudent?.fullName ?? _studentNameController.text.trim(),
+                    studentName:
+                        selectedStudent?.fullName ??
+                        _studentNameController.text.trim(),
                     type: _selectedType,
                     reason: _reasonController.text,
                     date: sanction?.date ?? DateTime.now(),
@@ -166,9 +204,21 @@ class _DisciplineState extends State<Discipline> {
                   if (!context.mounted) return;
                   _refreshSanctions();
                   Navigator.pop(context);
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ApiService.friendlyErrorMessage(error)),
+                    ),
+                  );
                 }
               },
-              child: Text(sanction == null ? "Appliquer" : "Mettre à jour", style: const TextStyle(color: Colors.white)),
+              child: Text(
+                sanction == null
+                    ? context.tr('auto_appliquer')
+                    : context.tr('update'),
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -187,35 +237,59 @@ class _DisciplineState extends State<Discipline> {
           spacing: 16,
           runSpacing: 10,
           children: [
-            const Text("Suivi Disciplinaire", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text)),
-            if (_canManageSanctions) SizedBox(
-              width: 160,
-              child: MyButton(icon: Icons.gavel, text: "Sanctionner", onTap: () => _showSanctionDialog()),
+            Text(
+              "Suivi Disciplinaire",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
             ),
+            if (_canManageSanctions)
+              SizedBox(
+                width: 160,
+                child: MyButton(
+                  icon: Icons.gavel,
+                  text: "Sanctionner",
+                  onTap: () => _showSanctionDialog(),
+                ),
+              ),
           ],
         ),
-        const SizedBox(height: 25),
-        
+        SizedBox(height: 25),
+
         FutureBuilder<List<Sanction>>(
           future: _sanctionsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()));
+              return Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              );
             }
-            if (snapshot.hasError) return Center(child: Text('Erreur: ${snapshot.error}'));
-            if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(40), child: Text('Aucun incident signalé.')));
+            if (snapshot.hasError)
+              return Center(child: Text('Erreur: ${snapshot.error}'));
+            if (!snapshot.hasData || snapshot.data!.isEmpty)
+              return Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Text(context.tr('noIncidents')),
+                ),
+              );
 
             final items = snapshot.data!;
             return ListView.builder(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
+              physics: NeverScrollableScrollPhysics(),
               itemCount: items.length,
               itemBuilder: (context, index) {
                 final s = items[index];
                 final bool isSevere = s.type.contains('Exclusion');
-                
+
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
+                  margin: EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(15),
@@ -223,25 +297,44 @@ class _DisciplineState extends State<Discipline> {
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: (isSevere ? Colors.red : Colors.orange).withValues(alpha: 0.1),
-                      child: Icon(Icons.warning_amber_rounded, color: isSevere ? Colors.red : Colors.orange),
+                      backgroundColor: (isSevere ? Colors.red : Colors.orange)
+                          .withValues(alpha: 0.1),
+                      child: Icon(
+                        Icons.warning_amber_rounded,
+                        color: isSevere ? Colors.red : Colors.orange,
+                      ),
                     ),
-                    title: Text(s.studentName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text("${s.type} • ${DateFormat('dd/MM/yyyy').format(s.date)}"),
+                    title: Text(
+                      s.studentName,
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      "${s.type} • ${DateFormat('dd/MM/yyyy').format(s.date)}",
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (_canManageSanctions) IconButton(
-                          icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
-                          onPressed: () => _showSanctionDialog(sanction: s),
-                        ),
-                        if (_canManageSanctions) IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                          onPressed: () async {
-                            await ApiService.deleteSanction(s.id);
-                            _refreshSanctions();
-                          },
-                        ),
+                        if (_canManageSanctions)
+                          IconButton(
+                            icon: Icon(
+                              Icons.edit_outlined,
+                              color: Colors.blue,
+                              size: 20,
+                            ),
+                            onPressed: () => _showSanctionDialog(sanction: s),
+                          ),
+                        if (_canManageSanctions)
+                          IconButton(
+                            icon: Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                              size: 20,
+                            ),
+                            onPressed: () async {
+                              await ApiService.deleteSanction(s.id);
+                              _refreshSanctions();
+                            },
+                          ),
                       ],
                     ),
                   ),

@@ -1,6 +1,7 @@
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
@@ -8,7 +9,7 @@ import '../components/my_textfield.dart';
 
 class Depenses extends StatefulWidget {
   final AppUser currentUser;
-  const Depenses({super.key, required this.currentUser});
+  Depenses({super.key, required this.currentUser});
 
   @override
   State<Depenses> createState() => _DepensesState();
@@ -42,9 +43,9 @@ class _DepensesState extends State<Depenses> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erreur lors du chargement des dépenses")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('loadExpensesError'))));
     }
   }
 
@@ -59,36 +60,61 @@ class _DepensesState extends State<Depenses> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text("Nouvelle dépense"),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: Text(context.tr('newExpense')),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                MyTextfield(controller: titleCtrl, hintText: "Libellé", icon: Icons.receipt),
-                const SizedBox(height: 12),
-                MyTextfield(controller: amountCtrl, hintText: "Montant", icon: Icons.payments),
-                const SizedBox(height: 12),
+                MyTextfield(
+                  controller: titleCtrl,
+                  hintText: context.tr('label'),
+                  icon: Icons.receipt,
+                ),
+                SizedBox(height: 12),
+                MyTextfield(
+                  controller: amountCtrl,
+                  hintText: context.tr('amount'),
+                  icon: Icons.payments,
+                ),
+                SizedBox(height: 12),
                 DropdownButtonFormField<String>(
                   initialValue: category,
                   decoration: InputDecoration(
-                    labelText: "Catégorie",
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    labelText: context.tr('category'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
-                  items: categories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  items: categories
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
                   onChanged: (v) => setDialogState(() => category = v!),
                 ),
-                const SizedBox(height: 12),
-                MyTextfield(controller: descCtrl, hintText: "Description (optionnel)", icon: Icons.notes),
+                SizedBox(height: 12),
+                MyTextfield(
+                  controller: descCtrl,
+                  hintText: context.tr('optionalDescription'),
+                  icon: Icons.notes,
+                ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(context.tr('cancel')),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               onPressed: () async {
-                final amount = double.tryParse(amountCtrl.text.replaceAll(',', '.'));
+                final amount = double.tryParse(
+                  amountCtrl.text.replaceAll(',', '.'),
+                );
                 if (titleCtrl.text.isEmpty || amount == null) return;
                 try {
                   await ApiService.saveExpense({
@@ -104,12 +130,15 @@ class _DepensesState extends State<Depenses> {
                 } catch (_) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Erreur d'enregistrement")),
+                      SnackBar(content: Text(context.tr('saveError'))),
                     );
                   }
                 }
               },
-              child: const Text("Enregistrer", style: TextStyle(color: Colors.white)),
+              child: Text(
+                context.tr('save'),
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -135,13 +164,20 @@ class _DepensesState extends State<Depenses> {
           spacing: 16,
           runSpacing: 12,
           children: [
-            const Text("Gestion des Dépenses", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            MyButton(icon: Icons.add_shopping_cart, text: "Ajouter", onTap: _showAddDialog),
+            Text(
+              context.tr('expenseManagement'),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            MyButton(
+              icon: Icons.add_shopping_cart,
+              text: context.tr('add'),
+              onTap: _showAddDialog,
+            ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.orange.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
@@ -149,24 +185,29 @@ class _DepensesState extends State<Depenses> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.account_balance_wallet, color: Colors.orange),
-              const SizedBox(width: 12),
+              Icon(Icons.account_balance_wallet, color: Colors.orange),
+              SizedBox(width: 12),
               Text(
-                "Total dépenses : ${_total.toStringAsFixed(0)} FCFA",
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                "${context.tr('totalExpenses')} ${_total.toStringAsFixed(0)} FCFA",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (_expenses.isEmpty)
-          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucune dépense enregistrée")))
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Text(context.tr('noExpenses')),
+            ),
+          )
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _expenses.length,
             itemBuilder: (context, index) {
               final item = _expenses[index];
@@ -175,32 +216,56 @@ class _DepensesState extends State<Depenses> {
                   ? amount.toStringAsFixed(0)
                   : amount?.toString() ?? '0';
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
                 child: ListTile(
-                  leading: const CircleAvatar(child: Icon(Icons.receipt_long)),
-                  title: Text(item['title']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  leading: CircleAvatar(child: Icon(Icons.receipt_long)),
+                  title: Text(
+                    item['title']?.toString() ?? '',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("${item['category'] ?? ''} • ${_formatDate(item['date'])}"),
+                      Text(
+                        "${item['category']} • ${_formatDate(item['date'])}",
+                      ),
                       if (item['recordedByName'] != null)
-                        Text("Effectuée par: ${item['recordedByName']}", style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: AppColors.textMuted)),
+                        Text(
+                          "${context.tr('recordedBy')}: ${item['recordedByName']}",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: AppColors.textMuted,
+                          ),
+                        ),
                     ],
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text("-$amountLabel F", style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                      Text(
+                        "-$amountLabel F",
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         onPressed: () async {
                           try {
-                            await ApiService.deleteExpense(item['id'].toString());
+                            await ApiService.deleteExpense(
+                              item['id'].toString(),
+                            );
                             await _fetchExpenses();
                           } catch (_) {}
                         },

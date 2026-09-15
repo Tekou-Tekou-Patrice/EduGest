@@ -61,6 +61,15 @@ public class ExamService {
     }
 
     @Transactional
+    public List<ExamDto> getExamsByTeacher(String teacherName) {
+        academicYearService.autoCloseIfDue();
+        return academicYearService.filterCurrentYear(
+                        schoolContextService.scope(examRepository.findByTeacherName(teacherName)),
+                        Exam::getAcademicYearId)
+                .stream().map(this::mapToExamDto).collect(Collectors.toList());
+    }
+
+    @Transactional
     public List<ExamDto> getUpcomingExams() {
         academicYearService.autoCloseIfDue();
         return academicYearService.filterCurrentYear(schoolContextService.scope(examRepository.findUpcomingExams()), Exam::getAcademicYearId)
@@ -154,12 +163,6 @@ public class ExamService {
             String className = payload.get("classe") != null ? payload.get("classe").toString() : "Général";
             String sequence = payload.get("sequence") != null ? payload.get("sequence").toString() : "Séquence";
             String subject = payload.get("subject") != null ? payload.get("subject").toString() : "Général";
-            String teacherName = payload.get("teacherName") == null ? "" : payload.get("teacherName").toString().trim();
-            if (!teacherName.isBlank() && schoolContextService.scope(scheduleItemRepository.findByTeacherName(teacherName)).stream()
-                    .noneMatch(item -> className.equals(item.getClassName()) && subject.equals(item.getSubject()))) {
-                throw new IllegalArgumentException("Cette matière ou cette classe n'est pas attribuée à cet enseignant.");
-            }
-
             Long yearId;
             try {
                 yearId = academicYearService.stampCurrentYear();
@@ -177,6 +180,7 @@ public class ExamService {
             exam.setTitle(title);
             exam.setSubject(subject);
             exam.setClassName(className);
+            exam.setTeacherName(null);
             exam.setDate(exam.getDate() == null ? LocalDateTime.now() : exam.getDate());
             exam.setSubmittedAt(exam.getSubmittedAt() == null ? LocalDateTime.now() : exam.getSubmittedAt());
 
@@ -191,9 +195,6 @@ public class ExamService {
             }
             exam.setCoefficient(coef != null && coef > 0 ? coef : 1.0);
 
-            if (!teacherName.isBlank()) {
-                exam.setTeacherName(teacherName);
-            }
             exam.setAcademicYearId(yearId);
             schoolContextService.verifyAndAssign(exam);
             Exam savedExam = examRepository.save(exam);
@@ -227,15 +228,13 @@ public class ExamService {
                         examId,
                         "Saisie bordereau notes : " + subject + " (" + className + ", " + sequence + ")",
                         null,
-                        saved.size() + " note(s) saisie(s) par " + (teacherName.isBlank() ? "l'enseignant" : teacherName),
-                        teacherName,
-                        "Enseignant"
+                        saved.size() + " note(s) saisie(s)"
                 );
             } catch (Exception ignored) {}
 
             // Notification ciblée aux parents pour la matière publiée
             try {
-                notificationService.notifyNotesPublished(className, subject, sequence, teacherName);
+                notificationService.notifyNotesPublished(className, subject, sequence, "");
             } catch (Exception ignored) {}
 
             return saved;
@@ -434,4 +433,5 @@ public class ExamService {
         dto.setObservations(entity.getObservations());
         return dto;
     }
+
 }

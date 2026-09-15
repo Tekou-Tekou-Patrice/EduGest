@@ -68,19 +68,19 @@ public class RoleAuthorizationInterceptor implements HandlerInterceptor {
 
             if (uri.startsWith("/api/academique/lessons") || uri.startsWith("/api/lessons")) {
                 return validateRoles(request, response, new UserRole[]{
-                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT
+                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.ENSEIGNANT
                 });
             }
 
             if (uri.startsWith("/api/finance")) {
                 return validateRoles(request, response, new UserRole[]{
-                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.COMPTABLE
+                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.COMPTABLE
                 });
             }
 
             if (uri.startsWith("/api/discipline")) {
                 return validateRoles(request, response, new UserRole[]{
-                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SURVEILLANT_GENERAL, UserRole.SURVEILLANT
+                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SURVEILLANT_GENERAL, UserRole.SURVEILLANT, UserRole.ENSEIGNANT
                 });
             }
 
@@ -98,13 +98,15 @@ public class RoleAuthorizationInterceptor implements HandlerInterceptor {
 
             if (uri.startsWith("/api/academique/events")) {
                 return validateRoles(request, response, new UserRole[]{
-                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE
+                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR,
+                        UserRole.SECRETAIRE, UserRole.COMPTABLE,
+                        UserRole.SURVEILLANT_GENERAL, UserRole.SURVEILLANT
                 });
             }
 
             if (uri.startsWith("/api/academique/program")) {
                 return validateRoles(request, response, new UserRole[]{
-                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT
+                        UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.ENSEIGNANT
                 });
             }
 
@@ -190,6 +192,9 @@ public class RoleAuthorizationInterceptor implements HandlerInterceptor {
     private boolean isPublicPath(String uri, String method) {
         return uri.equals("/api/users/login") ||
                 (uri.equals("/api/users/register") && "POST".equalsIgnoreCase(method)) ||
+                (uri.equals("/api/users/verify-registration") && "POST".equalsIgnoreCase(method)) ||
+                (uri.equals("/api/users/request-password-reset") && "POST".equalsIgnoreCase(method)) ||
+                (uri.equals("/api/users/reset-password") && "POST".equalsIgnoreCase(method)) ||
                 ((("GET".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method))
                         && uri.equals("/api/saas-settings")) ||
                  (("GET".equalsIgnoreCase(method) && (

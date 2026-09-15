@@ -3,11 +3,7 @@ class Subject {
   final String name;
   final double coefficient;
 
-  Subject({
-    required this.id,
-    required this.name,
-    this.coefficient = 1.0,
-  });
+  Subject({required this.id, required this.name, this.coefficient = 1.0});
 
   Map<String, dynamic> toMap() {
     return {

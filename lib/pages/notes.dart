@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
@@ -12,7 +13,7 @@ import '../service/export_service.dart';
 
 class Notes extends StatefulWidget {
   final AppUser? currentUser;
-  const Notes({super.key, this.currentUser});
+  Notes({super.key, this.currentUser});
 
   @override
   State<Notes> createState() => _NotesState();
@@ -30,11 +31,12 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
   List<Subject> _originalSubjects = [];
   List<Subject> _availableSubjects = [];
   List<Exam> _historyExams = [];
-  List<dynamic> _teacherSchedule = [];
 
   Map<String, TextEditingController> _controllers = {};
   bool _isLoading = true;
   bool _isHistoryLoading = false;
+  String? _loadError;
+  String? _studentsError;
 
   bool get _canWriteGrades => widget.currentUser?.role == UserRole.enseignant;
 
@@ -61,27 +63,17 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
   }
 
   Future<void> _loadInitialData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
     try {
       final results = await Future.wait([
         ApiService.getClassrooms(),
         ApiService.getSubjects(),
       ]);
-
       _allClasses = results[0] as List<SchoolClass>;
       _originalSubjects = results[1] as List<Subject>;
-
-      if (widget.currentUser?.role == UserRole.enseignant) {
-        _teacherSchedule = await ApiService.getSchedule(
-          teacherName: widget.currentUser!.name,
-        );
-        final assignedClasses = _teacherSchedule
-            .map((item) => item.className)
-            .toSet();
-        _allClasses = _allClasses
-            .where((c) => assignedClasses.contains(c.name))
-            .toList();
-      }
 
       if (_allClasses.isNotEmpty) {
         selectedClasse = _allClasses.first.name;
@@ -91,22 +83,18 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
 
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      debugPrint('Erreur chargement notes: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadError = ApiService.friendlyErrorMessage(e);
+        });
+      }
     }
   }
 
   void _updateAvailableSubjects() {
-    if (widget.currentUser?.role == UserRole.enseignant) {
-      final subjectsForClass = _teacherSchedule
-          .where((item) => item.className == selectedClasse)
-          .map((item) => item.subject)
-          .toSet();
-      _availableSubjects = _originalSubjects
-          .where((s) => subjectsForClass.contains(s.name))
-          .toList();
-    } else {
-      _availableSubjects = List.from(_originalSubjects);
-    }
+    _availableSubjects = List.from(_originalSubjects);
 
     if (_availableSubjects.isNotEmpty) {
       if (selectedSubject == null ||
@@ -121,11 +109,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
   Future<void> _fetchHistory() async {
     setState(() => _isHistoryLoading = true);
     try {
-      final data = await ApiService.getExams(
-        teacherName: widget.currentUser?.role == UserRole.enseignant
-            ? widget.currentUser!.name
-            : null,
-      );
+      final data = await ApiService.getExams();
       if (mounted) {
         setState(() {
           _historyExams = data;
@@ -145,9 +129,17 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
         setState(() {
           _students = data;
           _controllers = {for (var s in data) s.id: TextEditingController()};
+          _studentsError = null;
         });
       }
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          _students = [];
+          _controllers = {};
+          _studentsError = ApiService.friendlyErrorMessage(e);
+        });
+      }
       debugPrint("Erreur chargement élèves: $e");
     }
   }
@@ -156,7 +148,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => const Center(child: CircularProgressIndicator()),
+      builder: (ctx) => Center(child: CircularProgressIndicator()),
     );
 
     try {
@@ -169,22 +161,25 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text("Options : ${exam.title}"),
+          title: Text("${context.tr('options')} ${exam.title}"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("Matière: ${exam.subject} | Classe: ${exam.className}"),
-              const SizedBox(height: 16),
-              const Text("Voulez-vous télécharger le bordereau ?"),
+              Text(
+                "${context.tr('subject')}: ${exam.subject} | "
+                "${context.tr('classLabel')}: ${exam.className}",
+              ),
+              SizedBox(height: 16),
+              Text(context.tr('auto_voulez_vous_telecharger_le_bordereau')),
             ],
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("Annuler"),
+              child: Text(context.tr('cancel')),
             ),
             IconButton(
-              icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+              icon: Icon(Icons.picture_as_pdf, color: Colors.red),
               onPressed: () => ExportService.generatePdf(
                 exam: exam,
                 grades: grades,
@@ -192,7 +187,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.table_view, color: Colors.green),
+              icon: Icon(Icons.table_view, color: Colors.green),
               onPressed: () => ExportService.generateExcel(
                 exam: exam,
                 grades: grades,
@@ -205,11 +200,9 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
     } catch (e) {
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Erreur lors du chargement des détails"),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('loadDetailsError'))));
       }
     }
   }
@@ -217,18 +210,14 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
   Future<void> _editGrades(Exam exam) async {
     if (!_canWriteGrades) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Seuls les enseignants peuvent modifier les notes.'),
-        ),
+        SnackBar(content: Text(context.tr('teachersOnlyEditGrades'))),
       );
       return;
     }
     if (!exam.editable) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Cette saisie est verrouillée après 7 jours."),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('gradesLocked'))));
       return;
     }
     final grades = await ApiService.getGradesByExam(exam.id);
@@ -240,7 +229,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
     await showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text("Modifier les notes — ${exam.subject}"),
+        title: Text("${context.tr('editGrades')} — ${exam.subject}"),
         content: SizedBox(
           width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 420.0),
           child: ListView(
@@ -248,7 +237,9 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
             children: grades
                 .map(
                   (grade) => ListTile(
-                    title: Text("Élève ${grade.studentId}"),
+                    title: Text(
+                      "${context.tr('studentName')} ${grade.studentId}",
+                    ),
                     trailing: SizedBox(
                       width: 80,
                       child: TextField(
@@ -264,7 +255,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text("Annuler"),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -287,7 +278,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               _fetchHistory();
             },
-            child: const Text("Enregistrer"),
+            child: Text(context.tr('save')),
           ),
         ],
       ),
@@ -300,27 +291,21 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
   Future<void> _submitGrades() async {
     if (!_canWriteGrades) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Seuls les enseignants peuvent envoyer des notes.'),
-        ),
+        SnackBar(content: Text(context.tr('teachersOnlySubmitGrades'))),
       );
       return;
     }
     if (selectedSubject == null || selectedClasse == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Veuillez choisir une classe et une matière"),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('selectClassSubject'))));
       return;
     }
 
     final gradesData = {
-      'classe': selectedClasse,
+      context.tr('classLabel'): selectedClasse,
       'subject': selectedSubject,
       'sequence': selectedSequence,
-      if (widget.currentUser?.role == UserRole.enseignant)
-        'teacherName': widget.currentUser!.name,
       'grades': _controllers.map(
         (id, controller) => MapEntry(id, controller.text),
       ),
@@ -331,18 +316,18 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
       await ApiService.submitGrades(gradesData);
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Notes enregistrées avec succès !")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('gradesSaved'))));
         _fetchHistory();
         _tabController.animateTo(1);
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erreur lors de l'enregistrement")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('saveError'))));
       }
     }
   }
@@ -353,19 +338,17 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Aperçu des notes',
+          Text(
+            context.tr('gradesPreview'),
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: AppColors.text,
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Consultation uniquement : la saisie et la modification sont réservées aux enseignants.',
-          ),
-          const SizedBox(height: 20),
+          SizedBox(height: 8),
+          Text(context.tr('teacherOnlyGrades')),
+          SizedBox(height: 20),
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.7,
             child: _buildHistoryView(),
@@ -376,7 +359,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Gestion des Notes",
           style: TextStyle(
             fontSize: 22,
@@ -384,18 +367,18 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
             color: AppColors.text,
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textMuted,
           indicatorColor: AppColors.primary,
-          tabs: const [
+          tabs: [
             Tab(text: "Saisie"),
             Tab(text: "Historique"),
           ],
         ),
-        const SizedBox(height: 25),
+        SizedBox(height: 25),
         SizedBox(
           height: MediaQuery.of(context).size.height * 0.7,
           child: TabBarView(
@@ -409,10 +392,10 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
 
   Widget _buildHistoryView() {
     if (_isHistoryLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator());
     }
     if (_historyExams.isEmpty) {
-      return const Center(child: Text("Aucun historique disponible."));
+      return Center(child: Text(context.tr('noHistory')));
     }
 
     return ListView.builder(
@@ -420,26 +403,24 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
       itemBuilder: (context, index) {
         final exam = _historyExams[index];
         return Card(
-          margin: const EdgeInsets.only(bottom: 12),
+          margin: EdgeInsets.only(bottom: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
-            side: const BorderSide(color: AppColors.border),
+            side: BorderSide(color: AppColors.border),
           ),
           elevation: 0,
           child: ListTile(
-            leading: const CircleAvatar(
+            leading: CircleAvatar(
               backgroundColor: AppColors.primaryPale,
               child: Icon(Icons.history, color: AppColors.primary),
             ),
             title: Text(
               exam.title,
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
             subtitle: Text(
-              '${exam.subject} • ${exam.className} • ${DateFormat('dd/MM/yyyy').format(exam.date)}'
-              '${exam.teacherName?.trim().isNotEmpty == true ? ' • Envoyé par ${exam.teacherName}' : ''}',
+              '${exam.subject} • ${exam.className} • ${DateFormat('dd/MM/yyyy').format(exam.date)}',
             ),
-            isThreeLine: exam.teacherName?.trim().isNotEmpty == true,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -452,10 +433,10 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
                     onPressed: () => _editGrades(exam),
                     tooltip: exam.editable
                         ? "Modifier (7 jours)"
-                        : "Modification verrouillée",
+                        : context.tr('lockedEditing'),
                   ),
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.file_download_outlined,
                     color: AppColors.primary,
                   ),
@@ -471,7 +452,38 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
 
   Widget _buildSaisieView() {
     if (_isLoading && _allClasses.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(child: CircularProgressIndicator());
+    }
+
+    if (_allClasses.isEmpty) {
+      if (_loadError != null) {
+        return Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(_loadError!, textAlign: TextAlign.center),
+                SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loadInitialData,
+                  icon: Icon(Icons.refresh),
+                  label: Text(context.tr('retry')),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Text(
+            context.tr('noClassesVerify'),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
     }
 
     return SingleChildScrollView(
@@ -482,7 +494,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
             runSpacing: 10,
             children: [
               _buildDropdown(
-                "Classe",
+                context.tr('classLabel'),
                 selectedClasse,
                 _allClasses.map((c) => c.name).toList(),
                 (v) {
@@ -494,7 +506,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
                 },
               ),
               _buildDropdown(
-                "Matière",
+                context.tr('subject'),
                 selectedSubject,
                 _availableSubjects.map((s) => s.name).toList(),
                 (v) {
@@ -502,20 +514,35 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
                 },
               ),
               _buildDropdown(
-                "Période",
+                context.tr('period'),
                 selectedSequence,
                 sequences,
                 (v) => setState(() => selectedSequence = v!),
               ),
             ],
           ),
-          const SizedBox(height: 30),
-          if (_students.isEmpty)
+          SizedBox(height: 30),
+          if (_studentsError != null)
             Padding(
-              padding: const EdgeInsets.all(40.0),
+              padding: EdgeInsets.all(40),
+              child: Column(
+                children: [
+                  Text(_studentsError!, textAlign: TextAlign.center),
+                  SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _fetchStudents,
+                    icon: Icon(Icons.refresh),
+                    label: Text(context.tr('retry')),
+                  ),
+                ],
+              ),
+            )
+          else if (_students.isEmpty)
+            Padding(
+              padding: EdgeInsets.all(40.0),
               child: Text(
-                "Aucun élève inscrit en '$selectedClasse'",
-                style: const TextStyle(color: Colors.red),
+                '${context.tr('noStudentsEnrolledIn')} $selectedClasse',
+                style: TextStyle(color: Colors.red),
               ),
             )
           else ...[
@@ -527,16 +554,16 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
               ),
               child: ListView.separated(
                 shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
+                physics: NeverScrollableScrollPhysics(),
                 itemCount: _students.length,
-                separatorBuilder: (context, index) => const Divider(height: 1),
+                separatorBuilder: (context, index) => Divider(height: 1),
                 itemBuilder: (context, index) {
                   final s = _students[index];
                   return ListTile(
                     title: Text(s.fullName),
                     subtitle: Text(
                       "ID: ${s.id}",
-                      style: const TextStyle(fontSize: 10),
+                      style: TextStyle(fontSize: 10),
                     ),
                     trailing: SizedBox(
                       width: 70,
@@ -552,9 +579,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
                             borderRadius: BorderRadius.circular(8),
                             borderSide: BorderSide.none,
                           ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                          ),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8),
                         ),
                       ),
                     ),
@@ -562,7 +587,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
                 },
               ),
             ),
-            const SizedBox(height: 30),
+            SizedBox(height: 30),
             SizedBox(
               width: double.infinity,
               child: MyButton(
@@ -571,7 +596,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
                 onTap: _submitGrades,
               ),
             ),
-            const SizedBox(height: 50),
+            SizedBox(height: 50),
           ],
         ],
       ),
@@ -585,7 +610,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
     Function(String?) onChange,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -594,9 +619,18 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
       child: DropdownButton<String>(
         value: val,
         hint: Text(label),
-        underline: const SizedBox(),
+        underline: SizedBox(),
         items: items
-            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .map(
+              (e) => DropdownMenuItem(
+                value: e,
+                child: Text(
+                  e.startsWith('Séquence ')
+                      ? '${context.tr('sequence')} ${e.split(' ').last}'
+                      : e,
+                ),
+              ),
+            )
             .toList(),
         onChanged: onChange,
       ),

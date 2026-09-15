@@ -20,4 +20,5 @@ public class UserDto {
     private boolean active;
     private Long selectedSchoolId;
     private List<SchoolMembershipDto> schools;
+    private String verificationCode;
 }

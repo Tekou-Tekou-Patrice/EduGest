@@ -14,7 +14,6 @@ public class RegisterRequest {
     private String username;
 
     @Email
-    @NotBlank
     @JsonAlias({"emailAddress"})
     private String email;
 
@@ -43,4 +42,6 @@ public class RegisterRequest {
     private Long schoolId;
 
     private Long registeredByUserId;
+
+    private String language = "fr";
 }

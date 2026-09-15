@@ -12,12 +12,30 @@ class LocaleNotifier extends ValueNotifier<Locale> {
     }
   }
 
+  Future<void> loadForUser(String userId) async {
+    final preferences = await SharedPreferences.getInstance();
+    final savedLanguage = preferences.getString('edugest_language_$userId');
+    if (savedLanguage == 'fr' || savedLanguage == 'en') {
+      value = Locale(savedLanguage!);
+    }
+  }
+
   Future<void> setLocale(Locale locale) async {
     if (locale.languageCode != 'fr' && locale.languageCode != 'en') return;
     if (locale == value) return;
     value = locale;
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString('edugest_language', locale.languageCode);
+  }
+
+  Future<void> setLocaleForUser(String userId, Locale locale) async {
+    if (locale.languageCode != 'fr' && locale.languageCode != 'en') return;
+    value = locale;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(
+      'edugest_language_$userId',
+      locale.languageCode,
+    );
   }
 }
 

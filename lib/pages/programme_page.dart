@@ -4,11 +4,12 @@ import 'package:edugest/models/school_class.dart';
 import 'package:edugest/models/subject.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 
 class ProgrammePage extends StatefulWidget {
   final AppUser currentUser;
-  const ProgrammePage({super.key, required this.currentUser});
+  ProgrammePage({super.key, required this.currentUser});
 
   @override
   State<ProgrammePage> createState() => _ProgrammePageState();
@@ -106,7 +107,7 @@ class _ProgrammePageState extends State<ProgrammePage> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Ajouter au programme'),
+          title: Text(context.tr('addToProgram')),
           content: SizedBox(
             width: (MediaQuery.sizeOf(context).width - 80).clamp(280.0, 480.0),
             child: Form(
@@ -117,7 +118,9 @@ class _ProgrammePageState extends State<ProgrammePage> {
                   children: [
                     DropdownButtonFormField<String>(
                       initialValue: selectedClass,
-                      decoration: const InputDecoration(labelText: 'Classe'),
+                      decoration: InputDecoration(
+                        labelText: context.tr('classLabel'),
+                      ),
                       items: _classes
                           .map(
                             (item) => DropdownMenuItem(
@@ -129,11 +132,13 @@ class _ProgrammePageState extends State<ProgrammePage> {
                       onChanged: (value) =>
                           setDialogState(() => selectedClass = value),
                       validator: (value) =>
-                          value == null ? 'Sélectionnez une classe' : null,
+                          value == null ? context.tr('selectClass') : null,
                     ),
                     DropdownButtonFormField<String>(
                       initialValue: selectedSubject,
-                      decoration: const InputDecoration(labelText: 'Matière'),
+                      decoration: InputDecoration(
+                        labelText: context.tr('subject'),
+                      ),
                       items: _subjects
                           .map(
                             (item) => DropdownMenuItem(
@@ -145,13 +150,13 @@ class _ProgrammePageState extends State<ProgrammePage> {
                       onChanged: (value) =>
                           setDialogState(() => selectedSubject = value),
                       validator: (value) =>
-                          value == null ? 'Sélectionnez une matière' : null,
+                          value == null ? context.tr('selectSubject') : null,
                     ),
                     TextFormField(
                       controller: majorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Grand chapitre *',
-                        hintText: 'Ex. Les fonctions',
+                      decoration: InputDecoration(
+                        labelText: context.tr('mainChapter'),
+                        hintText: context.tr('chapterExample'),
                       ),
                       validator: (value) =>
                           value == null || value.trim().isEmpty
@@ -160,8 +165,8 @@ class _ProgrammePageState extends State<ProgrammePage> {
                     ),
                     TextFormField(
                       controller: subController,
-                      decoration: const InputDecoration(
-                        labelText: 'Sous-chapitre (facultatif)',
+                      decoration: InputDecoration(
+                        labelText: context.tr('subChapterOptional'),
                       ),
                     ),
                   ],
@@ -172,7 +177,7 @@ class _ProgrammePageState extends State<ProgrammePage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Annuler'),
+              child: Text(context.tr('cancel')),
             ),
             FilledButton(
               onPressed: _saving
@@ -203,7 +208,7 @@ class _ProgrammePageState extends State<ProgrammePage> {
                         if (mounted) setState(() => _saving = false);
                       }
                     },
-              child: const Text('Enregistrer'),
+              child: Text(context.tr('save')),
             ),
           ],
         ),
@@ -223,7 +228,7 @@ class _ProgrammePageState extends State<ProgrammePage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Mise à jour impossible : $error')),
+          SnackBar(content: Text('${context.tr('updateImpossible')} $error')),
         );
       }
     }
@@ -236,7 +241,9 @@ class _ProgrammePageState extends State<ProgrammePage> {
 
   @override
   Widget build(BuildContext context) {
-    final title = _isParent ? 'Chapitres terminés' : 'Suivi du programme';
+    final title = _isParent
+        ? context.tr('completedChapters')
+        : context.tr('programTracking');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -245,43 +252,40 @@ class _ProgrammePageState extends State<ProgrammePage> {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ),
             if (_isTeacher)
               FilledButton.icon(
                 onPressed: _openChapterForm,
-                icon: const Icon(Icons.add),
-                label: const Text('Ajouter'),
+                icon: Icon(Icons.add),
+                label: Text(context.tr('add')),
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8),
         Text(
           _isParent
-              ? 'Les grands chapitres terminés par les professeurs de vos enfants.'
+              ? context.tr('parentCompletedChaptersDescription')
               : _isTeacher
-              ? 'Ajoutez vos grands chapitres, puis validez-les lorsqu’ils sont terminés.'
-              : 'Suivez l’avancement des programmes par classe, matière et professeur.',
-          style: const TextStyle(color: AppColors.textMuted),
+              ? context.tr('teacherProgramDescription')
+              : context.tr('programTrackingDescription'),
+          style: TextStyle(color: AppColors.textMuted),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         if (_loading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (_chapters.isEmpty)
-          const Card(
+          Card(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Center(child: Text('Aucun chapitre disponible.')),
+              child: Center(child: Text(context.tr('noChapters'))),
             ),
           )
         else
           ..._chapters.map(
             (chapter) => Card(
-              margin: const EdgeInsets.only(bottom: 10),
+              margin: EdgeInsets.only(bottom: 10),
               child: ListTile(
                 leading: Icon(
                   chapter['completed'] == true
@@ -293,7 +297,7 @@ class _ProgrammePageState extends State<ProgrammePage> {
                 ),
                 title: Text(
                   chapter['majorChapter']?.toString() ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(
                   [
@@ -304,7 +308,7 @@ class _ProgrammePageState extends State<ProgrammePage> {
                         chapter['subChapter']?.toString().isNotEmpty == true)
                       'Sous-chapitre : ${chapter['subChapter']}',
                     if (chapter['completedAt'] != null)
-                      'Terminé le ${_date(chapter['completedAt'])}',
+                      '${context.tr('completedOn')} ${_date(chapter['completedAt'])}',
                   ].where((item) => item.isNotEmpty).join(' • '),
                 ),
                 trailing: _isTeacher

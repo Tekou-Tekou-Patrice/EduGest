@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:edugest/models/event.dart';
 import 'package:edugest/service/api_service.dart';
 import '../components/app_colors.dart';
+import '../localization/app_localizations.dart';
 
 class ReceptionEvenements extends StatefulWidget {
   const ReceptionEvenements({super.key});
@@ -51,9 +52,13 @@ class _ReceptionEvenementsState extends State<ReceptionEvenements> {
           spacing: 12,
           runSpacing: 8,
           children: [
-            const Text(
-              "Annonces Administration",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
+            Text(
+              context.tr('adminAnnouncements'),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text,
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.refresh, color: AppColors.primary),
@@ -65,11 +70,11 @@ class _ReceptionEvenementsState extends State<ReceptionEvenements> {
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
         else if (_events.isEmpty)
-          const Center(
+          Center(
             child: Padding(
               padding: EdgeInsets.all(40),
               child: Text(
-                "Aucune annonce ou événement publié pour le moment.",
+                context.tr('noPublishedAnnouncements'),
                 style: TextStyle(color: AppColors.textMuted),
               ),
             ),
@@ -103,13 +108,16 @@ class _ReceptionEvenementsState extends State<ReceptionEvenements> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primaryPale,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            "Catégorie: ${item.category}",
+                            "${context.tr('category')}: ${item.category}",
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.bold,
@@ -119,20 +127,41 @@ class _ReceptionEvenementsState extends State<ReceptionEvenements> {
                         ),
                         Text(
                           _formatDate(item.date),
-                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      item.title,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
+                    if (item.category == 'Annonce')
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 1.45,
+                        ),
+                      )
+                    else
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     const SizedBox(height: 8),
-                    Text(
-                      item.description,
-                      style: const TextStyle(fontSize: 13, color: AppColors.text, height: 1.4),
-                    ),
+                    if (item.description.isNotEmpty)
+                      Text(
+                        item.description,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text,
+                          height: 1.4,
+                        ),
+                      ),
                   ],
                 ),
               );

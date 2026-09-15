@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,6 +30,7 @@ public class AppNotification implements SchoolScoped {
     private String title;
 
     @Column(nullable = false, columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String message;
 
     @Column(nullable = false)

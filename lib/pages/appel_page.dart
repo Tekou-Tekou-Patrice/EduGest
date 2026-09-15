@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:dio/dio.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
@@ -16,16 +19,36 @@ class AppelPage extends StatefulWidget {
   State<AppelPage> createState() => _AppelPageState();
 }
 
-class _AppelPageState extends State<AppelPage> {
+class _AppelPageState extends State<AppelPage> with WidgetsBindingObserver {
   ScheduleItem? _currentSession;
   List<Student> _eleves = [];
   Map<String, bool> _presenceMap = {};
   bool _isLoading = true;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fetchCurrentSessionAndStudents();
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _fetchCurrentSessionAndStudents(),
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _fetchCurrentSessionAndStudents();
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _fetchCurrentSessionAndStudents() async {
@@ -129,14 +152,14 @@ class _AppelPageState extends State<AppelPage> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text("Appel terminé"),
+            title: Text(context.tr('attendanceCompleted')),
             content: Text(
-              "L'appel a été envoyé.\nNombre d'absents : $absentCount",
+              "${context.tr('attendanceSent')}\n${context.tr('absentCount')}: $absentCount",
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text("OK"),
+                child: Text(context.tr('ok')),
               ),
             ],
           ),
@@ -155,7 +178,7 @@ class _AppelPageState extends State<AppelPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(50.0),
           child: CircularProgressIndicator(),
@@ -164,9 +187,9 @@ class _AppelPageState extends State<AppelPage> {
     }
 
     if (widget.currentUser.role != UserRole.enseignant) {
-      return const Center(
+      return Center(
         child: Text(
-          "Seuls les enseignants peuvent faire l'appel.",
+          context.tr('teachersOnlyAttendance'),
           textAlign: TextAlign.center,
         ),
       );
@@ -180,13 +203,13 @@ class _AppelPageState extends State<AppelPage> {
             const SizedBox(height: 60),
             const Icon(Icons.event_busy, size: 80, color: AppColors.textMuted),
             const SizedBox(height: 20),
-            const Text(
-              "Aucun cours n'est prévu à cette heure.",
+            Text(
+              context.tr('noClassAtTime'),
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            const Text(
-              "Vérifiez votre emploi du temps ou l'heure de votre ordinateur.",
+            Text(
+              context.tr('checkTimetableClock'),
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textMuted),
             ),
@@ -194,7 +217,7 @@ class _AppelPageState extends State<AppelPage> {
             ElevatedButton.icon(
               onPressed: _fetchCurrentSessionAndStudents,
               icon: const Icon(Icons.refresh),
-              label: const Text("Rafraîchir"),
+              label: Text(context.tr('refresh')),
             ),
           ],
         ),
@@ -243,7 +266,7 @@ class _AppelPageState extends State<AppelPage> {
               ),
               const SizedBox(height: 5),
               Text(
-                "Classe : ${_currentSession!.className}",
+                "${context.tr('classLabel')} : ${_currentSession!.className}",
                 style: const TextStyle(fontSize: 15),
               ),
             ],
@@ -264,7 +287,7 @@ class _AppelPageState extends State<AppelPage> {
                 const Icon(Icons.group_off, color: Colors.redAccent, size: 40),
                 const SizedBox(height: 15),
                 Text(
-                  "Aucun élève trouvé pour la classe \"${_currentSession!.className}\".",
+                  "${context.tr('noStudentsInClassPrefix')} \"${_currentSession!.className}\".",
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.redAccent,
@@ -272,8 +295,8 @@ class _AppelPageState extends State<AppelPage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  "Vérifiez que le nom de la classe dans l'emploi du temps correspond exactement à celui utilisé dans le menu 'Élèves'.",
+                Text(
+                  context.tr('checkClassNameAttendance'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13),
                 ),
@@ -281,7 +304,7 @@ class _AppelPageState extends State<AppelPage> {
                 TextButton.icon(
                   onPressed: _fetchCurrentSessionAndStudents,
                   icon: const Icon(Icons.refresh),
-                  label: const Text("Réessayer"),
+                  label: Text(context.tr('retry')),
                 ),
               ],
             ),
@@ -294,7 +317,7 @@ class _AppelPageState extends State<AppelPage> {
             runSpacing: 6,
             children: [
               Text(
-                "Liste de présence (${_eleves.length} élèves)",
+                "${context.tr('attendanceList')} (${_eleves.length} ${context.tr('students').toLowerCase()})",
                 style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
@@ -305,7 +328,7 @@ class _AppelPageState extends State<AppelPage> {
                   () => _presenceMap = {for (var s in _eleves) s.id: true},
                 ),
                 icon: const Icon(Icons.done_all),
-                label: const Text("Tout présent"),
+                label: Text(context.tr('allPresent')),
               ),
             ],
           ),
@@ -337,7 +360,7 @@ class _AppelPageState extends State<AppelPage> {
                     ),
                   ),
                   subtitle: Text(
-                    isPresent ? "Présent" : "Absent",
+                    isPresent ? context.tr('present') : context.tr('absent'),
                     style: TextStyle(
                       color: isPresent ? Colors.green : Colors.red,
                       fontSize: 12,

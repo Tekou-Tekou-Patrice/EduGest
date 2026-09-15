@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,6 +37,7 @@ public class Absence implements SchoolScoped {
     private String period; // Matin, Après-midi, Journée, etc.
 
     @Column(columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String reason;
 
     @Column(name = "is_justified", nullable = false)

@@ -57,6 +57,16 @@ public class Student implements SchoolScoped {
     @Column(name = "registration_date")
     private LocalDateTime registrationDate;
 
+    @Column(name = "registration_status", nullable = false, length = 20)
+    private String registrationStatus = "VALIDATED";
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "validated_by_id")
+    private User validatedBy;
+
+    @Column(name = "validated_at")
+    private LocalDateTime validatedAt;
+
     @PrePersist
     protected void onCreate() {
         registrationDate = LocalDateTime.now();

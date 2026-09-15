@@ -40,7 +40,8 @@ class BulletinPublication {
       studentId: map['studentId']?.toString(),
       publishedBy: map['publishedBy']?.toString() ?? 'Direction',
       publishedByRole: map['publishedByRole']?.toString() ?? 'Direction',
-      publishedAt: DateTime.tryParse(map['publishedAt']?.toString() ?? '') ??
+      publishedAt:
+          DateTime.tryParse(map['publishedAt']?.toString() ?? '') ??
           DateTime.now(),
       published: map['published'] != false,
     );

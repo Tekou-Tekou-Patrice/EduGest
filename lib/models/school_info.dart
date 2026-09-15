@@ -2,6 +2,7 @@ class SchoolInfo {
   final String id;
   final String name;
   final String? code;
+  final String schoolLevel;
   final String address;
   final String phone;
   final String? email;
@@ -21,6 +22,7 @@ class SchoolInfo {
     required this.id,
     required this.name,
     this.code,
+    this.schoolLevel = 'COLLEGE',
     required this.address,
     required this.phone,
     this.email,
@@ -42,6 +44,7 @@ class SchoolInfo {
       'id': id,
       'name': name,
       'code': code,
+      'schoolLevel': schoolLevel,
       'address': address,
       'phone': phone,
       'email': email,
@@ -83,6 +86,7 @@ class SchoolInfo {
       id: map['id']?.toString() ?? 'SCHOOL_1',
       name: map['name']?.toString() ?? '',
       code: map['code']?.toString(),
+      schoolLevel: _normalizeSchoolLevel(map['schoolLevel']),
       address: map['address']?.toString() ?? '',
       phone: map['phone']?.toString() ?? '',
       email: map['email']?.toString(),
@@ -102,10 +106,24 @@ class SchoolInfo {
     );
   }
 
+  static String _normalizeSchoolLevel(dynamic value) {
+    switch (value?.toString().toUpperCase()) {
+      case 'PRIMARY':
+        return 'PRIMARY';
+      case 'COLLEGE':
+        return 'COLLEGE';
+      case 'LYCEE':
+        return 'LYCEE';
+      default:
+        return 'COLLEGE';
+    }
+  }
+
   SchoolInfo copyWith({
     String? id,
     String? name,
     String? code,
+    String? schoolLevel,
     String? address,
     String? phone,
     String? email,
@@ -121,6 +139,7 @@ class SchoolInfo {
       id: id ?? this.id,
       name: name ?? this.name,
       code: code ?? this.code,
+      schoolLevel: schoolLevel ?? this.schoolLevel,
       address: address ?? this.address,
       phone: phone ?? this.phone,
       email: email ?? this.email,

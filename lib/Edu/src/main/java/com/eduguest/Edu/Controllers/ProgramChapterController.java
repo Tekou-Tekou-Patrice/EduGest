@@ -1,6 +1,8 @@
 package com.eduguest.Edu.Controllers;
 
 import com.eduguest.Edu.DTO.ProgramChapterDto;
+import com.eduguest.Edu.Config.RequireRoles;
+import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Service.ProgramChapterService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -26,11 +28,13 @@ public class ProgramChapterController {
     }
 
     @PostMapping
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
     public ResponseEntity<ProgramChapterDto> saveChapter(@Valid @RequestBody ProgramChapterDto dto) {
         return ResponseEntity.ok(service.saveChapter(dto));
     }
 
     @PutMapping("/{id}/completed")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
     public ResponseEntity<ProgramChapterDto> setCompleted(
             @PathVariable Long id,
             @RequestParam boolean completed) {

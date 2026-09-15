@@ -3,11 +3,12 @@ import 'package:edugest/models/teacher.dart';
 import 'package:edugest/models/subject.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
 
 class ListeEnseignant extends StatefulWidget {
-  const ListeEnseignant({super.key});
+  ListeEnseignant({super.key});
 
   @override
   State<ListeEnseignant> createState() => _ListeEnseignantState();
@@ -53,15 +54,14 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
         _allTeachers = data;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Erreur lors du chargement des enseignants"),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('loadTeachersError'))));
     }
   }
 
   void _showTeacherDialog({Teacher? teacher}) {
+    final messenger = ScaffoldMessenger.of(context);
     final nomController = TextEditingController(text: teacher?.lastName ?? '');
     final prenomController = TextEditingController(
       text: teacher?.firstName ?? '',
@@ -93,19 +93,19 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
               children: [
                 MyTextfield(
                   controller: prenomController,
-                  hintText: "Prénom",
+                  hintText: context.tr('firstName'),
                   icon: Icons.person_outline,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 MyTextfield(
                   controller: nomController,
-                  hintText: "Nom",
+                  hintText: context.tr('lastName'),
                   icon: Icons.person,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: selectedSpec,
-                  hint: const Text("Spécialité (Matière)"),
+                  hint: Text(context.tr('specialty')),
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: AppColors.bg,
@@ -113,10 +113,7 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
                     ),
-                    prefixIcon: const Icon(
-                      Icons.book,
-                      color: AppColors.primary,
-                    ),
+                    prefixIcon: Icon(Icons.book, color: AppColors.primary),
                   ),
                   items: _availableSubjects
                       .map(
@@ -128,23 +125,23 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                       .toList(),
                   onChanged: (val) => setDialogState(() => selectedSpec = val),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 MyTextfield(
                   controller: phoneController,
-                  hintText: "Téléphone *",
+                  hintText: context.tr('phoneRequired'),
                   icon: Icons.phone_android,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 MyTextfield(
                   controller: emailController,
-                  hintText: "Email (Identifiant)",
+                  hintText: context.tr('emailIdentifier'),
                   icon: Icons.email_outlined,
                 ),
                 if (teacher == null) ...[
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16),
                   MyTextfield(
                     controller: passwordController,
-                    hintText: "Mot de passe temporaire",
+                    hintText: context.tr('temporaryPassword'),
                     icon: Icons.lock_outline,
                     obscureText: true,
                   ),
@@ -155,7 +152,7 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Annuler"),
+              child: Text(context.tr('cancel')),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -168,10 +165,8 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                     emailController.text.isEmpty ||
                     selectedSpec == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Veuillez renseigner le nom, le téléphone, l'email et la spécialité",
-                      ),
+                    SnackBar(
+                      content: Text(context.tr('teacherFieldsRequired')),
                     ),
                   );
                   return;
@@ -191,10 +186,17 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
 
                 await ApiService.saveTeacher(newTeacher);
                 _fetchTeachers();
-                if (mounted) Navigator.pop(context);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(context.tr('teacherAccountCreated')),
+                    ),
+                  );
+                }
               },
-              child: const Text(
-                "Valider",
+              child: Text(
+                context.tr('validate'),
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -224,8 +226,8 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
           spacing: 16,
           runSpacing: 10,
           children: [
-            const Text(
-              "Corps Enseignant",
+            Text(
+              context.tr('teachingStaff'),
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             MyButton(
@@ -235,7 +237,7 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
             ),
           ],
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         Container(
           decoration: BoxDecoration(
@@ -248,15 +250,15 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
               searchQuery = val;
               _fetchTeachers();
             },
-            decoration: const InputDecoration(
-              hintText: "Rechercher un professeur...",
+            decoration: InputDecoration(
+              hintText: context.tr('searchTeacher'),
               prefixIcon: Icon(Icons.search),
               border: InputBorder.none,
               contentPadding: EdgeInsets.symmetric(vertical: 15),
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
 
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -266,11 +268,8 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
               return GestureDetector(
                 onTap: () => setState(() => selectedSubjectName = subjectName),
                 child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
+                  margin: EdgeInsets.only(right: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected ? AppColors.primary : Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -294,26 +293,26 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
           ),
         ),
 
-        const SizedBox(height: 32),
+        SizedBox(height: 32),
 
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (filteredTeachers.isEmpty)
-          const Center(
+          Center(
             child: Padding(
               padding: EdgeInsets.all(40),
-              child: Text("Aucun enseignant trouvé."),
+              child: Text(context.tr('noTeachers')),
             ),
           )
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: filteredTeachers.length,
             itemBuilder: (context, index) {
               final teacher = filteredTeachers[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
@@ -322,49 +321,41 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primaryPale,
-                    child: const Icon(Icons.person, color: AppColors.primary),
+                    child: Icon(Icons.person, color: AppColors.primary),
                   ),
                   title: Text(
                     "${teacher.firstName} ${teacher.lastName}",
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    "Spécialité: ${teacher.speciality} | ${teacher.email ?? ''}\n"
-                    "Téléphone : ${teacher.phone?.trim().isNotEmpty == true ? teacher.phone : 'Non renseigné'}",
+                    "${context.tr('specialty')}: ${teacher.speciality} | ${teacher.email ?? ''}\n"
+                    "${context.tr('contactPhone')} : ${teacher.phone?.trim().isNotEmpty == true ? teacher.phone : context.tr('notProvided')}",
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(
-                          Icons.edit,
-                          color: Colors.blue,
-                          size: 20,
-                        ),
+                        icon: Icon(Icons.edit, color: Colors.blue, size: 20),
                         onPressed: () => _showTeacherDialog(teacher: teacher),
                       ),
                       IconButton(
-                        icon: const Icon(
-                          Icons.delete,
-                          color: Colors.red,
-                          size: 20,
-                        ),
+                        icon: Icon(Icons.delete, color: Colors.red, size: 20),
                         onPressed: () async {
                           bool? confirm = await showDialog(
                             context: context,
                             builder: (ctx) => AlertDialog(
-                              title: const Text("Supprimer"),
-                              content: const Text(
+                              title: Text(context.tr('delete')),
+                              content: Text(
                                 "Voulez-vous vraiment supprimer cet enseignant et son compte ?",
                               ),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text("Non"),
+                                  child: Text(context.tr('no')),
                                 ),
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text("Oui"),
+                                  child: Text(context.tr('yes')),
                                 ),
                               ],
                             ),

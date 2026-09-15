@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -28,12 +29,15 @@ public class AuditLog implements SchoolScoped {
     private String entityId;
 
     @Column(columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String description;
 
     @Column(name = "old_value", columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String oldValue;
 
     @Column(name = "new_value", columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String newValue;
 
     @Column(name = "performed_by", length = 150)

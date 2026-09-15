@@ -17,6 +17,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -41,6 +42,43 @@ public class UserController {
     @PostMapping("/register")
     public ResponseEntity<UserDto> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(userService.register(request));
+    }
+
+    @PostMapping("/verify-registration")
+    public ResponseEntity<Void> verifyRegistration(@RequestBody Map<String, String> request) {
+        userService.verifyRegistration(Long.valueOf(request.get("userId")), request.get("code"));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/request-password-change-code")
+    public ResponseEntity<Void> requestPasswordChangeCode(@PathVariable Long id) {
+        securityContextService.requireUserOrStaff(id);
+        userService.requestPasswordChangeCode(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/confirm-password-change")
+    public ResponseEntity<Void> confirmPasswordChange(@PathVariable Long id,
+                                                       @RequestBody Map<String, String> request) {
+        securityContextService.requireUserOrStaff(id);
+        userService.confirmPasswordChange(id, request.get("code"), request.get("newPassword"));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/request-password-reset")
+    public ResponseEntity<Void> requestPasswordReset(@RequestBody Map<String, String> request) {
+        userService.requestPasswordReset(request.get("contact"));
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody Map<String, String> request) {
+        userService.resetPassword(
+                request.get("contact"),
+                request.get("code"),
+                request.get("newPassword")
+        );
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/change-password")

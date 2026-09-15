@@ -11,10 +11,10 @@ import java.util.List;
 @Repository
 public interface ScheduleItemRepository extends JpaRepository<ScheduleItem, Long> {
     
-    @Query("SELECT s FROM ScheduleItem s WHERE s.className = :className")
+    @Query("SELECT s FROM ScheduleItem s WHERE LOWER(TRIM(s.className)) = LOWER(TRIM(:className))")
     List<ScheduleItem> findByClassName(@Param("className") String className);
     
-    @Query("SELECT s FROM ScheduleItem s WHERE s.teacherName = :teacherName")
+    @Query("SELECT s FROM ScheduleItem s WHERE LOWER(TRIM(s.teacherName)) = LOWER(TRIM(:teacherName))")
     List<ScheduleItem> findByTeacherName(@Param("teacherName") String teacherName);
     
     @Query("SELECT s FROM ScheduleItem s WHERE s.day = :day ORDER BY s.startTime ASC")

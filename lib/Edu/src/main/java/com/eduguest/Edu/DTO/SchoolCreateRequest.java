@@ -9,4 +9,5 @@ public class SchoolCreateRequest {
     private String name;
     private String code;
     private Long userId;
+    private String schoolLevel = "COLLEGE";
 }

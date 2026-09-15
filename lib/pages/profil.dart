@@ -2,41 +2,75 @@ import 'package:edugest/components/my_button.dart';
 import 'package:edugest/components/my_textfield.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
+import '../localization/locale_notifier.dart';
 import '../components/app_colors.dart';
 import '../models/app_user.dart';
 
-class Profil extends StatelessWidget {
+class Profil extends StatefulWidget {
   final AppUser user;
   const Profil({super.key, required this.user});
 
-  void _showChangePasswordDialog(BuildContext context) {
-    final oldPasswordController = TextEditingController();
+  @override
+  State<Profil> createState() => _ProfilState();
+}
+
+class _ProfilState extends State<Profil> {
+  String _languageCode = appLocale.value.languageCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    await appLocale.loadForUser(widget.user.id);
+    if (mounted) {
+      setState(() => _languageCode = appLocale.value.languageCode);
+    }
+  }
+
+  Future<void> _showChangePasswordDialog(BuildContext context) async {
+    try {
+      await ApiService.requestPasswordChangeCode(widget.user.id);
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ApiService.friendlyErrorMessage(error))),
+        );
+      }
+      return;
+    }
+    if (!context.mounted) return;
+    final codeController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Changer le mot de passe"),
+        title: Text(context.tr('changePassword')),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(context.tr('passwordCodeDescription')),
+              SizedBox(height: 16),
               MyTextfield(
-                controller: oldPasswordController,
-                hintText: "Ancien mot de passe",
-                icon: Icons.lock_outline,
-                obscureText: true,
+                controller: codeController,
+                hintText: context.tr('sixCharacterCode'),
+                icon: Icons.verified_user,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               MyTextfield(
                 controller: newPasswordController,
-                hintText: "Nouveau mot de passe",
+                hintText: context.tr('newPassword'),
                 icon: Icons.lock_reset,
                 obscureText: true,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               MyTextfield(
                 controller: confirmPasswordController,
                 hintText: "Confirmer le mot de passe",
@@ -49,46 +83,56 @@ class Profil extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Annuler"),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             onPressed: () async {
-              if (oldPasswordController.text.isEmpty ||
+              if (codeController.text.trim().length != 6 ||
                   newPasswordController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Veuillez remplir tous les champs")),
+                  SnackBar(
+                    content: Text(
+                      "Saisissez le code et le nouveau mot de passe",
+                    ),
+                  ),
                 );
                 return;
               }
-              if (newPasswordController.text != confirmPasswordController.text) {
+              if (newPasswordController.text !=
+                  confirmPasswordController.text) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Les mots de passe ne correspondent pas")),
+                  SnackBar(
+                    content: Text("Les mots de passe ne correspondent pas"),
+                  ),
                 );
                 return;
               }
 
               try {
-                await ApiService.changePassword(
-                  userId: user.id,
-                  oldPassword: oldPasswordController.text,
+                await ApiService.confirmPasswordChange(
+                  userId: widget.user.id,
+                  code: codeController.text.trim(),
                   newPassword: newPasswordController.text,
                 );
                 if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Mot de passe modifié avec succès")),
+                    SnackBar(content: Text(context.tr('passwordUpdated'))),
                   );
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text(e.toString())));
                 }
               }
             },
-            child: const Text("Valider", style: TextStyle(color: Colors.white)),
+            child: Text(
+              context.tr('validate'),
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -100,14 +144,18 @@ class Profil extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "Mon Profil",
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text,
+          ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24),
 
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
@@ -118,22 +166,35 @@ class Profil extends StatelessWidget {
               CircleAvatar(
                 radius: 35,
                 backgroundColor: AppColors.primaryPale,
-                child: Text(user.initials, style: const TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.bold)),
+                child: Text(
+                  widget.user.initials,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user.name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      widget.user.name,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: 6),
                     Text(
-                      user.displayRole,
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      widget.user.displayRole,
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -142,12 +203,12 @@ class Profil extends StatelessWidget {
           ),
         ),
 
-        const SizedBox(height: 32),
+        SizedBox(height: 32),
 
         _buildSectionTitle("Informations personnelles"),
-        const SizedBox(height: 12),
+        SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(15),
@@ -155,23 +216,68 @@ class Profil extends StatelessWidget {
           ),
           child: Column(
             children: [
-              _buildInfoRow(Icons.email_outlined, "Email", user.email),
-              const Divider(height: 24),
-              _buildInfoRow(Icons.person_outline, "Utilisateur", user.name),
-              const Divider(height: 24),
-              _buildInfoRow(Icons.badge_outlined, "Rôle", user.displayRole),
+              _buildInfoRow(
+                Icons.email_outlined,
+                context.tr('auto_email'),
+                widget.user.email,
+              ),
+              Divider(height: 24),
+              _buildInfoRow(
+                Icons.person_outline,
+                "Utilisateur",
+                widget.user.name,
+              ),
+              Divider(height: 24),
+              _buildInfoRow(
+                Icons.badge_outlined,
+                context.tr('role'),
+                widget.user.displayRole,
+              ),
             ],
           ),
         ),
 
-        const SizedBox(height: 32),
-        _buildSectionTitle("Sécurité"),
-        const SizedBox(height: 12),
+        SizedBox(height: 32),
+        _buildSectionTitle(context.tr('applicationLanguage')),
+        SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _languageCode,
+              isExpanded: true,
+              items: [
+                DropdownMenuItem(
+                  value: 'fr',
+                  child: Text(context.tr('languageFrench')),
+                ),
+                DropdownMenuItem(
+                  value: 'en',
+                  child: Text(context.tr('languageEnglish')),
+                ),
+              ],
+              onChanged: (value) async {
+                if (value == null) return;
+                await appLocale.setLocaleForUser(widget.user.id, Locale(value));
+                if (mounted) setState(() => _languageCode = value);
+              },
+            ),
+          ),
+        ),
+        SizedBox(height: 32),
+        _buildSectionTitle(context.tr('security')),
+        SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: MyButton(
             icon: Icons.lock_reset,
-            text: "Changer le mot de passe",
+            text: context.tr('changePassword'),
             onTap: () => _showChangePasswordDialog(context),
           ),
         ),
@@ -182,7 +288,7 @@ class Profil extends StatelessWidget {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
     );
   }
 
@@ -190,15 +296,18 @@ class Profil extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, color: AppColors.textMuted, size: 18),
-        const SizedBox(width: 12),
+        SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              Text(
+                label,
+                style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+              ),
               Text(
                 value,
-                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 overflow: TextOverflow.ellipsis,
               ),
             ],

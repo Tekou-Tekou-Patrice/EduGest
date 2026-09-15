@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface SchoolMembershipRepository extends JpaRepository<SchoolMembership, Long> {
     List<SchoolMembership> findByUserIdAndActiveTrueOrderBySchool_Name(Long userId);
     Optional<SchoolMembership> findByUserIdAndSchoolId(Long userId, Long schoolId);
+    List<SchoolMembership> findByUserId(Long userId);
     boolean existsByUserIdAndSchoolId(Long userId, Long schoolId);
     List<SchoolMembership> findBySchoolIdAndActiveTrueOrderByUser_FullName(Long schoolId);
     void deleteBySchoolId(Long schoolId);

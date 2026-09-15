@@ -14,6 +14,7 @@ public class SchoolMembershipDto {
     private Long schoolId;
     private String schoolName;
     private String schoolCode;
+    private String schoolLevel;
     private UserRole role;
     private boolean active;
 }

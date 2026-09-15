@@ -30,13 +30,29 @@ public class EventController {
     }
 
     @PostMapping
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
+    @RequireRoles({
+            UserRole.FONDATEUR,
+            UserRole.PROVISEUR,
+            UserRole.CENSEUR,
+            UserRole.SECRETAIRE,
+            UserRole.COMPTABLE,
+            UserRole.SURVEILLANT_GENERAL,
+            UserRole.SURVEILLANT
+    })
     public ResponseEntity<EventDto> createEvent(@Valid @RequestBody EventDto dto) {
         return ResponseEntity.ok(eventService.createEvent(dto));
     }
 
     @DeleteMapping("/{id}")
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
+    @RequireRoles({
+            UserRole.FONDATEUR,
+            UserRole.PROVISEUR,
+            UserRole.CENSEUR,
+            UserRole.SECRETAIRE,
+            UserRole.COMPTABLE,
+            UserRole.SURVEILLANT_GENERAL,
+            UserRole.SURVEILLANT
+    })
     public ResponseEntity<Void> deleteEvent(@PathVariable Long id) {
         eventService.deleteEvent(id);
         return ResponseEntity.noContent().build();

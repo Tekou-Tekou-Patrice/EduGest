@@ -1,5 +1,6 @@
 package com.eduguest.Edu.Entity;
 
+import com.eduguest.Edu.Config.CompressedStringConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -53,6 +54,7 @@ public class TeacherRoomCheck implements SchoolScoped {
     private String verifierName;
 
     @Column(columnDefinition = "TEXT")
+    @Convert(converter = CompressedStringConverter.class)
     private String justification;
 
     @Column(name = "justification_submitted_at")

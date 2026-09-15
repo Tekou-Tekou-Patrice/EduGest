@@ -9,6 +9,13 @@ import com.eduguest.Edu.Entity.User;
 import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Repository.UserRepository;
 import com.eduguest.Edu.Repository.SchoolMembershipRepository;
+import com.eduguest.Edu.Repository.PaymentRepository;
+import com.eduguest.Edu.Repository.ExpenseRepository;
+import com.eduguest.Edu.Repository.StudentRepository;
+import com.eduguest.Edu.Repository.VerificationCodeRepository;
+import com.eduguest.Edu.Repository.AppNotificationRepository;
+import com.eduguest.Edu.Repository.DeviceTokenRepository;
+import com.eduguest.Edu.Repository.SchoolInfoRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,13 +33,31 @@ public class UserService {
     private final SchoolContextService schoolContextService;
     private final AuthTokenService authTokenService;
     private final UserSecurityContextService securityContextService;
+    private final VerificationService verificationService;
+    private final PaymentRepository paymentRepository;
+    private final ExpenseRepository expenseRepository;
+    private final StudentRepository studentRepository;
+    private final VerificationCodeRepository verificationCodeRepository;
+    private final PhoneNumberService phoneNumberService;
+    private final AppNotificationRepository appNotificationRepository;
+    private final DeviceTokenRepository deviceTokenRepository;
+    private final SchoolInfoRepository schoolInfoRepository;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                        SchoolService schoolService,
                        SchoolMembershipRepository membershipRepository,
                        SchoolContextService schoolContextService,
                        AuthTokenService authTokenService,
-                       UserSecurityContextService securityContextService) {
+                       UserSecurityContextService securityContextService,
+                       VerificationService verificationService,
+                       PaymentRepository paymentRepository,
+                       ExpenseRepository expenseRepository,
+                       StudentRepository studentRepository,
+                       VerificationCodeRepository verificationCodeRepository,
+                       PhoneNumberService phoneNumberService,
+                       AppNotificationRepository appNotificationRepository,
+                       DeviceTokenRepository deviceTokenRepository,
+                       SchoolInfoRepository schoolInfoRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.schoolService = schoolService;
@@ -40,6 +65,15 @@ public class UserService {
         this.schoolContextService = schoolContextService;
         this.authTokenService = authTokenService;
         this.securityContextService = securityContextService;
+        this.verificationService = verificationService;
+        this.paymentRepository = paymentRepository;
+        this.expenseRepository = expenseRepository;
+        this.studentRepository = studentRepository;
+        this.verificationCodeRepository = verificationCodeRepository;
+        this.phoneNumberService = phoneNumberService;
+        this.appNotificationRepository = appNotificationRepository;
+        this.deviceTokenRepository = deviceTokenRepository;
+        this.schoolInfoRepository = schoolInfoRepository;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +82,7 @@ public class UserService {
 
         User user = userRepository.findByUsername(login)
                 .or(() -> userRepository.findByEmail(login))
+                .or(() -> findByPhoneCandidates(login))
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -81,54 +116,161 @@ public class UserService {
     @Transactional
     public UserDto register(RegisterRequest request) {
         String email = request.getEmail() == null ? "" : request.getEmail().trim();
-        if (email.isBlank()) {
-            throw new IllegalArgumentException("L'email est obligatoire");
+        String phone = phoneNumberService.normalize(request.getPhone());
+        if (email.isBlank() && phone.isBlank()) {
+            throw new IllegalArgumentException("Un email ou un numéro de téléphone est obligatoire");
+        }
+        Long schoolId = request.getSchoolId() != null
+                ? request.getSchoolId()
+                : schoolContextService.currentSchoolId();
+        boolean schoolStaffRegistration = schoolId != null;
+
+        if (!email.isBlank()) {
+            User existing = userRepository.findByEmailIgnoreCase(email).orElse(null);
+            if (existing != null) {
+                if (existing.isActive()) {
+                    throw new RuntimeException("Cette adresse e-mail existe déjà");
+                }
+                existing.setPassword(passwordEncoder.encode(request.getPassword()));
+                existing.setFullName(request.getFullName() != null && !request.getFullName().isBlank()
+                        ? request.getFullName().trim() : existing.getUsername());
+                existing.setPhone(phone.isBlank() ? null : phone);
+                if (schoolStaffRegistration) {
+                    authorizeStaffRecruitment(request, schoolId);
+                }
+                User saved = userRepository.save(existing);
+                verificationCodeRepository.deleteAll(verificationCodeRepository.findByUserId(saved.getId()));
+                String verificationCode = verificationService.issue(saved, "REGISTRATION");
+                UserDto response = toDto(saved);
+                if (verificationService.isLocalCodeEnabled()) {
+                    response.setVerificationCode(verificationCode);
+                }
+                if (schoolStaffRegistration) {
+                    com.eduguest.Edu.Entity.School school = schoolService.getRequired(schoolId);
+                    var info = schoolInfoRepository.findById("SCHOOL_" + schoolId).orElse(null);
+                    verificationService.sendWelcome(
+                            saved,
+                            school.getName(),
+                            info != null ? info.getEmail() : school.getFounderEmail(),
+                            info != null ? info.getPhone() : school.getFounderPhone(),
+                            request.getLanguage());
+                }
+                return response;
+            }
         }
 
-        String username = request.getUsername() != null && !request.getUsername().isBlank()
-                ? request.getUsername().trim()
-                : email;
-
+        // Le nom complet n'est pas un identifiant : seul l'e-mail doit être unique.
+        String username = email.isBlank() ? phone : email;
         if (userRepository.existsByUsername(username)) {
-            throw new RuntimeException("Le nom d'utilisateur existe déjà");
-        }
-        if (userRepository.existsByEmail(email)) {
-            throw new RuntimeException("L'email existe déjà");
+            String baseUsername = username;
+            int suffix = 2;
+            while (userRepository.existsByUsername(username)) {
+                String suffixText = "-" + suffix++;
+                int maxBaseLength = 100 - suffixText.length();
+                username = baseUsername.substring(0, Math.min(baseUsername.length(), maxBaseLength))
+                        + suffixText;
+            }
         }
 
         User user = new User();
         user.setUsername(username);
-        user.setEmail(email);
+        user.setEmail(email.isBlank() ? null : email);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setFullName(request.getFullName() != null && !request.getFullName().isBlank()
                 ? request.getFullName().trim()
                 : username);
-        user.setPhone(request.getPhone());
-        boolean schoolStaffRegistration = request.getSchoolId() != null;
+        user.setPhone(phone.isBlank() ? null : phone);
         if (schoolStaffRegistration) {
             if (request.getPhone() == null || request.getPhone().isBlank()) {
                 throw new IllegalArgumentException(
                         "Le numéro de téléphone est obligatoire pour recruter un membre du staff.");
             }
-            authorizeStaffRecruitment(request);
+            authorizeStaffRecruitment(request, schoolId);
         }
         user.setRole(schoolStaffRegistration && request.getRole() != null
                 ? request.getRole() : UserRole.MEMBRE);
-        user.setActive(true);
+        user.setActive(false);
 
         User saved = userRepository.save(user);
         if (schoolStaffRegistration) {
-            com.eduguest.Edu.Entity.School school = schoolService.getRequired(request.getSchoolId());
+            com.eduguest.Edu.Entity.School school = schoolService.getRequired(schoolId);
             schoolService.addMembership(saved, school, saved.getRole());
         }
-        return toDto(saved);
+        String verificationCode = verificationService.issue(saved, "REGISTRATION");
+        UserDto response = toDto(saved);
+        if (verificationService.isLocalCodeEnabled()) {
+            response.setVerificationCode(verificationCode);
+        }
+        if (schoolStaffRegistration) {
+            com.eduguest.Edu.Entity.School school = schoolService.getRequired(schoolId);
+            var info = schoolInfoRepository.findById("SCHOOL_" + schoolId).orElse(null);
+            verificationService.sendWelcome(
+                    saved,
+                    school.getName(),
+                    info != null ? info.getEmail() : school.getFounderEmail(),
+                    info != null ? info.getPhone() : school.getFounderPhone(),
+                    request.getLanguage());
+        }
+        return response;
     }
 
-    private void authorizeStaffRecruitment(RegisterRequest request) {
+    @Transactional
+    public void verifyRegistration(Long userId, String code) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+        verificationService.verify(user, "REGISTRATION", code);
+        user.setActive(true);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void requestPasswordChangeCode(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+        verificationService.issue(user, "PASSWORD_CHANGE");
+    }
+
+    @Transactional
+    public void confirmPasswordChange(Long userId, String code, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+        verificationService.verify(user, "PASSWORD_CHANGE", code);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void requestPasswordReset(String contact) {
+        String value = contact == null ? "" : contact.trim();
+        User user = userRepository.findByEmailIgnoreCase(value)
+                .or(() -> findByPhoneCandidates(value))
+                .orElseThrow(() -> new RuntimeException("Aucun compte trouvé avec ce contact"));
+        verificationService.issue(user, "PASSWORD_RESET");
+    }
+
+    @Transactional
+    public void resetPassword(String contact, String code, String newPassword) {
+        String value = contact == null ? "" : contact.trim();
+        User user = userRepository.findByEmailIgnoreCase(value)
+                .or(() -> findByPhoneCandidates(value))
+                .orElseThrow(() -> new RuntimeException("Aucun compte trouvé avec ce contact"));
+        verificationService.verify(user, "PASSWORD_RESET", code);
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setActive(true);
+        userRepository.save(user);
+    }
+
+    private java.util.Optional<User> findByPhoneCandidates(String phone) {
+        return phoneNumberService.lookupCandidates(phone).stream()
+                .map(userRepository::findFirstByPhone)
+                .flatMap(java.util.Optional::stream)
+                .findFirst();
+    }
+
+    private void authorizeStaffRecruitment(RegisterRequest request, Long schoolId) {
         if (request.getRegisteredByUserId() == null || request.getRole() == null) {
             throw new IllegalArgumentException("Le recruteur et le rôle sont obligatoires");
         }
-        Long schoolId = request.getSchoolId();
         if (!request.getRegisteredByUserId().equals(securityContextService.getCurrentUserId())) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "Le recrutement doit être effectué depuis une session authentifiée du recruteur.");
@@ -189,6 +331,23 @@ public class UserService {
         if (!userRepository.existsById(id)) {
             throw new RuntimeException("Utilisateur non trouvé");
         }
+        User user = userRepository.findById(id).orElseThrow();
+        paymentRepository.findAll().stream()
+                .filter(payment -> payment.getRecordedBy() != null
+                        && id.equals(payment.getRecordedBy().getId()))
+                .forEach(payment -> payment.setRecordedBy(null));
+        expenseRepository.findAll().stream()
+                .filter(expense -> expense.getRecordedBy() != null
+                        && id.equals(expense.getRecordedBy().getId()))
+                .forEach(expense -> expense.setRecordedBy(null));
+        studentRepository.findAll().stream()
+                .filter(student -> student.getRegisteredBy() != null
+                        && id.equals(student.getRegisteredBy().getId()))
+                .forEach(student -> student.setRegisteredBy(null));
+        verificationCodeRepository.deleteAll(verificationCodeRepository.findByUserId(id));
+        appNotificationRepository.deleteByRecipientId(id);
+        deviceTokenRepository.deleteByUserId(id);
+        membershipRepository.deleteAll(membershipRepository.findByUserId(id));
         userRepository.deleteById(id);
     }
 

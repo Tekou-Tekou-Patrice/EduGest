@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "68400529263",
+    "project_id": "edugest-fe40d",
+    "storage_bucket": "edugest-fe40d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:68400529263:android:cd4e1899086dce2e1e729a",
+        "android_client_info": {
+          "package_name": "com.example.edugest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCv0Duz0MSr3LO2ESt1IZK-fTKDMXdpacQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

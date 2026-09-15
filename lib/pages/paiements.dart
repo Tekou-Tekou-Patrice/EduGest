@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
@@ -12,7 +13,7 @@ import '../service/export_service.dart';
 
 class Paiements extends StatefulWidget {
   final AppUser currentUser;
-  const Paiements({super.key, required this.currentUser});
+  Paiements({super.key, required this.currentUser});
 
   @override
   State<Paiements> createState() => _PaiementsState();
@@ -51,11 +52,9 @@ class _PaiementsState extends State<Paiements> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Erreur lors du chargement des paiements"),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('loadPaymentsError'))));
     }
   }
 
@@ -63,7 +62,7 @@ class _PaiementsState extends State<Paiements> {
     final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
     final descCtrl = TextEditingController(
-      text: schoolFees ? 'Frais de scolarité' : 'Paiement simple',
+      text: schoolFees ? context.tr('schoolFees') : context.tr('simplePayment'),
     );
     Student? selectedStudent;
     List<Student> matches = [];
@@ -75,7 +74,7 @@ class _PaiementsState extends State<Paiements> {
         builder: (context, dialogSetState) => AlertDialog(
           title: Text(
             schoolFees
-                ? "Enregistrer les frais de scolarité"
+                ? context.tr('recordSchoolFees')
                 : "Enregistrer un paiement simple",
           ),
           shape: RoundedRectangleBorder(
@@ -89,9 +88,9 @@ class _PaiementsState extends State<Paiements> {
                   TextField(
                     controller: nameCtrl,
                     decoration: InputDecoration(
-                      labelText: "Rechercher un élève existant",
-                      hintText: "Nom ou matricule",
-                      prefixIcon: const Icon(Icons.person_search),
+                      labelText: context.tr('searchExistingStudent'),
+                      hintText: context.tr('nameOrId'),
+                      prefixIcon: Icon(Icons.person_search),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -120,18 +119,18 @@ class _PaiementsState extends State<Paiements> {
                 else
                   MyTextfield(
                     controller: nameCtrl,
-                    hintText: "Nom du payeur / élève",
+                    hintText: context.tr('payerStudent'),
                     icon: Icons.person,
                   ),
                 if (isSearching)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 8),
                     child: LinearProgressIndicator(),
                   ),
                 if (matches.isNotEmpty)
                   Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    constraints: const BoxConstraints(maxHeight: 150),
+                    margin: EdgeInsets.only(top: 8),
+                    constraints: BoxConstraints(maxHeight: 150),
                     decoration: BoxDecoration(
                       border: Border.all(color: AppColors.border),
                       borderRadius: BorderRadius.circular(10),
@@ -174,17 +173,17 @@ class _PaiementsState extends State<Paiements> {
                           .toList(),
                     ),
                   ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 MyTextfield(
                   controller: amountCtrl,
-                  hintText: "Montant",
+                  hintText: context.tr('amount'),
                   icon: Icons.payments,
                   keyboardType: TextInputType.number,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 MyTextfield(
                   controller: descCtrl,
-                  hintText: "Description",
+                  hintText: context.tr('description'),
                   icon: Icons.notes,
                 ),
               ],
@@ -193,7 +192,7 @@ class _PaiementsState extends State<Paiements> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Annuler"),
+              child: Text(context.tr('cancel')),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -210,7 +209,7 @@ class _PaiementsState extends State<Paiements> {
                     SnackBar(
                       content: Text(
                         schoolFees
-                            ? "Sélectionnez un élève existant et un montant."
+                            ? context.tr('selectStudentAmount')
                             : "Indiquez le payeur et un montant.",
                       ),
                     ),
@@ -237,9 +236,9 @@ class _PaiementsState extends State<Paiements> {
                   if (mounted) {
                     messenger.showSnackBar(
                       SnackBar(
-                        content: const Text("Paiement enregistré avec succès"),
+                        content: Text(context.tr('paymentSaved')),
                         action: SnackBarAction(
-                          label: "TICKET 80mm",
+                          label: context.tr('ticket80'),
                           onPressed: () => ExportService.generateThermalReceipt(
                             payment: savedPayment,
                           ),
@@ -250,13 +249,13 @@ class _PaiementsState extends State<Paiements> {
                 } catch (_) {
                   if (mounted) {
                     messenger.showSnackBar(
-                      const SnackBar(content: Text("Erreur d'enregistrement")),
+                      SnackBar(content: Text(context.tr('saveError'))),
                     );
                   }
                 }
               },
-              child: const Text(
-                "Valider",
+              child: Text(
+                context.tr('validate'),
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -269,76 +268,65 @@ class _PaiementsState extends State<Paiements> {
   void _showPrintOptionsDialog(Payment p) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Impression du reçu — ${p.studentName}",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  "${context.tr('receiptPrinting')} — ${p.studentName}",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6),
                 Text(
                   "Montant : ${p.amount.toInt()} FCFA • ${p.description}",
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textMuted,
-                  ),
+                  style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                 ),
-                const SizedBox(height: 20),
+                SizedBox(height: 20),
                 ListTile(
                   leading: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: AppColors.primaryPale,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
-                      Icons.receipt_long,
-                      color: AppColors.primary,
-                    ),
+                    child: Icon(Icons.receipt_long, color: AppColors.primary),
                   ),
-                  title: const Text(
+                  title: Text(
                     "Imprimer Ticket Thermique (80mm)",
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: const Text(
+                  subtitle: Text(
                     "Format rouleau thermique pour imprimante de caisse / POS",
                   ),
-                  trailing: const Icon(Icons.print),
+                  trailing: Icon(Icons.print),
                   onTap: () {
                     Navigator.pop(context);
                     ExportService.generateThermalReceipt(payment: p);
                   },
                 ),
-                const Divider(),
+                Divider(),
                 ListTile(
                   leading: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: Colors.red.shade50,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                    child: Icon(Icons.picture_as_pdf, color: Colors.red),
                   ),
-                  title: const Text(
-                    "Générer Reçu PDF Standard (A5)",
+                  title: Text(
+                    context.tr('generateStandardReceipt'),
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: const Text(
-                    "Reçu de paiement au format A5 avec cadre de signature",
-                  ),
-                  trailing: const Icon(Icons.download),
+                  subtitle: Text(context.tr('standardReceiptDescription')),
+                  trailing: Icon(Icons.download),
                   onTap: () {
                     Navigator.pop(context);
                     ExportService.generatePaymentReceipt(p);
@@ -363,8 +351,8 @@ class _PaiementsState extends State<Paiements> {
           spacing: 16,
           runSpacing: 12,
           children: [
-            const Text(
-              "Frais de Scolarité & Encaissements",
+            Text(
+              context.tr('schoolFeesAndCollections'),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -375,12 +363,12 @@ class _PaiementsState extends State<Paiements> {
               icon: Icons.add_card,
               text: _paymentMode == 0
                   ? "Paiement simple"
-                  : "Frais de scolarité",
+                  : context.tr('schoolFees'),
               onTap: () => _showAddDialog(schoolFees: _paymentMode == 1),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         DefaultTabController(
           key: ValueKey(_paymentMode),
           length: 2,
@@ -390,73 +378,73 @@ class _PaiementsState extends State<Paiements> {
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.textMuted,
             indicatorColor: AppColors.primary,
-            tabs: const [
+            tabs: [
               Tab(
                 icon: Icon(Icons.point_of_sale_outlined),
                 text: "Paiement simple",
               ),
               Tab(
                 icon: Icon(Icons.school_outlined),
-                text: "Frais de scolarité",
+                text: context.tr('schoolFees'),
               ),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 12),
+          padding: EdgeInsets.only(top: 12),
           child: Text(
             _paymentMode == 0
                 ? "Encaissez un paiement libre avec son motif."
-                : "Recherchez d'abord l'élève : la pension de sa classe est proposée automatiquement.",
-            style: const TextStyle(color: AppColors.textMuted),
+                : context.tr('selectStudentForTuition'),
+            style: TextStyle(color: AppColors.textMuted),
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
             _buildFinanceCard(
-              "Encaissé",
+              context.tr('collected'),
               "${totalEncaisse.toInt()} F",
               Colors.green,
             ),
             _buildFinanceCard(
-              "Dépenses",
+              context.tr('expenses'),
               "${totalDepenses.toInt()} F",
               Colors.orange,
             ),
             _buildFinanceCard(
               "Solde",
-              "${(totalEncaisse - totalDepenses).toInt()} F",
+              "${(totalEncaisse - totalDepenses).clamp(0, double.infinity).toInt()} F",
               Colors.blue,
             ),
           ],
         ),
-        const SizedBox(height: 30),
-        const Text(
-          "Derniers Paiements Enregistrés",
+        SizedBox(height: 30),
+        Text(
+          context.tr('recentPayments'),
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 15),
+        SizedBox(height: 15),
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (_payments.isEmpty)
-          const Center(
+          Center(
             child: Padding(
               padding: EdgeInsets.all(40),
-              child: Text("Aucun paiement"),
+              child: Text(context.tr('noPayments')),
             ),
           )
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _payments.length,
             itemBuilder: (context, index) {
               final p = _payments[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 10),
+                margin: EdgeInsets.only(bottom: 10),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -466,11 +454,11 @@ class _PaiementsState extends State<Paiements> {
                   onTap: () => _showPrintOptionsDialog(p),
                   leading: CircleAvatar(
                     backgroundColor: Colors.green.withValues(alpha: 0.15),
-                    child: const Icon(Icons.payments, color: Colors.green),
+                    child: Icon(Icons.payments, color: Colors.green),
                   ),
                   title: Text(
                     p.studentName,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,8 +468,8 @@ class _PaiementsState extends State<Paiements> {
                       ),
                       if (p.recordedByName != null)
                         Text(
-                          "Encaissé par: ${p.recordedByName}",
-                          style: const TextStyle(
+                          "${context.tr('collectedBy')}: ${p.recordedByName}",
+                          style: TextStyle(
                             fontSize: 11,
                             fontStyle: FontStyle.italic,
                             color: AppColors.textMuted,
@@ -494,31 +482,31 @@ class _PaiementsState extends State<Paiements> {
                     children: [
                       Text(
                         "+${p.amount.toInt()} F",
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.green,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: 6),
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.receipt_long,
                           color: AppColors.primary,
                           size: 22,
                         ),
                         onPressed: () =>
                             ExportService.generateThermalReceipt(payment: p),
-                        tooltip: "Ticket Thermique (Rouleau 80mm)",
+                        tooltip: context.tr('thermalTicket'),
                       ),
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.picture_as_pdf,
                           color: Colors.red,
                           size: 20,
                         ),
                         onPressed: () =>
                             ExportService.generatePaymentReceipt(p),
-                        tooltip: "Reçu PDF Standard (A5)",
+                        tooltip: context.tr('standardPdfReceipt'),
                       ),
                     ],
                   ),
@@ -533,7 +521,7 @@ class _PaiementsState extends State<Paiements> {
   Widget _buildFinanceCard(String title, String value, Color color) {
     return Container(
       width: 160,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
@@ -550,10 +538,10 @@ class _PaiementsState extends State<Paiements> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
         ],
       ),

@@ -35,6 +35,7 @@ public class AppNotificationService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final SchoolMembershipRepository membershipRepository;
+    private final FirebasePushService firebasePushService;
 
 
     public AppNotificationService(AppNotificationRepository notificationRepository,
@@ -42,13 +43,15 @@ public class AppNotificationService {
                                   SchoolContextService schoolContextService,
                                   UserRepository userRepository,
                                   StudentRepository studentRepository,
-                                  SchoolMembershipRepository membershipRepository) {
+                                  SchoolMembershipRepository membershipRepository,
+                                  FirebasePushService firebasePushService) {
         this.schoolContextService = schoolContextService;
         this.notificationRepository = notificationRepository;
         this.academicYearService = academicYearService;
         this.userRepository = userRepository;
         this.studentRepository = studentRepository;
         this.membershipRepository = membershipRepository;
+        this.firebasePushService = firebasePushService;
     }
 
     public List<AppNotificationDto> getUnreadNotifications() {
@@ -99,7 +102,9 @@ public class AppNotificationService {
             notif.setRecipient(findRecipient(dto.getRecipientUserId()));
         }
         schoolContextService.verifyAndAssign(notif);
-        return mapToDto(notificationRepository.save(notif));
+        AppNotification saved = notificationRepository.save(notif);
+        firebasePushService.send(saved);
+        return mapToDto(saved);
     }
 
     @Transactional
@@ -186,6 +191,19 @@ public class AppNotificationService {
     }
 
     @Transactional
+    public void notifyExamStatus(String studentId, String studentName,
+                                  boolean dossierComplete, boolean feesComplete) {
+        String status = dossierComplete && feesComplete
+                ? "Le dossier et les frais d'examen sont complets."
+                : "Le dossier d'examen ou les frais restent incomplets.";
+        notifyParents(studentId,
+                "Suivi du dossier d'examen",
+                status + " Vous pouvez consulter le détail dans votre espace parent pour "
+                        + (studentName == null || studentName.isBlank() ? "votre enfant" : studentName) + ".",
+                "exam");
+    }
+
+    @Transactional
     public void notifyNewLesson(String className, String subject, String title, String teacherName) {
         List<Student> students = schoolContextService.scope(studentRepository.findByClassName(className));
         String teacherInfo = teacherName != null && !teacherName.isBlank() ? " par M./Mme " + teacherName : "";
@@ -269,7 +287,8 @@ public class AppNotificationService {
                 notification.setAcademicYearId(academicYearService.getOrAutoCreateActiveYear().getId());
             }
             schoolContextService.verifyAndAssign(notification);
-            notificationRepository.save(notification);
+            AppNotification saved = notificationRepository.save(notification);
+            firebasePushService.send(saved);
         }
     }
 

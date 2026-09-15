@@ -1,5 +1,6 @@
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
 
@@ -36,7 +37,7 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Erreur de chargement des cahiers de texte")),
+        SnackBar(content: Text(ApiService.friendlyErrorMessage(e))),
       );
     }
   }
@@ -50,19 +51,24 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
 
   @override
   Widget build(BuildContext context) {
-    final classes = _lessons
-        .map((l) => l['className']?.toString() ?? '')
-        .where((c) => c.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final classes =
+        _lessons
+            .map((l) => l['className']?.toString() ?? '')
+            .where((c) => c.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           "Suivi des Cahiers de Texte",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.text),
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text,
+          ),
         ),
         const SizedBox(height: 20),
         if (classes.isNotEmpty)
@@ -79,8 +85,13 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
               isExpanded: true,
               underline: const SizedBox(),
               items: [
-                const DropdownMenuItem(value: null, child: Text("Toutes les classes")),
-                ...classes.map((c) => DropdownMenuItem(value: c, child: Text("Classe : $c"))),
+                const DropdownMenuItem(
+                  value: null,
+                  child: Text("Toutes les classes"),
+                ),
+                ...classes.map(
+                  (c) => DropdownMenuItem(value: c, child: Text("Classe : $c")),
+                ),
               ],
               onChanged: (val) {
                 setState(() => selectedClasse = val);
@@ -92,7 +103,12 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
         if (_isLoading)
           const Center(child: CircularProgressIndicator())
         else if (_lessons.isEmpty)
-          const Center(child: Padding(padding: EdgeInsets.all(40), child: Text("Aucune leçon publiée")))
+          Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: Text(context.tr('noPublishedLessons')),
+            ),
+          )
         else
           ListView.builder(
             shrinkWrap: true,
@@ -117,7 +133,7 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    "${lesson['subject'] ?? ''} • ${lesson['className'] ?? ''}\n${_formatDate(lesson['date'])}"
+                    "${lesson['subject']} • ${lesson['className']}\n${_formatDate(lesson['date'])}"
                     "${lesson['teacherName']?.toString().trim().isNotEmpty == true ? ' • Par ${lesson['teacherName']}' : ''}",
                   ),
                   isThreeLine: true,

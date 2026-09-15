@@ -91,10 +91,16 @@ class AcademicYearRecap {
       startDate: parseDate(map['startDate']),
       endDate: parseDate(map['endDate'] ?? map['archiveDate']),
       active: map['active'] == true,
-      status: map['status']?.toString() ?? (map['active'] == true ? 'ACTIVE' : 'CLOSED'),
+      status:
+          map['status']?.toString() ??
+          (map['active'] == true ? 'ACTIVE' : 'CLOSED'),
       totalRevenue: parseDouble(map['totalRevenue']),
       totalExpenses: parseDouble(map['totalExpenses']),
-      balance: parseDouble(map['balance'] ?? (parseDouble(map['totalRevenue']) - parseDouble(map['totalExpenses']))),
+      balance: parseDouble(
+        map['balance'] ??
+            (parseDouble(map['totalRevenue']) -
+                parseDouble(map['totalExpenses'])),
+      ),
       studentCount: parseInt(map['studentCount']),
       teacherCount: parseInt(map['teacherCount']),
       absenceCount: parseInt(map['absenceCount']),
@@ -106,11 +112,18 @@ class AcademicYearRecap {
     );
   }
 
-  String get formattedStartDate => startDate != null ? DateFormat('dd/MM/yyyy').format(startDate!) : '-';
-  String get formattedEndDate => endDate != null ? DateFormat('dd/MM/yyyy').format(endDate!) : '-';
-  String get formattedClosedAt => closedAt != null ? DateFormat('dd/MM/yyyy à HH:mm').format(closedAt!) : formattedEndDate;
+  String get formattedStartDate =>
+      startDate != null ? DateFormat('dd/MM/yyyy').format(startDate!) : '-';
+  String get formattedEndDate =>
+      endDate != null ? DateFormat('dd/MM/yyyy').format(endDate!) : '-';
+  String get formattedClosedAt => closedAt != null
+      ? DateFormat('dd/MM/yyyy à HH:mm').format(closedAt!)
+      : formattedEndDate;
 
-  String get formattedRevenue => '${NumberFormat('#,###', 'fr_FR').format(totalRevenue.round())} FCFA';
-  String get formattedExpenses => '${NumberFormat('#,###', 'fr_FR').format(totalExpenses.round())} FCFA';
-  String get formattedBalance => '${NumberFormat('#,###', 'fr_FR').format(balance.round())} FCFA';
+  String get formattedRevenue =>
+      '${NumberFormat('#,###', 'fr_FR').format(totalRevenue.round())} FCFA';
+  String get formattedExpenses =>
+      '${NumberFormat('#,###', 'fr_FR').format(totalExpenses.round())} FCFA';
+  String get formattedBalance =>
+      '${NumberFormat('#,###', 'fr_FR').format(balance.round())} FCFA';
 }

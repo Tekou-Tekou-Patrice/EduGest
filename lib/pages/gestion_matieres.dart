@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import '../components/app_colors.dart';
 import '../components/my_button.dart';
 import '../components/my_textfield.dart';
@@ -6,7 +7,7 @@ import '../models/subject.dart';
 import '../service/api_service.dart';
 
 class GestionMatieres extends StatefulWidget {
-  const GestionMatieres({super.key});
+  GestionMatieres({super.key});
 
   @override
   State<GestionMatieres> createState() => _GestionMatieresState();
@@ -36,7 +37,7 @@ class _GestionMatieresState extends State<GestionMatieres> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Erreur lors du chargement des matières")),
+          SnackBar(content: Text(context.tr('loadSubjectsError'))),
         );
       }
     }
@@ -44,12 +45,18 @@ class _GestionMatieresState extends State<GestionMatieres> {
 
   void _showSubjectDialog({Subject? subject}) {
     final nameCtrl = TextEditingController(text: subject?.name ?? '');
-    final coeffCtrl = TextEditingController(text: subject?.coefficient.toString() ?? '1.0');
+    final coeffCtrl = TextEditingController(
+      text: subject?.coefficient.toString() ?? '1.0',
+    );
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(subject == null ? "Ajouter une matière" : "Modifier la matière"),
+        title: Text(
+          subject == null
+              ? context.tr('addSubject')
+              : context.tr('editSubject'),
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         content: SingleChildScrollView(
           child: Column(
@@ -57,13 +64,13 @@ class _GestionMatieresState extends State<GestionMatieres> {
             children: [
               MyTextfield(
                 controller: nameCtrl,
-                hintText: "Nom de la matière (ex: Mathématiques)",
+                hintText: context.tr('subjectNameExample'),
                 icon: Icons.book_outlined,
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16),
               MyTextfield(
                 controller: coeffCtrl,
-                hintText: "Coefficient",
+                hintText: context.tr('coefficient'),
                 icon: Icons.star_outline,
                 keyboardType: TextInputType.number,
               ),
@@ -73,13 +80,13 @@ class _GestionMatieresState extends State<GestionMatieres> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Annuler"),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             onPressed: () async {
               if (nameCtrl.text.trim().isEmpty) return;
-              
+
               final newSubject = Subject(
                 id: subject?.id ?? '',
                 name: nameCtrl.text.trim(),
@@ -95,12 +102,15 @@ class _GestionMatieresState extends State<GestionMatieres> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Erreur lors de l'enregistrement")),
+                    SnackBar(content: Text("Erreur lors de l'enregistrement")),
                   );
                 }
               }
             },
-            child: const Text("Valider", style: TextStyle(color: Colors.white)),
+            child: Text(
+              context.tr('validate'),
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -118,62 +128,82 @@ class _GestionMatieresState extends State<GestionMatieres> {
           spacing: 12,
           runSpacing: 10,
           children: [
-            const Text(
-              "Gestion des Matières",
+            Text(
+              context.tr('subjectManagement'),
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             MyButton(
               icon: Icons.add,
-              text: "Ajouter Matière",
+              text: context.tr('addSubject'),
               onTap: () => _showSubjectDialog(),
             ),
           ],
         ),
-        const SizedBox(height: 24),
-        
+        SizedBox(height: 24),
+
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (_subjects.isEmpty)
-          const Center(child: Text("Aucune matière enregistrée."))
+          Center(child: Text(context.tr('noSubjects')))
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: _subjects.length,
             itemBuilder: (context, index) {
               final s = _subjects[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(15),
                   border: Border.all(color: AppColors.border),
                 ),
                 child: ListTile(
-                  leading: const CircleAvatar(
+                  leading: CircleAvatar(
                     backgroundColor: AppColors.primaryPale,
                     child: Icon(Icons.book, color: AppColors.primary),
                   ),
-                  title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(
+                    s.name,
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   subtitle: Text("Coefficient: ${s.coefficient}"),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: Colors.blue, size: 20),
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          color: Colors.blue,
+                          size: 20,
+                        ),
                         onPressed: () => _showSubjectDialog(subject: s),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text("Supprimer"),
-                              content: Text("Voulez-vous vraiment supprimer la matière ${s.name} ?"),
+                              title: Text(context.tr('delete')),
+                              content: Text(
+                                "${context.tr('confirmDeleteSubject')} ${s.name} ?",
+                              ),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Non")),
-                                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Oui")),
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: Text(context.tr('no')),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: Text(context.tr('yes')),
+                                ),
                               ],
                             ),
                           );

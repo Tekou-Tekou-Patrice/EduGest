@@ -156,7 +156,9 @@ class MySidebar extends StatelessWidget {
                     color: Colors.white60,
                     size: 18,
                   ),
-                  tooltip: "Changer d'établissement",
+                  tooltip: AppLocalizations.of(
+                    context,
+                  ).translate('changeSchool'),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 32,

@@ -12,8 +12,11 @@ import java.util.Optional;
 @Repository
 public interface ExamRepository extends JpaRepository<Exam, Long> {
     
-    @Query("SELECT e FROM Exam e WHERE e.className = :className")
+    @Query("SELECT e FROM Exam e WHERE LOWER(TRIM(e.className)) = LOWER(TRIM(:className))")
     List<Exam> findByClassName(@Param("className") String className);
+
+    @Query("SELECT e FROM Exam e WHERE LOWER(TRIM(e.teacherName)) = LOWER(TRIM(:teacherName))")
+    List<Exam> findByTeacherName(@Param("teacherName") String teacherName);
     
     @Query("SELECT e FROM Exam e WHERE e.subject = :subject")
     List<Exam> findBySubject(@Param("subject") String subject);

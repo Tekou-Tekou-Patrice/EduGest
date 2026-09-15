@@ -3,6 +3,7 @@ import 'package:edugest/models/app_user.dart';
 import 'package:edugest/pages/dashboard_page.dart';
 import 'package:edugest/pages/parent_portal.dart';
 import 'package:edugest/service/notification_service.dart';
+import 'package:edugest/service/push_notification_service.dart';
 
 class HomeRouter extends StatelessWidget {
   final String userRole;
@@ -21,6 +22,7 @@ class HomeRouter extends StatelessWidget {
           role: AppUser.roleFromLabel(userRole),
         );
     NotificationService.instance.start(userId: effectiveUser.id);
+    PushNotificationService.instance.start();
 
     // Redirection selon le rôle
     if (effectiveUser.role == UserRole.parent) {

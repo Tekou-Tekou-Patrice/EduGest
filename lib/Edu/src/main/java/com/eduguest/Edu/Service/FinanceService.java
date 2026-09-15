@@ -9,10 +9,13 @@ import com.eduguest.Edu.Repository.ExpenseRepository;
 import com.eduguest.Edu.Repository.PaymentRepository;
 import com.eduguest.Edu.Repository.UserRepository;
 import com.eduguest.Edu.Repository.StudentRepository;
+import com.eduguest.Edu.Repository.ClassroomRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +28,7 @@ public class FinanceService {
     private final UserRepository userRepository;
     private final AcademicYearService academicYearService;
     private final StudentRepository studentRepository;
+    private final ClassroomRepository classroomRepository;
     private final SchoolContextService schoolContextService;
     private final AppNotificationService notificationService;
     private final AuditLogService auditLogService;
@@ -34,6 +38,7 @@ public class FinanceService {
                           UserRepository userRepository,
                           AcademicYearService academicYearService,
                           StudentRepository studentRepository,
+                          ClassroomRepository classroomRepository,
                           SchoolContextService schoolContextService,
                           AppNotificationService notificationService,
                           AuditLogService auditLogService) {
@@ -43,6 +48,7 @@ public class FinanceService {
         this.userRepository = userRepository;
         this.academicYearService = academicYearService;
         this.studentRepository = studentRepository;
+        this.classroomRepository = classroomRepository;
         this.notificationService = notificationService;
         this.auditLogService = auditLogService;
     }
@@ -224,9 +230,44 @@ public class FinanceService {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalRevenue", revenue);
         stats.put("totalExpenses", expenses);
-        stats.put("balance", revenue - expenses);
+        stats.put("balance", Math.max(0, revenue - expenses));
         stats.put("currency", "FCFA");
         return stats;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> getTuitionStatus() {
+        academicYearService.autoCloseIfDue();
+        List<Payment> payments = academicYearService.filterCurrentYear(
+                schoolContextService.scope(paymentRepository.findAll()),
+                Payment::getAcademicYearId
+        );
+        Map<String, Double> paidByStudent = new HashMap<>();
+        for (Payment payment : payments) {
+            if (payment.getStudentId() != null && !"SIMPLE".equals(payment.getStudentId())) {
+                paidByStudent.merge(
+                        payment.getStudentId(),
+                        payment.getAmount() == null ? 0 : payment.getAmount(),
+                        Double::sum
+                );
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var student : schoolContextService.scope(studentRepository.findAll())) {
+            double tuition = tuitionFor(student);
+            double paid = paidByStudent.getOrDefault(String.valueOf(student.getId()), 0.0);
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("studentId", student.getId());
+            item.put("studentName", (student.getFirstName() + " " + student.getLastName()).trim());
+            item.put("className", student.getClassName());
+            item.put("totalTuition", tuition);
+            item.put("totalPaid", paid);
+            item.put("remaining", Math.max(0, tuition - paid));
+            item.put("tuitionCompleted", tuition > 0 && paid >= tuition);
+            result.add(item);
+        }
+        return result;
     }
 
     private PaymentDto mapToPaymentDto(Payment entity) {
@@ -243,8 +284,7 @@ public class FinanceService {
         }
         if (entity.getStudentId() != null && !"SIMPLE".equals(entity.getStudentId())) {
             studentRepository.findById(Long.valueOf(entity.getStudentId())).ifPresent(student -> {
-                double tuition = student.getClassroom() != null && student.getClassroom().getTuitionFee() != null
-                        ? student.getClassroom().getTuitionFee() : 0;
+                double tuition = tuitionFor(student);
                 double paid = schoolContextService.scope(paymentRepository.findByStudentId(entity.getStudentId())).stream()
                         .filter(p -> p.getAcademicYearId() == null || p.getAcademicYearId().equals(entity.getAcademicYearId()))
                         .mapToDouble(p -> p.getAmount() == null ? 0 : p.getAmount()).sum();
@@ -255,6 +295,19 @@ public class FinanceService {
             });
         }
         return dto;
+    }
+
+    private double tuitionFor(com.eduguest.Edu.Entity.Student student) {
+        if (student.getClassroom() != null && student.getClassroom().getTuitionFee() != null) {
+            return Math.max(0, student.getClassroom().getTuitionFee());
+        }
+        if (student.getClassName() == null || student.getClassName().isBlank()) return 0;
+        return schoolContextService.scope(classroomRepository.findAll()).stream()
+                .filter(classroom -> classroom.getName() != null
+                        && classroom.getName().equalsIgnoreCase(student.getClassName().trim()))
+                .map(classroom -> classroom.getTuitionFee() == null ? 0 : classroom.getTuitionFee())
+                .findFirst()
+                .orElse(0d);
     }
 
     private ExpenseDto mapToExpenseDto(Expense entity) {

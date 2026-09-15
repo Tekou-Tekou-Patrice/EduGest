@@ -27,6 +27,8 @@ public interface AppNotificationRepository extends JpaRepository<AppNotification
 
     List<AppNotification> findByRecipientIdAndReadFalseOrderByTimestampDesc(Long recipientId);
 
+    void deleteByRecipientId(Long recipientId);
+
     boolean existsBySchool_IdAndRecipient_IdAndTypeAndMessageContaining(
             Long schoolId, Long recipientId, String type, String messagePart);
 

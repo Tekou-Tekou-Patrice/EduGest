@@ -22,6 +22,8 @@ class NotificationService {
     'event', // Secrétaire/Proviseur -> Tous
     'discipline', // Surveillant/Proviseur -> Parent
     'subscription', // EduGest -> Fondateur
+    'exam', // Suivi du dossier d'examen -> Parent
+    'payment_due',
   };
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -113,7 +115,7 @@ class NotificationService {
     }
   }
 
-  /// Déclenche une notification système (Desktop, Android, iOS)
+  /// Déclenche une notification système sur les plateformes supportées.
   Future<void> showNotification({
     required String title,
     required String message,
@@ -128,25 +130,6 @@ class NotificationService {
       'message': message,
       'type': type ?? 'general',
     }, id ?? DateTime.now().millisecondsSinceEpoch.toString());
-  }
-
-  /// Envoie une notification de test pour vérifier le bon fonctionnement sous Windows / Desktop
-  Future<bool> showTestNotification() async {
-    try {
-      if (!_initialized) {
-        await start();
-      }
-      await showNotification(
-        title: 'EduGest — Notification Desktop',
-        message: 'Les alertes bureau sont opérationnelles et configurées avec succès.',
-        type: 'test',
-        id: 'test_${DateTime.now().millisecondsSinceEpoch}',
-      );
-      return true;
-    } catch (e) {
-      debugPrint('Erreur test notification: $e');
-      return false;
-    }
   }
 
   Future<void> _poll() async {

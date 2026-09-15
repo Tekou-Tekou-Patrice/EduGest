@@ -23,6 +23,9 @@ public class School {
     @Column(unique = true, length = 80)
     private String code;
 
+    @Column(name = "school_level", nullable = false, length = 20)
+    private String schoolLevel = "COLLEGE";
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

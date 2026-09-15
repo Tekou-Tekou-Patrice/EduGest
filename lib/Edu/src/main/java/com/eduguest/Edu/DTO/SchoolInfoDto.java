@@ -9,6 +9,7 @@ public class SchoolInfoDto {
     private String id;
     private String name;
     private String code;
+    private String schoolLevel;
     private String address;
     private String phone;
     private String email;

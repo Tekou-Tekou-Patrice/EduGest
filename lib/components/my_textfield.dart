@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'app_colors.dart';
 
 class MyTextfield extends StatefulWidget {
@@ -50,7 +51,9 @@ class _MyTextfieldState extends State<MyTextfield> {
           color: AppColors.textMuted,
           size: 20,
         ),
-        tooltip: _obscured ? 'Afficher le mot de passe' : 'Masquer le mot de passe',
+        tooltip: _obscured
+            ? context.tr('showPassword')
+            : context.tr('hidePassword'),
         onPressed: () {
           setState(() {
             _obscured = !_obscured;

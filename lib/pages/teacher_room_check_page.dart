@@ -2,7 +2,9 @@ import 'package:edugest/components/app_colors.dart';
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/models/schedule.dart';
 import 'package:edugest/service/api_service.dart';
+import 'package:edugest/service/school_notifier.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 
 class TeacherRoomCheckPage extends StatefulWidget {
@@ -15,18 +17,24 @@ class TeacherRoomCheckPage extends StatefulWidget {
 
 class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
   List<ScheduleItem> _schedule = [];
+  List<Map<String, dynamic>> _teacherAttendance = [];
   Map<String, Map<String, dynamic>> _checks = {};
   bool _loading = true;
   final DateTime _date = DateTime.now();
 
   bool get _isTeacher => widget.currentUser.role == UserRole.enseignant;
   bool get _isSecretary => widget.currentUser.role == UserRole.secretaire;
+  bool get _isPrimaryAdmin =>
+      (widget.currentUser.role == UserRole.proviseur ||
+          widget.currentUser.role == UserRole.secretaire ||
+          widget.currentUser.role == UserRole.fondateur) &&
+      currentSchoolNotifier.value?.schoolLevel == 'PRIMARY';
   bool get _canVerify =>
       widget.currentUser.role == UserRole.surveillantGeneral ||
       widget.currentUser.role == UserRole.surveillant;
 
   String get _day {
-    const days = [
+    final days = [
       'Lundi',
       'Mardi',
       'Mercredi',
@@ -47,6 +55,15 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      if (_isPrimaryAdmin) {
+        final attendance = await ApiService.getTeacherAttendance(date: _date);
+        if (!mounted) return;
+        setState(() {
+          _teacherAttendance = attendance;
+          _loading = false;
+        });
+        return;
+      }
       final results = await Future.wait([
         _isTeacher
             ? Future.value(<ScheduleItem>[])
@@ -75,6 +92,26 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Impossible de charger les cours : $error')),
+      );
+    }
+
+  }
+
+  Future<void> _markTeacherAttendance(
+    Map<String, dynamic> teacher,
+    String status,
+  ) async {
+    try {
+      await ApiService.saveTeacherAttendance(
+        teacherId: teacher['teacherId'].toString(),
+        status: status,
+        date: _date,
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pointage impossible : $error')),
       );
     }
   }
@@ -117,13 +154,13 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
     final submitted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Justifier mon absence'),
+        title: Text('Justifier mon absence'),
         content: Form(
           key: formKey,
           child: TextFormField(
             controller: controller,
             maxLines: 5,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Explication',
               hintText: 'Expliquez votre absence...',
               border: OutlineInputBorder(),
@@ -136,7 +173,7 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Annuler'),
+            child: Text(context.tr('cancel')),
           ),
           FilledButton(
             onPressed: () async {
@@ -158,7 +195,7 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
                 }
               }
             },
-            child: const Text('Envoyer'),
+            child: Text('Envoyer'),
           ),
         ],
       ),
@@ -175,39 +212,44 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
-                'Présence des professeurs en salle',
+                context.tr('teacherRoomPresence'),
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ),
             IconButton(
               onPressed: _load,
-              icon: const Icon(Icons.refresh, color: AppColors.primary),
+              icon: Icon(Icons.refresh, color: AppColors.primary),
             ),
           ],
         ),
         Text(
-          _isTeacher
-              ? 'Vos absences signalées et leur délai de justification'
-              : '${DateFormat('dd/MM/yyyy').format(_date)} — $_day — $checkedCount/${_schedule.length} cours vérifiés',
-          style: const TextStyle(color: AppColors.textMuted),
+          _isPrimaryAdmin
+              ? '${DateFormat('dd/MM/yyyy').format(_date)} — Pointage des enseignants'
+              : _isTeacher
+              ? context.tr('reportedAbsencesJustification')
+              : '${DateFormat('dd/MM/yyyy').format(_date)} — $_day — '
+                    '$checkedCount/${_schedule.length} ${context.tr('lessonsVerified')}',
+          style: TextStyle(color: AppColors.textMuted),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         if (_loading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
+        else if (_isPrimaryAdmin)
+          ..._teacherAttendance.map(_buildTeacherAttendanceCard)
         else if (_isTeacher && _checks.isEmpty)
-          const Card(
+          Card(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Center(child: Text('Aucune absence à justifier.')),
+              child: Center(child: Text(context.tr('noAbsencesToJustify'))),
             ),
           )
         else if (!_isTeacher && _schedule.isEmpty)
-          const Card(
+          Card(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Center(child: Text('Aucun cours prévu aujourd’hui.')),
+              child: Center(child: Text(context.tr('noClassToday'))),
             ),
           )
         else if (_isTeacher)
@@ -215,6 +257,86 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
         else
           ..._schedule.map(_buildCourseCard),
       ],
+    );
+  }
+
+  Widget _buildTeacherAttendanceCard(Map<String, dynamic> teacher) {
+    final status = teacher['status']?.toString() ?? 'UNMARKED';
+    final labels = {
+      'PRESENT': 'Présent',
+      'ABSENT': 'Absent',
+      'LATE': 'Retard',
+      'PERMISSION': 'Permission',
+      'UNMARKED': 'Non pointé',
+    };
+    final colors = {
+      'PRESENT': Colors.green,
+      'ABSENT': Colors.red,
+      'LATE': Colors.orange,
+      'PERMISSION': Colors.blue,
+      'UNMARKED': Colors.grey,
+    };
+    final color = colors[status] ?? Colors.grey;
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: color.withValues(alpha: 0.12),
+                  child: Icon(Icons.person, color: color),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    teacher['teacherName']?.toString() ?? 'Enseignant',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Chip(
+                  label: Text(labels[status] ?? status),
+                  labelStyle: TextStyle(color: color),
+                  backgroundColor: color.withValues(alpha: 0.1),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _attendanceButton(teacher, 'PRESENT', 'Présent', Colors.green),
+                _attendanceButton(teacher, 'ABSENT', 'Absent', Colors.red),
+                _attendanceButton(teacher, 'LATE', 'Retard', Colors.orange),
+                _attendanceButton(
+                  teacher,
+                  'PERMISSION',
+                  'Permission',
+                  Colors.blue,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attendanceButton(
+    Map<String, dynamic> teacher,
+    String status,
+    String label,
+    Color color,
+  ) {
+    return OutlinedButton.icon(
+      onPressed: () => _markTeacherAttendance(teacher, status),
+      icon: Icon(Icons.circle, size: 10, color: color),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(foregroundColor: color),
     );
   }
 
@@ -230,20 +352,20 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
         ? ''
         : DateFormat('dd/MM/yyyy HH:mm').format(deadline);
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: const Icon(Icons.warning, color: Colors.red),
-        title: Text('${check['subject'] ?? ''} — ${check['className'] ?? ''}'),
+        leading: Icon(Icons.warning, color: Colors.red),
+        title: Text('${check['subject']} — ${check['className']}'),
         subtitle: Text(
-          'Absence signalée le ${check['checkDate'] ?? ''}'
-          '${canJustify ? '\nJustification avant le $deadlineText' : ''}'
-          '${check['justification'] != null ? '\nJustification envoyée' : ''}',
+          '${context.tr('absenceReportedOn')} ${check['checkDate']}'
+          '${canJustify ? '\n${context.tr('justificationBefore')} $deadlineText' : ''}'
+          '${check['justification'] != null ? '\n${context.tr('justificationSent')}' : ''}',
         ),
         isThreeLine: true,
         trailing: canJustify
             ? TextButton(
                 onPressed: () => _justify(check),
-                child: const Text('Justifier'),
+                child: Text('Justifier'),
               )
             : null,
       ),
@@ -255,9 +377,9 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
     final hasCheck = check != null;
     final present = check?['present'] == true;
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: EdgeInsets.only(bottom: 12),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -271,25 +393,27 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
                       ? (present ? Colors.green : Colors.red)
                       : Colors.orange,
                 ),
-                const SizedBox(width: 10),
+                SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     '${item.startTime} - ${item.endTime} • ${item.subject}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            SizedBox(height: 6),
             Text(
               '${item.teacherName} — ${item.className}'
               '${item.room.isEmpty ? '' : ' — Salle ${item.room}'}',
             ),
             if (hasCheck)
               Padding(
-                padding: const EdgeInsets.only(top: 5),
+                padding: EdgeInsets.only(top: 5),
                 child: Text(
-                  '${present ? 'Présent' : 'Absent'} — vérifié à ${_formatCheckedAt(check['checkedAt'])} par ${check['verifierName'] ?? ''}',
+                  '${present ? context.tr('present') : context.tr('absent')} — '
+                  '${context.tr('verifiedAt')} ${_formatCheckedAt(check['checkedAt'])} '
+                  '${context.tr('by')} ${check['verifierName']}',
                   style: TextStyle(
                     color: present
                         ? Colors.green.shade700
@@ -299,25 +423,25 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
                 ),
               ),
             if (_canVerify) ...[
-              const SizedBox(height: 10),
+              SizedBox(height: 10),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _mark(item, true),
-                      icon: const Icon(Icons.check),
-                      label: const Text('Présent'),
+                      icon: Icon(Icons.check),
+                      label: Text(context.tr('present')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.green,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  SizedBox(width: 10),
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => _mark(item, false),
-                      icon: const Icon(Icons.close),
-                      label: const Text('Absent'),
+                      icon: Icon(Icons.close),
+                      label: Text(context.tr('auto_absent')),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                       ),

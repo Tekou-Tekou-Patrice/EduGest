@@ -50,11 +50,25 @@ class AuthSessionService {
       if (map is! Map<String, dynamic>) {
         return null;
       }
+
       return AppUser.fromMap(map);
     } catch (_) {
       await prefs.remove(_userKey);
       return null;
     }
+  }
+
+  static bool hasValidToken(AppUser? user) {
+    final token = user?.token?.trim();
+    if (token == null || token.isEmpty) return false;
+
+    final parts = token.split('.');
+    if (parts.length != 3) return false;
+
+    final expiresAt = int.tryParse(parts[1]);
+    if (expiresAt == null) return false;
+
+    return expiresAt > DateTime.now().millisecondsSinceEpoch ~/ 1000;
   }
 
   static Future<String?> loadActiveSchoolId() async {

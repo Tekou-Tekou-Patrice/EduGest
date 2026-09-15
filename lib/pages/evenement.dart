@@ -1,9 +1,9 @@
 import 'package:edugest/components/app_colors.dart';
 import 'package:edugest/components/my_button.dart';
-import 'package:edugest/components/my_textfield.dart';
 import 'package:edugest/models/event.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:flutter/material.dart';
+import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 
 class Evenement extends StatefulWidget {
@@ -19,6 +19,7 @@ class _EvenementState extends State<Evenement> {
   String _selectedCategory = "Tous";
   final List<String> _categories = [
     "Tous",
+    "Annonce",
     "Conseil",
     "Examen",
     "Réunion",
@@ -43,11 +44,9 @@ class _EvenementState extends State<Evenement> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Erreur lors du chargement des événements"),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('loadEventsError'))));
     }
   }
 
@@ -62,7 +61,7 @@ class _EvenementState extends State<Evenement> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(
-            event == null ? "Nouvel Événement" : "Modifier l'événement",
+            event == null ? context.tr('newEvent') : context.tr('editEvent'),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -71,16 +70,32 @@ class _EvenementState extends State<Evenement> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                MyTextfield(
+                TextField(
                   controller: titleController,
-                  hintText: "Titre",
-                  icon: Icons.title,
+                  maxLines: tempCategory == "Annonce" ? 6 : 1,
+                  decoration: InputDecoration(
+                    labelText: tempCategory == "Annonce"
+                        ? "Contenu de l'annonce"
+                        : context.tr('auto_titre'),
+                    hintText: tempCategory == "Annonce"
+                        ? "Saisissez le contenu de l'annonce"
+                        : null,
+                    prefixIcon: Icon(
+                      tempCategory == "Annonce"
+                          ? Icons.campaign_outlined
+                          : Icons.title,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignLabelWithHint: tempCategory == "Annonce",
+                  ),
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: tempCategory,
                   decoration: InputDecoration(
-                    labelText: "Catégorie",
+                    labelText: context.tr('category'),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -89,9 +104,12 @@ class _EvenementState extends State<Evenement> {
                       .where((c) => c != "Tous")
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
-                  onChanged: (val) => setDialogState(() => tempCategory = val!),
+                  onChanged: (val) {
+                    if (val == null) return;
+                    setDialogState(() => tempCategory = val);
+                  },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Material(
                   color: Colors.transparent,
                   child: ListTile(
@@ -99,7 +117,7 @@ class _EvenementState extends State<Evenement> {
                     title: Text(
                       "Date: ${DateFormat('dd/MM/yyyy').format(tempDate)}",
                     ),
-                    trailing: const Icon(
+                    trailing: Icon(
                       Icons.calendar_today,
                       color: AppColors.primary,
                     ),
@@ -121,10 +139,7 @@ class _EvenementState extends State<Evenement> {
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text("Heure: ${tempTime.format(context)}"),
-                    trailing: const Icon(
-                      Icons.access_time,
-                      color: AppColors.primary,
-                    ),
+                    trailing: Icon(Icons.access_time, color: AppColors.primary),
                     onTap: () async {
                       final picked = await showTimePicker(
                         context: context,
@@ -142,7 +157,7 @@ class _EvenementState extends State<Evenement> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Annuler"),
+              child: Text(context.tr('cancel')),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -164,15 +179,15 @@ class _EvenementState extends State<Evenement> {
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
+                      SnackBar(
                         content: Text("Erreur lors de l'enregistrement"),
                       ),
                     );
                   }
                 }
               },
-              child: const Text(
-                "Enregistrer",
+              child: Text(
+                context.tr('save'),
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -199,25 +214,25 @@ class _EvenementState extends State<Evenement> {
           spacing: 16,
           runSpacing: 10,
           children: [
-            const Text(
-              "Événements",
+            Text(
+              context.tr('events'),
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             MyButton(
               icon: Icons.add,
-              text: "Ajouter",
+              text: context.tr('add'),
               onTap: () => _showEventDialog(),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: _categories.map((c) {
               final selected = _selectedCategory == c;
               return Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: EdgeInsets.only(right: 8),
                 child: ChoiceChip(
                   label: Text(c),
                   selected: selected,
@@ -227,25 +242,25 @@ class _EvenementState extends State<Evenement> {
             }).toList(),
           ),
         ),
-        const SizedBox(height: 20),
+        SizedBox(height: 20),
         if (_isLoading)
-          const Center(child: CircularProgressIndicator())
+          Center(child: CircularProgressIndicator())
         else if (filteredEvents.isEmpty)
-          const Center(
+          Center(
             child: Padding(
               padding: EdgeInsets.all(40),
-              child: Text("Aucun événement"),
+              child: Text(context.tr('noEvents')),
             ),
           )
         else
           ListView.builder(
             shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            physics: NeverScrollableScrollPhysics(),
             itemCount: filteredEvents.length,
             itemBuilder: (context, index) {
               final e = filteredEvents[index];
               return Container(
-                margin: const EdgeInsets.only(bottom: 12),
+                margin: EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
@@ -260,13 +275,13 @@ class _EvenementState extends State<Evenement> {
                     ),
                     title: Text(
                       e.title,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
                       "${e.category} • ${DateFormat('dd/MM/yyyy').format(e.date)} à ${e.time.format(context)}",
                     ),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      icon: Icon(Icons.delete_outline, color: Colors.red),
                       onPressed: () async {
                         try {
                           await ApiService.deleteEvent(e.id);
@@ -274,9 +289,7 @@ class _EvenementState extends State<Evenement> {
                         } catch (_) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Suppression impossible"),
-                              ),
+                              SnackBar(content: Text("Suppression impossible")),
                             );
                           }
                         }

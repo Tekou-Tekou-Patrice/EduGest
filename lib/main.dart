@@ -10,15 +10,16 @@ import 'package:edugest/service/auth_session_service.dart';
 import 'package:edugest/components/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:edugest/service/push_notification_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await PushNotificationService.initialize();
 
   await appLocale.loadSavedLocale();
   final session = await AuthSessionService.loadSession();
   final storedUser = session['user'] as AppUser?;
-  final hasValidToken =
-      storedUser?.token != null && storedUser!.token!.trim().isNotEmpty;
+  final hasValidToken = AuthSessionService.hasValidToken(storedUser);
   final AppUser? user = hasValidToken ? storedUser : null;
   final String? schoolId = user == null ? null : session['schoolId'] as String?;
   final bool welcomeSeen = await AuthSessionService.hasSeenWelcome();
@@ -29,9 +30,13 @@ Future<void> main() async {
 
   if (user != null) {
     ApiService.setActiveUser(user);
+    await appLocale.loadForUser(user.id);
   }
   if (schoolId != null && schoolId.isNotEmpty) {
     ApiService.setActiveSchool(schoolId);
+  }
+  if (user != null) {
+    await PushNotificationService.instance.start(userId: user.id);
   }
 
   runApp(
