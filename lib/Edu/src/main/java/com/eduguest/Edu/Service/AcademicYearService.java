@@ -30,6 +30,7 @@ import com.eduguest.Edu.Repository.StudentRepository;
 import com.eduguest.Edu.Repository.TeacherRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -79,7 +80,7 @@ public class AcademicYearService {
                                EventRepository eventRepository,
                                ScheduleItemRepository scheduleItemRepository,
                                SchoolContextService schoolContextService,
-                               BackupService backupService) {
+                               @Lazy BackupService backupService) {
         this.schoolContextService = schoolContextService;
         this.academicYearRepository = academicYearRepository;
         this.schoolInfoRepository = schoolInfoRepository;
