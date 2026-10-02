@@ -99,6 +99,33 @@ class _LoginPageState extends State<LoginPage> {
                   color: AppColors.text,
                 ),
               ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                key: const ValueKey('auth-language-selector'),
+                initialValue: appLocale.value.languageCode,
+                decoration: InputDecoration(
+                  labelText: loc.translate('applicationLanguage'),
+                  prefixIcon: const Icon(Icons.language),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: 'fr',
+                    child: Text(loc.translate('languageFrench')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'en',
+                    child: Text(loc.translate('languageEnglish')),
+                  ),
+                ],
+                onChanged: (languageCode) {
+                  if (languageCode != null) {
+                    appLocale.setLocale(Locale(languageCode));
+                  }
+                },
+              ),
               SizedBox(height: 10),
               Text(
                 _isLogin
@@ -232,9 +259,9 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     if (_passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('passwordTooShort'))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('passwordTooShort'))));
       return;
     }
 
@@ -249,8 +276,9 @@ class _LoginPageState extends State<LoginPage> {
 
       if (result['success'] == true) {
         final currentUser = result['user'] as AppUser;
+        final selectedLocale = appLocale.value;
         ApiService.setActiveUser(currentUser);
-        await appLocale.loadForUser(currentUser.id);
+        await appLocale.setLocaleForUser(currentUser.id, selectedLocale);
         await AuthSessionService.saveSession(currentUser);
         await AuthSessionService.saveActiveSchool(null);
         if (!mounted) return;
@@ -289,9 +317,9 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
     if (_passwordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.tr('passwordTooShort'))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.tr('passwordTooShort'))));
       return;
     }
     setState(() => _isLoading = true);

@@ -30,9 +30,14 @@ import java.util.stream.Collectors;
 @Service
 public class SchoolService {
     private static final SecureRandom CODE_RANDOM = new SecureRandom();
+    private static final String SCHOOL_CODE_UPPERCASE = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final String SCHOOL_CODE_LOWERCASE = "abcdefghjkmnpqrstuvwxyz";
+    private static final String SCHOOL_CODE_DIGITS = "23456789";
+    private static final String SCHOOL_CODE_SPECIAL = "!@#$%&*?";
     private static final String SCHOOL_CODE_ALPHABET =
-            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static final int GENERATED_CODE_LENGTH = 12;
+            SCHOOL_CODE_UPPERCASE + SCHOOL_CODE_LOWERCASE
+                    + SCHOOL_CODE_DIGITS + SCHOOL_CODE_SPECIAL;
+    private static final int GENERATED_CODE_LENGTH = 8;
     private static final int MAX_CODE_GENERATION_ATTEMPTS = 10;
 
     private final SchoolRepository schoolRepository;
@@ -121,7 +126,7 @@ public class SchoolService {
             throw new IllegalArgumentException("Le code de l'école est obligatoire");
         }
 
-        School school = schoolRepository.findByCode(code.trim().toUpperCase(Locale.ROOT))
+        School school = schoolRepository.findByCodeIgnoreCase(code.trim())
                 .orElseThrow(() -> new RuntimeException("Code d'école invalide"));
         if (!school.isActive()) {
             throw new IllegalStateException("Cette école est désactivée. Contactez l'administration.");
@@ -384,17 +389,32 @@ public class SchoolService {
 
     public String generateUniqueSchoolCode() {
         for (int attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
-            StringBuilder code = new StringBuilder("EDU-");
-            for (int i = 0; i < GENERATED_CODE_LENGTH; i++) {
-                code.append(SCHOOL_CODE_ALPHABET.charAt(
-                        CODE_RANDOM.nextInt(SCHOOL_CODE_ALPHABET.length())));
+            StringBuilder code = new StringBuilder(GENERATED_CODE_LENGTH);
+            code.append(randomCodeCharacter(SCHOOL_CODE_UPPERCASE));
+            code.append(randomCodeCharacter(SCHOOL_CODE_LOWERCASE));
+            code.append(randomCodeCharacter(SCHOOL_CODE_DIGITS));
+            code.append(randomCodeCharacter(SCHOOL_CODE_SPECIAL));
+            while (code.length() < GENERATED_CODE_LENGTH) {
+                code.append(randomCodeCharacter(SCHOOL_CODE_ALPHABET));
             }
+
+            for (int i = code.length() - 1; i > 0; i--) {
+                int swapIndex = CODE_RANDOM.nextInt(i + 1);
+                char current = code.charAt(i);
+                code.setCharAt(i, code.charAt(swapIndex));
+                code.setCharAt(swapIndex, current);
+            }
+
             String candidate = code.toString();
             if (!schoolRepository.existsByCode(candidate)) {
                 return candidate;
             }
         }
         throw new IllegalStateException("Impossible de générer un code d'école unique.");
+    }
+
+    private char randomCodeCharacter(String alphabet) {
+        return alphabet.charAt(CODE_RANDOM.nextInt(alphabet.length()));
     }
 
     private SchoolDto toDto(School school, UserRole role) {

@@ -731,12 +731,11 @@ class AppLocalizations {
       'evaluation': 'Évaluation',
       'evaluationsExams': 'Évaluations / Examens',
       'examClass': 'Classe d’examen',
-      'promotionThreshold': 'Moyenne minimale pour passer (/20)',
-      'promotionTargetClass': 'Classe suivante si admis',
-      'noNextClass': 'Aucune (classe finale)',
-      'promotionAdmitted':
-          'Admis (seuil : {threshold}/20) — passage en {class}.',
-      'promotionRepeating': 'Redouble (seuil requis : {threshold}/20).',
+      'promotionThreshold': 'Moyenne minimale pour être admis (/20)',
+      'promotionThresholdHint':
+          'Moyenne générale minimale requise pour déclarer l’élève admis.',
+      'promotionAdmitted': 'Admis',
+      'promotionRepeating': 'Redouble',
       'invalidPromotionThreshold':
           'La moyenne de passage doit être comprise entre 0 et 20.',
       'editGradesBeforePublication': 'Modifier les notes avant publication',
@@ -1667,12 +1666,11 @@ class AppLocalizations {
       'tuitionFees': 'Tuition / school fees (FCFA)',
       'description': 'Description',
       'examClass': 'Exam class',
-      'promotionThreshold': 'Minimum average to pass (/20)',
-      'promotionTargetClass': 'Next class if passed',
-      'noNextClass': 'None (final class)',
-      'promotionAdmitted':
-          'Passed (threshold: {threshold}/20) — promoted to {class}.',
-      'promotionRepeating': 'Repeats the class (required: {threshold}/20).',
+      'promotionThreshold': 'Minimum average to be admitted (/20)',
+      'promotionThresholdHint':
+          'Minimum overall average required for a student to be admitted.',
+      'promotionAdmitted': 'Admitted',
+      'promotionRepeating': 'Repeats',
       'invalidPromotionThreshold':
           'The passing average must be between 0 and 20.',
       'editGradesBeforePublication': 'Edit grades before publication',

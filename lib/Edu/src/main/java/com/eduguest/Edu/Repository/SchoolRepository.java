@@ -7,6 +7,7 @@ import java.util.Optional;
 
 public interface SchoolRepository extends JpaRepository<School, Long> {
     Optional<School> findByCode(String code);
+    Optional<School> findByCodeIgnoreCase(String code);
     boolean existsByCode(String code);
     Optional<School> findFirstByOrderByIdAsc();
 }

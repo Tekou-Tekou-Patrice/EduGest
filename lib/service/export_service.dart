@@ -392,7 +392,6 @@ class ExportService {
     double? classMax,
     double? classAvg,
     double promotionThreshold = 10,
-    String? promotionTargetClassName,
     String? reportClassName,
     String languageCode = 'fr',
   }) async {
@@ -418,7 +417,6 @@ class ExportService {
             classMax: classMax,
             classAvg: classAvg,
             promotionThreshold: promotionThreshold,
-            promotionTargetClassName: promotionTargetClassName,
             reportClassName: reportClassName,
             languageCode: languageCode,
           );
@@ -444,7 +442,6 @@ class ExportService {
     SchoolInfo? schoolInfo,
     String period = "1er Trimestre",
     double promotionThreshold = 10,
-    String? promotionTargetClassName,
     String languageCode = 'fr',
   }) async {
     final pdf = pw.Document();
@@ -509,7 +506,6 @@ class ExportService {
               classMax: classMax,
               classAvg: classAvg,
               promotionThreshold: promotionThreshold,
-              promotionTargetClassName: promotionTargetClassName,
               reportClassName: className,
               languageCode: languageCode,
             );
@@ -541,7 +537,6 @@ class ExportService {
     double? classMax,
     double? classAvg,
     double promotionThreshold = 10,
-    String? promotionTargetClassName,
     String? reportClassName,
     String languageCode = 'fr',
   }) {
@@ -1128,22 +1123,12 @@ class ExportService {
                         ],
                       ),
                     ],
-                    if (period == 'Bilan Annuel' &&
-                        promotionTargetClassName != null &&
-                        promotionTargetClassName.trim().isNotEmpty) ...[
+                    if (period == 'Bilan Annuel') ...[
                       pw.SizedBox(height: 4),
                       pw.Text(
                         generalAvg >= promotionThreshold
-                            ? _text(
-                                languageCode,
-                                'Admis en $promotionTargetClassName (seuil : ${promotionThreshold.toStringAsFixed(2)}/20).',
-                                'Promoted to $promotionTargetClassName (threshold: ${promotionThreshold.toStringAsFixed(2)}/20).',
-                              )
-                            : _text(
-                                languageCode,
-                                'Redouble (seuil requis : ${promotionThreshold.toStringAsFixed(2)}/20).',
-                                'Repeats the class (required: ${promotionThreshold.toStringAsFixed(2)}/20).',
-                              ),
+                            ? _text(languageCode, 'Admis', 'Admitted')
+                            : _text(languageCode, 'Redouble', 'Repeats'),
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
                           fontSize: 8.5,

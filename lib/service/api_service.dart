@@ -35,9 +35,7 @@ class ApiService {
   static String? activeSchoolId;
   static AppUser? currentUser;
 
-  static const _apiBaseUrl = String.fromEnvironment(
-    'EDUGEST_API_BASE_URL',
-  );
+  static const _apiBaseUrl = String.fromEnvironment('EDUGEST_API_BASE_URL');
 
   static String get _localBaseUrl {
     final configuredUrl = _apiBaseUrl.trim();
@@ -545,16 +543,10 @@ class ApiService {
   static Future<SchoolClass> saveClassPromotionSettings({
     required String classId,
     required double threshold,
-    String? targetClassId,
   }) async {
     final response = await _dio.put(
       '/api/scolarite/classrooms/$classId/promotion',
-      data: {
-        'promotionThreshold': threshold,
-        'promotionTargetClassId': targetClassId == null
-            ? null
-            : int.tryParse(targetClassId) ?? targetClassId,
-      },
+      data: {'promotionThreshold': threshold},
     );
     return SchoolClass.fromMap(_asMap(response.data));
   }

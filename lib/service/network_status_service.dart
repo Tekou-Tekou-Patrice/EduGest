@@ -9,6 +9,7 @@ class NetworkStatusService {
   static final ValueNotifier<bool?> isOnline = ValueNotifier<bool?>(null);
   static final ValueNotifier<bool> serverUnavailable = ValueNotifier(false);
   static StreamSubscription<List<ConnectivityResult>>? _subscription;
+  static Timer? _serverFailureTimer;
 
   static Future<void> initialize() async {
     _subscription ??= Connectivity().onConnectivityChanged.listen(
@@ -26,15 +27,25 @@ class NetworkStatusService {
     );
     isOnline.value = connected;
     if (!connected) {
+      _serverFailureTimer?.cancel();
       serverUnavailable.value = false;
     }
   }
 
   static void reportServerFailure() {
-    if (isOnline.value != false) serverUnavailable.value = true;
+    if (isOnline.value != false) {
+      serverUnavailable.value = true;
+      _serverFailureTimer?.cancel();
+      _serverFailureTimer = Timer(const Duration(seconds: 5), () {
+        serverUnavailable.value = false;
+        _serverFailureTimer = null;
+      });
+    }
   }
 
   static void reportServerAvailable() {
+    _serverFailureTimer?.cancel();
+    _serverFailureTimer = null;
     serverUnavailable.value = false;
   }
 }

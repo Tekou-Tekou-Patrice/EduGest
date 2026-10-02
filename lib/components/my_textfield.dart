@@ -9,6 +9,7 @@ class MyTextfield extends StatefulWidget {
   final TextEditingController? controller;
   final TextInputType? keyboardType;
   final Widget? suffixIcon;
+  final String? helperText;
 
   const MyTextfield({
     super.key,
@@ -18,6 +19,7 @@ class MyTextfield extends StatefulWidget {
     this.controller,
     this.keyboardType,
     this.suffixIcon,
+    this.helperText,
   });
 
   @override
@@ -70,6 +72,7 @@ class _MyTextfieldState extends State<MyTextfield> {
       style: const TextStyle(color: AppColors.text),
       decoration: InputDecoration(
         hintText: widget.hintText,
+        helperText: widget.helperText,
         prefixIcon: Icon(widget.icon),
         suffixIcon: suffix,
       ),

@@ -77,11 +77,6 @@ class _GestionClassesState extends State<GestionClasses> {
     final promotionThresholdCtrl = TextEditingController(
       text: (classroom?.promotionThreshold ?? 10).toString(),
     );
-    String? promotionTargetClassId =
-        classroom?.promotionTargetClassId != classroom?.id &&
-            _classes.any((item) => item.id == classroom?.promotionTargetClassId)
-        ? classroom?.promotionTargetClassId
-        : null;
     bool examClass = classroom?.examClass ?? false;
     List<String> selectedTeacherIds = [
       ...?classroom?.teacherIds,
@@ -141,38 +136,10 @@ class _GestionClassesState extends State<GestionClasses> {
                   MyTextfield(
                     controller: promotionThresholdCtrl,
                     hintText: context.tr('promotionThreshold'),
+                    helperText: context.tr('promotionThresholdHint'),
                     icon: Icons.trending_up,
                     keyboardType: TextInputType.numberWithOptions(
                       decimal: true,
-                    ),
-                  ),
-                  SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: promotionTargetClassId ?? '',
-                    decoration: InputDecoration(
-                      labelText: context.tr('promotionTargetClass'),
-                      prefixIcon: Icon(Icons.school_outlined),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    items: [
-                      DropdownMenuItem(
-                        value: '',
-                        child: Text(context.tr('noNextClass')),
-                      ),
-                      ..._classes
-                          .where((item) => item.id != classroom?.id)
-                          .map(
-                            (item) => DropdownMenuItem(
-                              value: item.id,
-                              child: Text(item.name),
-                            ),
-                          ),
-                    ],
-                    onChanged: (value) => setDialogState(
-                      () => promotionTargetClassId =
-                          value == null || value.isEmpty ? null : value,
                     ),
                   ),
                 ],
@@ -272,14 +239,12 @@ class _GestionClassesState extends State<GestionClasses> {
                       examClass: examClass,
                       teacherIds: selectedTeacherIds,
                       promotionThreshold: promotionThreshold ?? 10,
-                      promotionTargetClassId: promotionTargetClassId,
                     ),
                   );
                   if (_canConfigurePromotion) {
                     await ApiService.saveClassPromotionSettings(
                       classId: savedClass.id,
                       threshold: promotionThreshold!,
-                      targetClassId: promotionTargetClassId,
                     );
                   }
                   if (context.mounted) Navigator.pop(context);

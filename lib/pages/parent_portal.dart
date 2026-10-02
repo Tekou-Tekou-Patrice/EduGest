@@ -523,7 +523,6 @@ class _PublishedBulletinView extends StatelessWidget {
         schoolInfo: schoolInfo,
         period: publication.period,
         promotionThreshold: publication.promotionThreshold ?? 10,
-        promotionTargetClassName: publication.promotionTargetClassName,
         reportClassName: publication.className,
         languageCode: languageCode,
       );

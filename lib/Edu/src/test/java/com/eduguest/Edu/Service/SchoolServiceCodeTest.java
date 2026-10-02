@@ -70,7 +70,7 @@ class SchoolServiceCodeTest {
         SchoolDto created = service().create(request);
 
         assertThat(created.getId()).isEqualTo(41L);
-        assertThat(created.getCode()).matches("EDU-[A-HJ-NP-Z2-9]{12}");
+        assertGeneratedCodeMeetsRequirements(created.getCode());
         assertThat(created.getCode()).isNotEqualTo("USER-CHOSEN-CODE");
         verify(schoolRepository).existsByCode(created.getCode());
         verify(schoolRepository).save(argThat(school ->
@@ -105,7 +105,12 @@ class SchoolServiceCodeTest {
 
         SchoolDto created = service().create(request);
 
-        assertThat(created.getCode()).matches("EDU-[A-HJ-NP-Z2-9]{12}");
+        assertGeneratedCodeMeetsRequirements(created.getCode());
         verify(schoolRepository, times(2)).existsByCode(anyString());
+    }
+
+    private void assertGeneratedCodeMeetsRequirements(String code) {
+        assertThat(code).hasSizeBetween(5, 8)
+                .matches("(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[!@#$%&*?])[A-Za-z\\d!@#$%&*?]+");
     }
 }

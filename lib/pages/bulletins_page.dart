@@ -69,46 +69,15 @@ class _BulletinsPageState extends State<BulletinsPage> {
   double get _gradeStatusThreshold =>
       _selectedPeriod == 'Bilan Annuel' ? _promotionThreshold : 10;
 
-  String? get _promotionTargetClassName {
-    final targetId = _selectedClassConfig?.promotionTargetClassId;
-    if (targetId == null) return null;
-    for (final classroom in _classes) {
-      if (classroom.id == targetId) return classroom.name;
-    }
-    return null;
-  }
-
   Widget _buildAnnualPromotionStatus(double average) {
     if (_selectedPeriod != 'Bilan Annuel') return SizedBox.shrink();
-    final targetId = _selectedClassConfig?.promotionTargetClassId;
-    if (targetId == null) return SizedBox.shrink();
-    SchoolClass? destination;
-    for (final classroom in _classes) {
-      if (classroom.id == targetId) {
-        destination = classroom;
-        break;
-      }
-    }
-    if (destination == null) return SizedBox.shrink();
-
     final passed = average >= _promotionThreshold;
     return Padding(
       padding: EdgeInsets.only(top: 8),
       child: Text(
         passed
-            ? context
-                  .tr('promotionAdmitted')
-                  .replaceAll('{class}', destination.name)
-                  .replaceAll(
-                    '{threshold}',
-                    _promotionThreshold.toStringAsFixed(2),
-                  )
-            : context
-                  .tr('promotionRepeating')
-                  .replaceAll(
-                    '{threshold}',
-                    _promotionThreshold.toStringAsFixed(2),
-                  ),
+            ? context.tr('promotionAdmitted')
+            : context.tr('promotionRepeating'),
         style: TextStyle(
           fontWeight: FontWeight.bold,
           color: passed ? Colors.green.shade800 : Colors.red.shade800,
@@ -569,7 +538,6 @@ class _BulletinsPageState extends State<BulletinsPage> {
         period: _selectedPeriod,
         subjects: _subjects,
         promotionThreshold: _promotionThreshold,
-        promotionTargetClassName: _promotionTargetClassName,
         languageCode: languageCode,
       );
     } catch (e) {
@@ -609,7 +577,6 @@ class _BulletinsPageState extends State<BulletinsPage> {
         classMax: _classMaxAvg,
         classAvg: _classGeneralAvg,
         promotionThreshold: _promotionThreshold,
-        promotionTargetClassName: _promotionTargetClassName,
         reportClassName: _selectedClass,
         languageCode: languageCode,
       );

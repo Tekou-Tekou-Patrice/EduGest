@@ -68,7 +68,7 @@ class SchoolMembershipRulesTest {
     }
 
     @Test
-    void shouldRejectJoiningSchoolWithoutExistingMembershipEvenIfCodeIsKnown() {
+    void shouldAcceptMixedCasePrivateCodeAndRejectJoiningWithoutMembership() {
         User user = new User();
         user.setId(10L);
         user.setRole(UserRole.ENSEIGNANT);
@@ -76,14 +76,15 @@ class SchoolMembershipRulesTest {
         School school = new School();
         school.setId(7L);
         school.setName("École C");
-        school.setCode("ECOLE-C");
+        school.setCode("Ab3!Cd7?");
         school.setActive(true);
 
-        when(schoolRepository.findByCode("ECOLE-C")).thenReturn(Optional.of(school));
+        when(schoolRepository.findByCodeIgnoreCase("aB3!cD7?"))
+                .thenReturn(Optional.of(school));
         when(userRepository.findById(10L)).thenReturn(Optional.of(user));
         when(membershipRepository.findByUserIdAndSchoolId(10L, 7L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> schoolService.joinByCode(10L, "ECOLE-C", null))
+        assertThatThrownBy(() -> schoolService.joinByCode(10L, "aB3!cD7?", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("deja")
                 .hasMessageContaining("enregistre");

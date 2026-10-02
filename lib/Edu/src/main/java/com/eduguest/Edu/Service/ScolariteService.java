@@ -340,7 +340,9 @@ public class ScolariteService {
         }
 
         classroom.setPromotionThreshold(threshold);
-        classroom.setPromotionTargetClassId(targetId);
+        if (targetId != null) {
+            classroom.setPromotionTargetClassId(targetId);
+        }
         return toClassroomDto(classroomRepository.save(classroom));
     }
 
