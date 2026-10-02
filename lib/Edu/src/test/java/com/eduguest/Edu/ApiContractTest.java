@@ -2,11 +2,16 @@ package com.eduguest.Edu;
 
 import com.eduguest.Edu.DTO.RegisterRequest;
 import com.eduguest.Edu.DTO.UserDto;
+import com.eduguest.Edu.Config.RequireRoles;
+import com.eduguest.Edu.Controllers.ExamController;
+import com.eduguest.Edu.Controllers.ScolariteController;
+import com.eduguest.Edu.DTO.ClassroomDto;
 import com.eduguest.Edu.Entity.UserRole;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Arrays;
 
 class ApiContractTest {
 
@@ -43,6 +48,30 @@ class ApiContractTest {
         assertThat(UserRole.fromValue("secretaire")).isEqualTo(UserRole.SECRETAIRE);
         assertThat(UserRole.fromValue("ADMIN")).isEqualTo(UserRole.FONDATEUR);
         assertThat(UserRole.fromValue("Directeur")).isEqualTo(UserRole.PROVISEUR);
+    }
+
+    @Test
+    void promotionSettingsAreRestrictedToReportCardAdministrators() throws Exception {
+        RequireRoles roles = ScolariteController.class
+                .getMethod("savePromotionSettings", Long.class, ClassroomDto.class)
+                .getAnnotation(RequireRoles.class);
+
+        assertThat(Arrays.asList(roles.value()))
+                .containsExactly(UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE);
+    }
+
+    @Test
+    void gradeReviewAllowsTheSameAdministratorsThatPublishReportCards() throws Exception {
+        RequireRoles roles = ExamController.class
+                .getMethod("updateGrades", java.util.List.class)
+                .getAnnotation(RequireRoles.class);
+
+        assertThat(Arrays.asList(roles.value()))
+                .containsExactly(
+                        UserRole.FONDATEUR,
+                        UserRole.PROVISEUR,
+                        UserRole.SECRETAIRE,
+                        UserRole.ENSEIGNANT);
     }
 
     @Test

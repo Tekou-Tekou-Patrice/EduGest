@@ -43,6 +43,12 @@ public class Classroom implements SchoolScoped {
     @Column(name = "tuition_fee")
     private Double tuitionFee;
 
+    @Column(name = "promotion_threshold")
+    private Double promotionThreshold = 10.0;
+
+    @Column(name = "promotion_target_class_id")
+    private Long promotionTargetClassId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id")
     private Teacher teacher;

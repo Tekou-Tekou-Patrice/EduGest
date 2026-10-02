@@ -75,11 +75,11 @@ class _ListeElevesState extends State<ListeEleves> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: const Text('Valider l’inscription'),
+          title: Text(context.tr('validateRegistration')),
           content: DropdownButtonFormField<String>(
             value: selectedClass,
-            decoration: const InputDecoration(
-              labelText: 'Classe à affecter',
+            decoration: InputDecoration(
+              labelText: context.tr('assignClass'),
               border: OutlineInputBorder(),
             ),
             items: _availableClasses
@@ -101,7 +101,7 @@ class _ListeElevesState extends State<ListeEleves> {
               onPressed: selectedClass == null
                   ? null
                   : () => Navigator.pop(dialogContext, true),
-              child: const Text('Valider'),
+              child: Text(context.tr('validate')),
             ),
           ],
         ),
@@ -143,7 +143,7 @@ class _ListeElevesState extends State<ListeEleves> {
     DateTime? selectedBirthDate = student?.birthDate;
     final birthDateCtrl = TextEditingController(
       text: selectedBirthDate != null
-          ? DateFormat('dd/MM/yyyy').format(selectedBirthDate!)
+          ? DateFormat('dd/MM/yyyy').format(selectedBirthDate)
           : '',
     );
 
@@ -430,7 +430,7 @@ class _ListeElevesState extends State<ListeEleves> {
                   (c) => Padding(
                     padding: EdgeInsets.only(right: 8.0),
                     child: ChoiceChip(
-                      label: Text(c),
+                      label: Text(c == 'Toutes' ? context.tr('all') : c),
                       selected: selectedClasse == c,
                       onSelected: (s) {
                         setState(() => selectedClasse = c);
@@ -474,7 +474,7 @@ class _ListeElevesState extends State<ListeEleves> {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Classe: ${student.className}"),
+                      Text("${context.tr('classLabel')}: ${student.className}"),
                       if (student.birthDate != null)
                         Text(
                           "${context.tr('bornOn')} ${DateFormat('dd/MM/yyyy').format(student.birthDate!)}",
@@ -483,20 +483,20 @@ class _ListeElevesState extends State<ListeEleves> {
                       if (student.parentName != null &&
                           student.parentName!.isNotEmpty)
                         Text(
-                          "Parent: ${student.parentName} (${student.parentPhone ?? ''})",
+                          "${context.tr('parentPrefix')}: ${student.parentName} (${student.parentPhone ?? ''})",
                           style: TextStyle(fontSize: 12),
                         ),
                       if (student.registeredByName != null)
                         Text(
-                          "Inscrit par: ${student.registeredByName}",
+                          "${context.tr('registeredBy')}: ${student.registeredByName}",
                           style: TextStyle(
                             fontSize: 10,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
                       if (student.registrationStatus == 'PENDING')
-                        const Text(
-                          'Inscription en attente de validation',
+                        Text(
+                          context.tr('pendingRegistration'),
                           style: TextStyle(
                             color: Colors.orange,
                             fontWeight: FontWeight.w600,
@@ -512,7 +512,7 @@ class _ListeElevesState extends State<ListeEleves> {
                           (widget.currentUser.role == UserRole.proviseur ||
                               widget.currentUser.role == UserRole.fondateur))
                         IconButton(
-                          tooltip: 'Valider l’inscription',
+                          tooltip: context.tr('validateRegistration'),
                           icon: const Icon(
                             Icons.verified_outlined,
                             color: Colors.green,

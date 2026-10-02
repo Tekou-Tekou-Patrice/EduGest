@@ -11,6 +11,8 @@ class SchoolClass {
   final int studentCount;
   final double tuitionFee;
   final bool examClass;
+  final double promotionThreshold;
+  final String? promotionTargetClassId;
 
   SchoolClass({
     required this.id,
@@ -25,6 +27,8 @@ class SchoolClass {
     this.studentCount = 0,
     this.tuitionFee = 0,
     this.examClass = false,
+    this.promotionThreshold = 10,
+    this.promotionTargetClassId,
   });
 
   Map<String, dynamic> toMap() {
@@ -36,6 +40,10 @@ class SchoolClass {
       'description': description,
       'tuitionFee': tuitionFee,
       'examClass': examClass,
+      'promotionThreshold': promotionThreshold,
+      'promotionTargetClassId': promotionTargetClassId == null
+          ? null
+          : int.tryParse(promotionTargetClassId!) ?? promotionTargetClassId,
       if (teacherId != null && teacherId!.isNotEmpty)
         'teacherId': int.tryParse(teacherId!) ?? teacherId,
       'teacherIds': teacherIds
@@ -70,6 +78,10 @@ class SchoolClass {
           : double.tryParse('${map['tuitionFee']}') ?? 0,
       examClass:
           map['examClass'] == true || map['examClass']?.toString() == 'true',
+      promotionThreshold: map['promotionThreshold'] is num
+          ? (map['promotionThreshold'] as num).toDouble()
+          : double.tryParse('${map['promotionThreshold']}') ?? 10,
+      promotionTargetClassId: map['promotionTargetClassId']?.toString(),
     );
   }
 }

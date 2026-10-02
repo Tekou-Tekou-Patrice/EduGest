@@ -3,6 +3,7 @@ import 'package:edugest/models/absence.dart';
 import 'package:edugest/models/grade.dart';
 import 'package:edugest/models/event.dart';
 import 'package:edugest/models/payment.dart';
+import 'package:edugest/models/bulletin_publication.dart';
 import 'package:edugest/pages/programme_page.dart';
 import 'package:edugest/models/student.dart';
 import 'package:edugest/models/exam_class.dart';
@@ -13,6 +14,7 @@ import 'package:edugest/service/api_service.dart';
 import 'package:edugest/service/auth_session_service.dart';
 import 'package:edugest/service/notification_service.dart';
 import 'package:edugest/service/export_service.dart';
+import 'package:edugest/components/export_language_dialog.dart';
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
@@ -420,7 +422,7 @@ class _PublishedBulletinView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FutureBuilder(
-    future: ApiService.getBulletinPublications(className: student.className),
+    future: ApiService.getBulletinPublications(studentId: student.id),
     builder: (context, snapshot) {
       if (snapshot.connectionState != ConnectionState.done) {
         return Center(child: CircularProgressIndicator());
@@ -469,17 +471,20 @@ class _PublishedBulletinView extends StatelessWidget {
                     Icons.assignment_turned_in,
                     color: Colors.green,
                   ),
-                  title: Text('Bulletin — ${publication.period}'),
+                  title: Text(
+                    '${context.tr('reportCard')} — '
+                    '${AppLocalizations.of(context).translateAcademicPeriod(publication.period)}',
+                  ),
                   subtitle: Text(
-                    '${context.tr('publishedOn')} ${DateFormat('dd/MM/yyyy à HH:mm').format(publication.publishedAt)}\n'
-                    '${context.tr('by')} ${publication.publishedBy} (${publication.publishedByRole})',
+                    '${context.tr('publishedOn')} ${DateFormat('dd/MM/yyyy HH:mm').format(publication.publishedAt)}\n'
+                    '${context.tr('by')} ${publication.publishedBy} (${publication.publishedByRole})\n'
+                    '${context.tr('bulletinLanguage')}: ${context.tr(publication.languageCode == 'en' ? 'languageEnglish' : 'languageFrench')}',
                   ),
                   isThreeLine: true,
                   trailing: IconButton(
                     icon: Icon(Icons.picture_as_pdf, color: Colors.red),
                     tooltip: context.tr('viewReportPdf'),
-                    onPressed: () =>
-                        _downloadBulletin(context, publication.period),
+                    onPressed: () => _downloadBulletin(context, publication),
                   ),
                 ),
               ),
@@ -488,9 +493,17 @@ class _PublishedBulletinView extends StatelessWidget {
       );
     },
   );
-  Future<void> _downloadBulletin(BuildContext context, String period) async {
+  Future<void> _downloadBulletin(
+    BuildContext context,
+    BulletinPublication publication,
+  ) async {
+    final languageCode = await ExportLanguageDialog.show(
+      context,
+      initialLanguageCode: Localizations.localeOf(context).languageCode,
+    );
+    if (languageCode == null || !context.mounted) return;
     try {
-      final exams = await ApiService.getExams(className: student.className);
+      final exams = await ApiService.getExams(className: publication.className);
       final grades = <Grade>[];
       for (final exam in exams) {
         final examGrades = await ApiService.getGradesByExam(exam.id);
@@ -508,12 +521,21 @@ class _PublishedBulletinView extends StatelessWidget {
         exams: exams,
         absences: absences,
         schoolInfo: schoolInfo,
-        period: period,
+        period: publication.period,
+        promotionThreshold: publication.promotionThreshold ?? 10,
+        promotionTargetClassName: publication.promotionTargetClassName,
+        reportClassName: publication.className,
+        languageCode: languageCode,
       );
     } catch (error) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.tr('bulletinPdfError')} $error')),
+          SnackBar(
+            content: Text(
+              '${context.tr('bulletinPdfError')} '
+              '${ApiService.friendlyErrorMessage(error)}',
+            ),
+          ),
         );
       }
     }

@@ -58,6 +58,7 @@ public class AcademicYearService {
     private final GradeRepository gradeRepository;
     private final EventRepository eventRepository;
     private final ScheduleItemRepository scheduleItemRepository;
+    private final BackupService backupService;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -77,7 +78,8 @@ public class AcademicYearService {
                                GradeRepository gradeRepository,
                                EventRepository eventRepository,
                                ScheduleItemRepository scheduleItemRepository,
-                               SchoolContextService schoolContextService) {
+                               SchoolContextService schoolContextService,
+                               BackupService backupService) {
         this.schoolContextService = schoolContextService;
         this.academicYearRepository = academicYearRepository;
         this.schoolInfoRepository = schoolInfoRepository;
@@ -92,6 +94,7 @@ public class AcademicYearService {
         this.gradeRepository = gradeRepository;
         this.eventRepository = eventRepository;
         this.scheduleItemRepository = scheduleItemRepository;
+        this.backupService = backupService;
     }
 
     @Transactional
@@ -276,8 +279,18 @@ public class AcademicYearService {
 
     private void closeYear(AcademicYear year) {
         Long yearId = year.getId();
-        SchoolInfo school = schoolContextService.scope(schoolInfoRepository.findAll()).stream().findFirst().orElse(null);
+        School school = year.getSchool();
+        Long schoolId = school != null ? school.getId() : schoolContextService.currentSchoolId();
+        SchoolInfo schoolInfo = schoolContextService.scope(schoolInfoRepository.findAll()).stream().findFirst().orElse(null);
 
+        // 1. Sauvegarde automatique COMPRESSÉE (GZIP) de l'établissement AVANT toute modification ou clôture
+        if (schoolId != null) {
+            try {
+                backupService.triggerAutoBackupForSchool(schoolId);
+            } catch (Exception ignored) {}
+        }
+
+        // 2. Calcul et enregistrement des totaux récapitulatifs de l'année
         year.setTotalRevenue(sumPayments(yearId));
         year.setTotalExpenses(sumExpenses(yearId));
         year.setStudentCount((int) studentRepository.count());
@@ -286,7 +299,7 @@ public class AcademicYearService {
         year.setSanctionCount(countForYear(schoolContextService.scope(sanctionRepository.findAll()), Sanction::getAcademicYearId, yearId));
         year.setExamCount(countForYear(schoolContextService.scope(examRepository.findAll()), Exam::getAcademicYearId, yearId));
         year.setLessonCount(countForYear(schoolContextService.scope(lessonRepository.findAll()), Lesson::getAcademicYearId, yearId));
-        year.setSchoolName(school != null ? school.getName() : null);
+        year.setSchoolName(schoolInfo != null ? schoolInfo.getName() : (school != null ? school.getName() : null));
         year.setClosedAt(LocalDateTime.now());
         year.setActive(false);
         if (year.getEndDate() == null) {
@@ -295,6 +308,7 @@ public class AcademicYearService {
         schoolContextService.verifyAndAssign(year);
         academicYearRepository.save(year);
 
+        // Tag the closed year's records so they can be archived and purged after upload.
         assignUntagged(Payment.class, yearId);
         assignUntagged(Expense.class, yearId);
         assignUntagged(Absence.class, yearId);
@@ -303,9 +317,58 @@ public class AcademicYearService {
         assignUntagged(Lesson.class, yearId);
         assignUntagged(Event.class, yearId);
         assignUntagged(Exam.class, yearId);
-        assignUntagged(ScheduleItem.class, yearId);
         assignUntagged(AppNotification.class, yearId);
         assignUntagged(BulletinPublication.class, yearId);
+        assignUntagged(ScheduleItem.class, yearId);
+
+        entityManager.flush();
+    }
+
+    @Transactional
+    public void finalizeClosedYearRecords(Long yearId) {
+        if (yearId == null || yearId <= 0) {
+            throw new IllegalArgumentException("Identifiant d'année scolaire invalide");
+        }
+        Long schoolId = schoolContextService.currentSchoolId();
+        if (schoolId == null) {
+            throw new IllegalStateException("Aucune école active");
+        }
+        AcademicYear year = academicYearRepository.findById(yearId)
+                .orElseThrow(() -> new IllegalArgumentException("Année scolaire introuvable"));
+        if (year.getSchool() == null || !schoolId.equals(year.getSchool().getId())) {
+            throw new IllegalArgumentException("Cette année scolaire appartient à une autre école");
+        }
+        if (year.isActive()) {
+            throw new IllegalArgumentException("Seule une année scolaire clôturée peut être finalisée");
+        }
+
+        for (Class<?> entityClass : List.of(
+                Payment.class, Expense.class, BulletinPublication.class, Grade.class, Exam.class,
+                Absence.class, Sanction.class, Lesson.class, Event.class, AppNotification.class)) {
+            entityManager.createQuery(
+                            "DELETE FROM " + entityClass.getSimpleName()
+                                    + " e WHERE e.school.id = :schoolId AND e.academicYearId = :yearId")
+                    .setParameter("schoolId", schoolId)
+                    .setParameter("yearId", yearId)
+                    .executeUpdate();
+        }
+
+        entityManager.createQuery(
+                        "DELETE FROM ScheduleItem s WHERE s.school.id = :schoolId "
+                                + "AND s.academicYearId = :yearId")
+                .setParameter("schoolId", schoolId)
+                .setParameter("yearId", yearId)
+                .executeUpdate();
+
+        if (year.getStartDate() != null && year.getEndDate() != null) {
+            entityManager.createQuery(
+                            "DELETE FROM DailyAttendanceQr q WHERE q.school.id = :schoolId "
+                                    + "AND q.attendanceDate BETWEEN :startDate AND :endDate")
+                    .setParameter("schoolId", schoolId)
+                    .setParameter("startDate", year.getStartDate())
+                    .setParameter("endDate", year.getEndDate())
+                    .executeUpdate();
+        }
         entityManager.flush();
     }
 
@@ -333,10 +396,15 @@ public class AcademicYearService {
     }
 
     private void assignUntagged(Class<?> entityClass, Long yearId) {
+        Long schoolId = schoolContextService.currentSchoolId();
+        if (schoolId == null) {
+            return;
+        }
         var query = entityManager.createQuery(
                 "UPDATE " + entityClass.getSimpleName()
-                        + " e SET e.academicYearId = :id WHERE e.academicYearId IS NULL");
-        query.setParameter("id", yearId).executeUpdate();
+                        + " e SET e.academicYearId = :id WHERE e.academicYearId IS NULL "
+                        + "AND e.school.id = :schoolId");
+        query.setParameter("id", yearId).setParameter("schoolId", schoolId).executeUpdate();
     }
 
     public AcademicYearDto toDto(AcademicYear year) {

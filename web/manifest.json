@@ -1,12 +1,17 @@
 {
-    "name": "edugest",
-    "short_name": "edugest",
-    "start_url": ".",
+    "id": "/",
+    "name": "EduGest - Gestion scolaire",
+    "short_name": "EduGest",
+    "start_url": "/",
+    "scope": "/",
     "display": "standalone",
+    "display_override": [
+        "standalone",
+        "minimal-ui"
+    ],
     "background_color": "#ffffff",
     "theme_color": "#2E7D32",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "description": "EduGest, la plateforme de gestion scolaire pour les établissements.",
     "prefer_related_applications": false,
     "icons": [
         {

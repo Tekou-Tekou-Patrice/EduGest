@@ -62,8 +62,8 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Suivi des Cahiers de Texte",
+        Text(
+          context.tr('lessonNotebooksTracking'),
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -81,16 +81,19 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
             ),
             child: DropdownButton<String>(
               value: selectedClasse,
-              hint: const Text("Toutes les classes"),
+              hint: Text(context.tr('allClasses')),
               isExpanded: true,
               underline: const SizedBox(),
               items: [
-                const DropdownMenuItem(
+                DropdownMenuItem(
                   value: null,
-                  child: Text("Toutes les classes"),
+                  child: Text(context.tr('allClasses')),
                 ),
                 ...classes.map(
-                  (c) => DropdownMenuItem(value: c, child: Text("Classe : $c")),
+                  (c) => DropdownMenuItem(
+                    value: c,
+                    child: Text("${context.tr('classPrefix')} : $c"),
+                  ),
                 ),
               ],
               onChanged: (val) {
@@ -134,7 +137,7 @@ class _ReceptionCahierTexteState extends State<ReceptionCahierTexte> {
                   ),
                   subtitle: Text(
                     "${lesson['subject']} • ${lesson['className']}\n${_formatDate(lesson['date'])}"
-                    "${lesson['teacherName']?.toString().trim().isNotEmpty == true ? ' • Par ${lesson['teacherName']}' : ''}",
+                    "${lesson['teacherName']?.toString().trim().isNotEmpty == true ? ' • ${context.tr('by')} ${lesson['teacherName']}' : ''}",
                   ),
                   isThreeLine: true,
                 ),

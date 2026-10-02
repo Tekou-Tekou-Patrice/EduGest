@@ -36,6 +36,9 @@ public class BulletinPublication implements SchoolScoped {
     @Column(name = "published_by_role", nullable = false)
     private String publishedByRole;
 
+    @Column(name = "language_code")
+    private String languageCode = "fr";
+
     @Column(name = "published_at", nullable = false)
     private LocalDateTime publishedAt;
 
@@ -43,4 +46,13 @@ public class BulletinPublication implements SchoolScoped {
 
     @Column(name = "academic_year_id")
     private Long academicYearId;
+
+    @Column(name = "promotion_threshold")
+    private Double promotionThreshold;
+
+    @Column(name = "promotion_target_class_name")
+    private String promotionTargetClassName;
+
+    @Column(name = "promotion_source_class_id")
+    private Long promotionSourceClassId;
 }

@@ -35,11 +35,17 @@ class SuiviCoursPage extends StatelessWidget {
                 style: TextStyle(color: Colors.grey),
               ),
               const SizedBox(height: 16),
-              const TabBar(
+              TabBar(
                 isScrollable: true,
                 tabs: [
-                  Tab(icon: Icon(Icons.menu_book), text: 'Cahier de texte'),
-                  Tab(icon: Icon(Icons.assignment), text: 'Programme du cours'),
+                  Tab(
+                    icon: Icon(Icons.menu_book),
+                    text: context.tr('lessonBookTab'),
+                  ),
+                  Tab(
+                    icon: Icon(Icons.assignment),
+                    text: context.tr('courseProgramTab'),
+                  ),
                 ],
               ),
               const SizedBox(height: 20),

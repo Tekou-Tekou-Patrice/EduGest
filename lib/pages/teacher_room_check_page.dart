@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:edugest/components/app_colors.dart';
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/models/schedule.dart';
@@ -21,6 +23,7 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
   Map<String, Map<String, dynamic>> _checks = {};
   bool _loading = true;
   final DateTime _date = DateTime.now();
+  Timer? _scheduleRefreshTimer;
 
   bool get _isTeacher => widget.currentUser.role == UserRole.enseignant;
   bool get _isSecretary => widget.currentUser.role == UserRole.secretaire;
@@ -30,6 +33,8 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
           widget.currentUser.role == UserRole.fondateur) &&
       currentSchoolNotifier.value?.schoolLevel == 'PRIMARY';
   bool get _canVerify =>
+      widget.currentUser.role == UserRole.fondateur ||
+      widget.currentUser.role == UserRole.proviseur ||
       widget.currentUser.role == UserRole.surveillantGeneral ||
       widget.currentUser.role == UserRole.surveillant;
 
@@ -46,14 +51,37 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
     return days[_date.weekday - 1];
   }
 
+  String _localizedDay(BuildContext context) {
+    const dayKeys = [
+      'weekdayMonday',
+      'weekdayTuesday',
+      'weekdayWednesday',
+      'weekdayThursday',
+      'weekdayFriday',
+      'weekdaySaturday',
+      'weekdaySunday',
+    ];
+    return context.tr(dayKeys[_date.weekday - 1]);
+  }
+
   @override
   void initState() {
     super.initState();
     _load();
+    _scheduleRefreshTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _load(showLoading: false),
+    );
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  @override
+  void dispose() {
+    _scheduleRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool showLoading = true}) async {
+    if (showLoading) setState(() => _loading = true);
     try {
       if (_isPrimaryAdmin) {
         final attendance = await ApiService.getTeacherAttendance(date: _date);
@@ -91,10 +119,14 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Impossible de charger les cours : $error')),
+        SnackBar(
+          content: Text(
+            '${context.tr('loadClassesError')}: '
+            '${ApiService.friendlyErrorMessage(error)}',
+          ),
+        ),
       );
     }
-
   }
 
   Future<void> _markTeacherAttendance(
@@ -111,18 +143,39 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Pointage impossible : $error')),
+        SnackBar(
+          content: Text(
+            '${context.tr('saveFailed')}: '
+            '${ApiService.friendlyErrorMessage(error)}',
+          ),
+        ),
       );
     }
   }
 
   bool _isStillCheckable(ScheduleItem item) {
-    final end = item.endTime.split(':');
-    if (end.length != 2) return true;
-    final endMinutes =
-        (int.tryParse(end[0]) ?? 0) * 60 + (int.tryParse(end[1]) ?? 0);
+    final startMinutes = _minutesSinceMidnight(item.startTime);
+    final endMinutes = _minutesSinceMidnight(item.endTime);
+    if (startMinutes == null || endMinutes == null) return false;
     final now = DateTime.now();
-    return now.hour * 60 + now.minute <= endMinutes;
+    final currentMinutes = now.hour * 60 + now.minute;
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+  }
+
+  int? _minutesSinceMidnight(String value) {
+    final parts = value.split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return null;
+    }
+    return hour * 60 + minute;
   }
 
   Future<void> _mark(ScheduleItem item, bool present) async {
@@ -143,7 +196,12 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Enregistrement impossible : $error')),
+        SnackBar(
+          content: Text(
+            '${context.tr('saveFailed')}: '
+            '${ApiService.friendlyErrorMessage(error)}',
+          ),
+        ),
       );
     }
   }
@@ -154,19 +212,19 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
     final submitted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Justifier mon absence'),
+        title: Text(context.tr('justifyMyAbsence')),
         content: Form(
           key: formKey,
           child: TextFormField(
             controller: controller,
             maxLines: 5,
             decoration: InputDecoration(
-              labelText: 'Explication',
-              hintText: 'Expliquez votre absence...',
+              labelText: context.tr('explanation'),
+              hintText: context.tr('explainAbsence'),
               border: OutlineInputBorder(),
             ),
             validator: (value) => value == null || value.trim().isEmpty
-                ? 'L’explication est obligatoire'
+                ? context.tr('explanationRequired')
                 : null,
           ),
         ),
@@ -189,24 +247,29 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
                 if (dialogContext.mounted) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
                     SnackBar(
-                      content: Text('Justification impossible : $error'),
+                      content: Text(
+                        '${dialogContext.tr('saveFailed')}: '
+                        '${ApiService.friendlyErrorMessage(error)}',
+                      ),
                     ),
                   );
                 }
               }
             },
-            child: Text('Envoyer'),
+            child: Text(context.tr('send')),
           ),
         ],
       ),
     );
     controller.dispose();
-    if (submitted == true) _load();
+    if (submitted == true && mounted) _load();
   }
 
   @override
   Widget build(BuildContext context) {
-    final checkedCount = _checks.length;
+    final checkedCount = _schedule
+        .where((item) => _checks.containsKey(item.id))
+        .length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -226,10 +289,10 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
         ),
         Text(
           _isPrimaryAdmin
-              ? '${DateFormat('dd/MM/yyyy').format(_date)} — Pointage des enseignants'
+              ? '${DateFormat('dd/MM/yyyy').format(_date)} — ${context.tr('attendanceDayLabel')}'
               : _isTeacher
               ? context.tr('reportedAbsencesJustification')
-              : '${DateFormat('dd/MM/yyyy').format(_date)} — $_day — '
+              : '${DateFormat('dd/MM/yyyy').format(_date)} — ${_localizedDay(context)} — '
                     '$checkedCount/${_schedule.length} ${context.tr('lessonsVerified')}',
           style: TextStyle(color: AppColors.textMuted),
         ),
@@ -249,7 +312,7 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
           Card(
             child: Padding(
               padding: EdgeInsets.all(24),
-              child: Center(child: Text(context.tr('noClassToday'))),
+              child: Center(child: Text(context.tr('noClassAtTime'))),
             ),
           )
         else if (_isTeacher)
@@ -263,11 +326,11 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
   Widget _buildTeacherAttendanceCard(Map<String, dynamic> teacher) {
     final status = teacher['status']?.toString() ?? 'UNMARKED';
     final labels = {
-      'PRESENT': 'Présent',
-      'ABSENT': 'Absent',
-      'LATE': 'Retard',
-      'PERMISSION': 'Permission',
-      'UNMARKED': 'Non pointé',
+      'PRESENT': context.tr('status_present'),
+      'ABSENT': context.tr('status_absent'),
+      'LATE': context.tr('status_late'),
+      'PERMISSION': context.tr('status_permission'),
+      'UNMARKED': context.tr('status_unmarked'),
     };
     final colors = {
       'PRESENT': Colors.green,
@@ -293,7 +356,11 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    teacher['teacherName']?.toString() ?? 'Enseignant',
+                    teacher['teacherName']?.toString() ??
+                        context.trRole(
+                          'enseignant',
+                          schoolLevel: currentSchoolNotifier.value?.schoolLevel,
+                        ),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -309,13 +376,28 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _attendanceButton(teacher, 'PRESENT', 'Présent', Colors.green),
-                _attendanceButton(teacher, 'ABSENT', 'Absent', Colors.red),
-                _attendanceButton(teacher, 'LATE', 'Retard', Colors.orange),
+                _attendanceButton(
+                  teacher,
+                  'PRESENT',
+                  context.tr('status_present'),
+                  Colors.green,
+                ),
+                _attendanceButton(
+                  teacher,
+                  'ABSENT',
+                  context.tr('status_absent'),
+                  Colors.red,
+                ),
+                _attendanceButton(
+                  teacher,
+                  'LATE',
+                  context.tr('status_late'),
+                  Colors.orange,
+                ),
                 _attendanceButton(
                   teacher,
                   'PERMISSION',
-                  'Permission',
+                  context.tr('status_permission'),
                   Colors.blue,
                 ),
               ],
@@ -365,7 +447,7 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
         trailing: canJustify
             ? TextButton(
                 onPressed: () => _justify(check),
-                child: Text('Justifier'),
+                child: Text(context.tr('justify')),
               )
             : null,
       ),
@@ -405,7 +487,7 @@ class _TeacherRoomCheckPageState extends State<TeacherRoomCheckPage> {
             SizedBox(height: 6),
             Text(
               '${item.teacherName} — ${item.className}'
-              '${item.room.isEmpty ? '' : ' — Salle ${item.room}'}',
+              '${item.room.isEmpty ? '' : ' — ${context.tr('room')} ${item.room}'}',
             ),
             if (hasCheck)
               Padding(

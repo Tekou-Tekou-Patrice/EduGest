@@ -26,6 +26,25 @@ class _EvenementState extends State<Evenement> {
     "Cérémonie",
   ];
 
+  String _categoryLabel(String category) {
+    switch (category) {
+      case 'Tous':
+        return context.tr('eventAll');
+      case 'Annonce':
+        return context.tr('eventAnnouncement');
+      case 'Conseil':
+        return context.tr('eventCouncil');
+      case 'Examen':
+        return context.tr('eventExam');
+      case 'Réunion':
+        return context.tr('eventMeeting');
+      case 'Cérémonie':
+        return context.tr('eventCeremony');
+      default:
+        return category;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -75,10 +94,10 @@ class _EvenementState extends State<Evenement> {
                   maxLines: tempCategory == "Annonce" ? 6 : 1,
                   decoration: InputDecoration(
                     labelText: tempCategory == "Annonce"
-                        ? "Contenu de l'annonce"
+                        ? context.tr('eventAnnouncementContent')
                         : context.tr('auto_titre'),
                     hintText: tempCategory == "Annonce"
-                        ? "Saisissez le contenu de l'annonce"
+                        ? context.tr('eventAnnouncementHint')
                         : null,
                     prefixIcon: Icon(
                       tempCategory == "Annonce"
@@ -102,7 +121,12 @@ class _EvenementState extends State<Evenement> {
                   ),
                   items: _categories
                       .where((c) => c != "Tous")
-                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .map(
+                        (c) => DropdownMenuItem(
+                          value: c,
+                          child: Text(_categoryLabel(c)),
+                        ),
+                      )
                       .toList(),
                   onChanged: (val) {
                     if (val == null) return;
@@ -115,7 +139,7 @@ class _EvenementState extends State<Evenement> {
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
-                      "Date: ${DateFormat('dd/MM/yyyy').format(tempDate)}",
+                      "${context.tr('eventDate')}: ${DateFormat('dd/MM/yyyy').format(tempDate)}",
                     ),
                     trailing: Icon(
                       Icons.calendar_today,
@@ -138,7 +162,9 @@ class _EvenementState extends State<Evenement> {
                   color: Colors.transparent,
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text("Heure: ${tempTime.format(context)}"),
+                    title: Text(
+                      "${context.tr('timePrefix')}: ${tempTime.format(context)}",
+                    ),
                     trailing: Icon(Icons.access_time, color: AppColors.primary),
                     onTap: () async {
                       final picked = await showTimePicker(
@@ -179,9 +205,7 @@ class _EvenementState extends State<Evenement> {
                 } catch (e) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Erreur lors de l'enregistrement"),
-                      ),
+                      SnackBar(content: Text(context.tr('saveError'))),
                     );
                   }
                 }
@@ -234,7 +258,7 @@ class _EvenementState extends State<Evenement> {
               return Padding(
                 padding: EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(c),
+                  label: Text(_categoryLabel(c)),
                   selected: selected,
                   onSelected: (_) => setState(() => _selectedCategory = c),
                 ),
@@ -278,7 +302,7 @@ class _EvenementState extends State<Evenement> {
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
-                      "${e.category} • ${DateFormat('dd/MM/yyyy').format(e.date)} à ${e.time.format(context)}",
+                      "${_categoryLabel(e.category)} • ${DateFormat('dd/MM/yyyy').format(e.date)} ${context.tr('timePrefix').toLowerCase()} ${e.time.format(context)}",
                     ),
                     trailing: IconButton(
                       icon: Icon(Icons.delete_outline, color: Colors.red),
@@ -289,7 +313,9 @@ class _EvenementState extends State<Evenement> {
                         } catch (_) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Suppression impossible")),
+                              SnackBar(
+                                content: Text(context.tr('deleteFailed')),
+                              ),
                             );
                           }
                         }

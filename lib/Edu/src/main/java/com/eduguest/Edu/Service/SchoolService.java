@@ -19,6 +19,7 @@ import com.eduguest.Edu.Repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -28,6 +29,12 @@ import java.util.stream.Collectors;
 
 @Service
 public class SchoolService {
+    private static final SecureRandom CODE_RANDOM = new SecureRandom();
+    private static final String SCHOOL_CODE_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    private static final int GENERATED_CODE_LENGTH = 12;
+    private static final int MAX_CODE_GENERATION_ATTEMPTS = 10;
+
     private final SchoolRepository schoolRepository;
     private final SchoolMembershipRepository membershipRepository;
     private final UserRepository userRepository;
@@ -59,7 +66,7 @@ public class SchoolService {
     public SchoolDto create(SchoolCreateRequest request) {
         School school = new School();
         school.setName(request.getName().trim());
-        school.setCode(normalizeCode(request.getCode(), request.getName()));
+        school.setCode(generateUniqueSchoolCode());
         school.setSchoolLevel(normalizeSchoolLevel(request.getSchoolLevel()));
         school.setActive(true);
         school.setSubscriptionStatus("ACTIVE");
@@ -160,8 +167,30 @@ public class SchoolService {
             throw new RuntimeException("Seul le fondateur peut modifier le code");
         }
         School school = membership.getSchool();
-        school.setCode(normalizeCode(code, school.getName()));
+        String candidate = (code == null || code.isBlank() || "AUTO".equalsIgnoreCase(code.trim()))
+                ? generateUniqueSchoolCode()
+                : normalizeCode(code, school.getName());
+        if (!candidate.equals(school.getCode()) && schoolRepository.existsByCode(candidate)) {
+            throw new IllegalArgumentException("Ce code d'école est déjà utilisé par un autre établissement.");
+        }
+        school.setCode(candidate);
         schoolRepository.save(school);
+    }
+
+    @Transactional
+    public SchoolDto regenerateCode(Long userId, Long schoolId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+        SchoolMembership membership = membershipRepository.findByUserIdAndSchoolId(userId, schoolId)
+                .filter(SchoolMembership::isActive)
+                .orElseThrow(() -> new RuntimeException("Accès refusé"));
+        if (user.getRole() != UserRole.FONDATEUR || membership.getRole() != UserRole.FONDATEUR) {
+            throw new RuntimeException("Seul le fondateur peut modifier le code");
+        }
+        School school = membership.getSchool();
+        school.setCode(generateUniqueSchoolCode());
+        School saved = schoolRepository.save(school);
+        return toDto(saved, UserRole.FONDATEUR);
     }
 
     @Transactional
@@ -353,6 +382,21 @@ public class SchoolService {
         return value.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]+", "-");
     }
 
+    public String generateUniqueSchoolCode() {
+        for (int attempt = 0; attempt < MAX_CODE_GENERATION_ATTEMPTS; attempt++) {
+            StringBuilder code = new StringBuilder("EDU-");
+            for (int i = 0; i < GENERATED_CODE_LENGTH; i++) {
+                code.append(SCHOOL_CODE_ALPHABET.charAt(
+                        CODE_RANDOM.nextInt(SCHOOL_CODE_ALPHABET.length())));
+            }
+            String candidate = code.toString();
+            if (!schoolRepository.existsByCode(candidate)) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("Impossible de générer un code d'école unique.");
+    }
+
     private SchoolDto toDto(School school, UserRole role) {
         SchoolDto dto = new SchoolDto();
         dto.setId(school.getId());
@@ -414,7 +458,11 @@ public class SchoolService {
         dto.setUserId(membership.getUser().getId());
         dto.setSchoolId(membership.getSchool().getId());
         dto.setSchoolName(membership.getSchool().getName());
-        dto.setSchoolCode(membership.getSchool().getCode());
+        if (membership.getRole() == UserRole.FONDATEUR
+                || membership.getRole() == UserRole.PROVISEUR
+                || membership.getRole() == UserRole.SECRETAIRE) {
+            dto.setSchoolCode(membership.getSchool().getCode());
+        }
         dto.setSchoolLevel(normalizeSchoolLevel(membership.getSchool().getSchoolLevel()));
         dto.setRole(membership.getRole());
         dto.setActive(membership.isActive());
@@ -425,7 +473,6 @@ public class SchoolService {
         SchoolMembershipDto dto = new SchoolMembershipDto();
         dto.setSchoolId(school.getId());
         dto.setSchoolName(school.getName());
-        dto.setSchoolCode(school.getCode());
         dto.setSchoolLevel(normalizeSchoolLevel(school.getSchoolLevel()));
         dto.setActive(school.isActive());
         return dto;

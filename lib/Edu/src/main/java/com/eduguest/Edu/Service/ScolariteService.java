@@ -11,6 +11,7 @@ import com.eduguest.Edu.Entity.User;
 import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Repository.ClassroomRepository;
 import com.eduguest.Edu.Repository.StudentRepository;
+import com.eduguest.Edu.Repository.SchoolMembershipRepository;
 import com.eduguest.Edu.Repository.TeacherRepository;
 import com.eduguest.Edu.Repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,6 +34,7 @@ public class ScolariteService {
     private final ClassroomRepository classroomRepository;
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
+    private final SchoolMembershipRepository membershipRepository;
     private final PasswordEncoder passwordEncoder;
     private final SchoolService schoolService;
     private final SchoolContextService schoolContextService;
@@ -41,6 +44,7 @@ public class ScolariteService {
                             ClassroomRepository classroomRepository,
                             StudentRepository studentRepository,
                             UserRepository userRepository,
+                            SchoolMembershipRepository membershipRepository,
                             PasswordEncoder passwordEncoder,
                             SchoolContextService schoolContextService,
                             SchoolService schoolService) {
@@ -49,6 +53,7 @@ public class ScolariteService {
         this.classroomRepository = classroomRepository;
         this.studentRepository = studentRepository;
         this.userRepository = userRepository;
+        this.membershipRepository = membershipRepository;
         this.passwordEncoder = passwordEncoder;
         this.schoolService = schoolService;
     }
@@ -120,8 +125,25 @@ public class ScolariteService {
     public void deleteTeacher(Long id) {
         teacherRepository.findById(id).ifPresent(teacher -> {
             schoolContextService.verifyAndAssign(teacher);
-            if (teacher.getEmail() != null) {
-                userRepository.findByEmail(teacher.getEmail()).ifPresent(userRepository::delete);
+            School currentSchool = schoolContextService.currentSchool();
+            if (currentSchool != null && teacher.getEmail() != null) {
+                userRepository.findByEmailIgnoreCase(teacher.getEmail())
+                        .flatMap(user -> membershipRepository.findByUserIdAndSchoolId(
+                                user.getId(), currentSchool.getId()))
+                        .ifPresent(membership -> {
+                            membership.setActive(false);
+                            membershipRepository.save(membership);
+                        });
+            }
+            for (Classroom classroom : schoolContextService.scope(classroomRepository.findAll())) {
+                boolean changed = classroom.getTeachers().removeIf(item -> item.getId().equals(id));
+                if (classroom.getTeacher() != null && classroom.getTeacher().getId().equals(id)) {
+                    classroom.setTeacher(classroom.getTeachers().stream().findFirst().orElse(null));
+                    changed = true;
+                }
+                if (changed) {
+                    classroomRepository.save(classroom);
+                }
             }
             teacherRepository.delete(teacher);
         });
@@ -210,11 +232,48 @@ public class ScolariteService {
         }
         studentRepository.findById(id).ifPresent(student -> {
             schoolContextService.verifyAndAssign(student);
+            Optional<User> parentAccount = findParentAccount(student);
+            School currentSchool = schoolContextService.currentSchool();
+            String parentPhone = normalized(student.getParentPhone());
+            String parentEmail = normalized(student.getParentEmail());
             studentRepository.delete(student);
+
+            // Le compte parent est conservé. Son accès n'est retiré que si ce
+            // dernier élève est le seul encore inscrit dans l'établissement.
+            if (currentSchool != null && parentAccount.isPresent()
+                    && !hasOtherStudentForParent(id, parentPhone, parentEmail)) {
+                membershipRepository.findByUserIdAndSchoolId(
+                                parentAccount.get().getId(), currentSchool.getId())
+                        .filter(membership -> membership.getRole() == UserRole.PARENT)
+                        .ifPresent(membership -> {
+                            membership.setActive(false);
+                            membershipRepository.save(membership);
+                        });
+            }
         });
     }
 
     // --- CLASSES ---
+    private Optional<User> findParentAccount(Student student) {
+        String phone = normalized(student.getParentPhone());
+        if (!phone.isBlank()) {
+            return userRepository.findFirstByPhone(phone)
+                    .or(() -> userRepository.findByUsername(phone));
+        }
+        String email = normalized(student.getParentEmail());
+        return email.isBlank() ? Optional.empty() : userRepository.findByEmailIgnoreCase(email);
+    }
+
+    private boolean hasOtherStudentForParent(Long deletedStudentId, String phone, String email) {
+        if (phone.isBlank() && email.isBlank()) return false;
+        return schoolContextService.scope(studentRepository.findByParentContact(phone, email)).stream()
+                .anyMatch(student -> !student.getId().equals(deletedStudentId));
+    }
+
+    private String normalized(String value) {
+        return value == null ? "" : value.trim();
+    }
+
     @Transactional(readOnly = true)
     public List<ClassroomDto> getClassrooms() {
         return schoolContextService.scope(classroomRepository.findAll()).stream().map(this::toClassroomDto).collect(Collectors.toList());
@@ -253,17 +312,36 @@ public class ScolariteService {
             assignedTeachers.clear();
             assignedTeachers.add(firstTeacher);
         }
-        School currentSchool = schoolContextService.currentSchool();
-        if (currentSchool != null
-                && "PRIMARY".equalsIgnoreCase(currentSchool.getSchoolLevel())
-                && assignedTeachers.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Chaque classe du primaire doit avoir un enseignant titulaire.");
-        }
         c.setTeachers(assignedTeachers);
         c.setTeacher(assignedTeachers.stream().findFirst().orElse(null));
         schoolContextService.verifyAndAssign(c);
         return toClassroomDto(classroomRepository.save(c));
+    }
+
+    @Transactional
+    public ClassroomDto savePromotionSettings(Long classroomId, ClassroomDto dto) {
+        Classroom classroom = classroomRepository.findById(classroomId)
+                .orElseThrow(() -> new IllegalArgumentException("Classe non trouvée"));
+        schoolContextService.verifyAndAssign(classroom);
+
+        Double threshold = dto.getPromotionThreshold();
+        if (threshold == null || !Double.isFinite(threshold) || threshold < 0 || threshold > 20) {
+            throw new IllegalArgumentException("La moyenne de passage doit être comprise entre 0 et 20.");
+        }
+
+        Long targetId = dto.getPromotionTargetClassId();
+        if (targetId != null) {
+            Classroom target = classroomRepository.findById(targetId)
+                    .orElseThrow(() -> new IllegalArgumentException("Classe suivante non trouvée"));
+            schoolContextService.verifyAndAssign(target);
+            if (classroom.getId().equals(target.getId())) {
+                throw new IllegalArgumentException("Une classe ne peut pas être sa propre classe suivante.");
+            }
+        }
+
+        classroom.setPromotionThreshold(threshold);
+        classroom.setPromotionTargetClassId(targetId);
+        return toClassroomDto(classroomRepository.save(classroom));
     }
 
     @Transactional
@@ -273,6 +351,12 @@ public class ScolariteService {
         }
         classroomRepository.findById(id).ifPresent(classroom -> {
             schoolContextService.verifyAndAssign(classroom);
+            schoolContextService.scope(classroomRepository.findAll()).stream()
+                    .filter(item -> id.equals(item.getPromotionTargetClassId()))
+                    .forEach(item -> {
+                        item.setPromotionTargetClassId(null);
+                        classroomRepository.save(item);
+                    });
             classroomRepository.delete(classroom);
         });
     }
@@ -322,6 +406,8 @@ public class ScolariteService {
         dto.setName(c.getName());
         dto.setLevel(c.getLevel());
         dto.setExamClass(c.isExamClass());
+        dto.setPromotionThreshold(c.getPromotionThreshold() != null ? c.getPromotionThreshold() : 10.0);
+        dto.setPromotionTargetClassId(c.getPromotionTargetClassId());
         dto.setCapacity(c.getCapacity());
         dto.setDescription(c.getDescription());
         dto.setTuitionFee(c.getTuitionFee() != null ? c.getTuitionFee() : 0d);

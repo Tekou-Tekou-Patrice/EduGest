@@ -1,8 +1,8 @@
 import 'package:edugest/components/responsive_layout.dart';
 import 'package:edugest/models/school_class.dart';
 import 'package:edugest/models/teacher.dart';
+import 'package:edugest/models/app_user.dart';
 import 'package:edugest/service/api_service.dart';
-import 'package:edugest/service/school_notifier.dart';
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import '../components/app_colors.dart';
@@ -12,8 +12,9 @@ import 'exam_class_page.dart';
 
 class GestionClasses extends StatefulWidget {
   final bool readOnly;
+  final AppUser? currentUser;
 
-  const GestionClasses({super.key, this.readOnly = false});
+  const GestionClasses({super.key, this.readOnly = false, this.currentUser});
 
   @override
   State<GestionClasses> createState() => _GestionClassesState();
@@ -23,6 +24,13 @@ class _GestionClassesState extends State<GestionClasses> {
   List<SchoolClass> _classes = [];
   List<Teacher> _teachers = [];
   bool _isLoading = true;
+
+  bool get _canConfigurePromotion {
+    final role = widget.currentUser?.role;
+    return role == UserRole.fondateur ||
+        role == UserRole.proviseur ||
+        role == UserRole.secretaire;
+  }
 
   @override
   void initState() {
@@ -56,22 +64,41 @@ class _GestionClassesState extends State<GestionClasses> {
     }
   }
 
-  void _showCreateDialog() {
-    final isPrimarySchool =
-        currentSchoolNotifier.value?.schoolLevel == 'PRIMARY';
-    final nameCtrl = TextEditingController();
-    final levelCtrl = TextEditingController();
-    final capacityCtrl = TextEditingController(text: '40');
-    final tuitionCtrl = TextEditingController();
-    final descCtrl = TextEditingController();
-    bool examClass = false;
-    List<String> selectedTeacherIds = [];
+  void _showClassDialog({SchoolClass? classroom}) {
+    final nameCtrl = TextEditingController(text: classroom?.name ?? '');
+    final levelCtrl = TextEditingController(text: classroom?.level ?? '');
+    final capacityCtrl = TextEditingController(
+      text: (classroom?.capacity ?? 40).toString(),
+    );
+    final tuitionCtrl = TextEditingController(
+      text: classroom == null ? '' : classroom.tuitionFee.toString(),
+    );
+    final descCtrl = TextEditingController(text: classroom?.description ?? '');
+    final promotionThresholdCtrl = TextEditingController(
+      text: (classroom?.promotionThreshold ?? 10).toString(),
+    );
+    String? promotionTargetClassId =
+        classroom?.promotionTargetClassId != classroom?.id &&
+            _classes.any((item) => item.id == classroom?.promotionTargetClassId)
+        ? classroom?.promotionTargetClassId
+        : null;
+    bool examClass = classroom?.examClass ?? false;
+    List<String> selectedTeacherIds = [
+      ...?classroom?.teacherIds,
+      if (classroom?.teacherId != null &&
+          !classroom!.teacherIds.contains(classroom.teacherId))
+        classroom.teacherId!,
+    ];
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(context.tr('createClass')),
+          title: Text(
+            classroom == null
+                ? context.tr('createClass')
+                : context.tr('editClass'),
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
@@ -81,9 +108,7 @@ class _GestionClassesState extends State<GestionClasses> {
               children: [
                 MyTextfield(
                   controller: nameCtrl,
-                  hintText: isPrimarySchool
-                      ? 'Ex. 1ère année, 2e année, CM2'
-                      : context.tr('classNameExample'),
+                  hintText: context.tr('classNameExample'),
                   icon: Icons.class_,
                 ),
                 SizedBox(height: 12),
@@ -111,6 +136,46 @@ class _GestionClassesState extends State<GestionClasses> {
                   hintText: context.tr('description'),
                   icon: Icons.notes,
                 ),
+                if (_canConfigurePromotion) ...[
+                  SizedBox(height: 12),
+                  MyTextfield(
+                    controller: promotionThresholdCtrl,
+                    hintText: context.tr('promotionThreshold'),
+                    icon: Icons.trending_up,
+                    keyboardType: TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: promotionTargetClassId ?? '',
+                    decoration: InputDecoration(
+                      labelText: context.tr('promotionTargetClass'),
+                      prefixIcon: Icon(Icons.school_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text(context.tr('noNextClass')),
+                      ),
+                      ..._classes
+                          .where((item) => item.id != classroom?.id)
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item.id,
+                              child: Text(item.name),
+                            ),
+                          ),
+                    ],
+                    onChanged: (value) => setDialogState(
+                      () => promotionTargetClassId =
+                          value == null || value.isEmpty ? null : value,
+                    ),
+                  ),
+                ],
                 SizedBox(height: 4),
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
@@ -125,15 +190,15 @@ class _GestionClassesState extends State<GestionClasses> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     examClass
-                        ? 'Enseignants de la classe d’examen'
-                        : 'Enseignant titulaire',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                        ? context.tr('examTeachers')
+                        : context.tr('examTeacher'),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
                 if (_teachers.isEmpty)
-                  const Align(
+                  Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Ajoutez d’abord des enseignants.'),
+                    child: Text(context.tr('addTeachersFirst')),
                   )
                 else
                   ..._teachers.map(
@@ -174,20 +239,25 @@ class _GestionClassesState extends State<GestionClasses> {
               ),
               onPressed: () async {
                 if (nameCtrl.text.isEmpty) return;
-                if (isPrimarySchool && selectedTeacherIds.isEmpty) {
+                final promotionThreshold = double.tryParse(
+                  promotionThresholdCtrl.text.replaceAll(',', '.'),
+                );
+                if (_canConfigurePromotion &&
+                    (promotionThreshold == null ||
+                        !promotionThreshold.isFinite ||
+                        promotionThreshold < 0 ||
+                        promotionThreshold > 20)) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Sélectionnez un enseignant titulaire pour cette classe.',
-                      ),
+                    SnackBar(
+                      content: Text(context.tr('invalidPromotionThreshold')),
                     ),
                   );
                   return;
                 }
                 try {
-                  await ApiService.saveClassroom(
+                  final savedClass = await ApiService.saveClassroom(
                     SchoolClass(
-                      id: '',
+                      id: classroom?.id ?? '',
                       name: nameCtrl.text.trim(),
                       level: levelCtrl.text.trim().isEmpty
                           ? nameCtrl.text.trim()
@@ -201,8 +271,17 @@ class _GestionClassesState extends State<GestionClasses> {
                       description: descCtrl.text.trim(),
                       examClass: examClass,
                       teacherIds: selectedTeacherIds,
+                      promotionThreshold: promotionThreshold ?? 10,
+                      promotionTargetClassId: promotionTargetClassId,
                     ),
                   );
+                  if (_canConfigurePromotion) {
+                    await ApiService.saveClassPromotionSettings(
+                      classId: savedClass.id,
+                      threshold: promotionThreshold!,
+                      targetClassId: promotionTargetClassId,
+                    );
+                  }
                   if (context.mounted) Navigator.pop(context);
                   await _fetchClasses();
                 } catch (_) {
@@ -214,7 +293,7 @@ class _GestionClassesState extends State<GestionClasses> {
                 }
               },
               child: Text(
-                context.tr('create'),
+                classroom == null ? context.tr('create') : context.tr('save'),
                 style: TextStyle(color: Colors.white),
               ),
             ),
@@ -223,6 +302,8 @@ class _GestionClassesState extends State<GestionClasses> {
       ),
     );
   }
+
+  void _showCreateDialog() => _showClassDialog();
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +319,7 @@ class _GestionClassesState extends State<GestionClasses> {
           runSpacing: 12,
           children: [
             Text(
-              "Gestion des Classes",
+              context.tr('classManagement'),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -311,7 +392,7 @@ class _GestionClassesState extends State<GestionClasses> {
                         ),
                         SizedBox(height: 4),
                         Text(
-                          "Pension : ${c.tuitionFee.toInt()} FCFA",
+                          "${context.tr('tuitionFees')} : ${c.tuitionFee.toInt()} FCFA",
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.primary,
@@ -351,7 +432,7 @@ class _GestionClassesState extends State<GestionClasses> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
-                              "Prof: ${c.teacherNames.isNotEmpty ? c.teacherNames.join(', ') : c.teacherName}",
+                              "${context.tr('teacherShort')}: ${c.teacherNames.isNotEmpty ? c.teacherNames.join(', ') : c.teacherName}",
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppColors.primary,
@@ -363,18 +444,28 @@ class _GestionClassesState extends State<GestionClasses> {
                         ],
                         SizedBox(height: 6),
                         if (!widget.readOnly)
-                          IconButton(
-                            icon: Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                              size: 20,
-                            ),
-                            onPressed: () async {
-                              try {
-                                await ApiService.deleteClassroom(c.id);
-                                await _fetchClasses();
-                              } catch (_) {}
-                            },
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 20),
+                                tooltip: context.tr('editClass'),
+                                onPressed: () => _showClassDialog(classroom: c),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                onPressed: () async {
+                                  try {
+                                    await ApiService.deleteClassroom(c.id);
+                                    await _fetchClasses();
+                                  } catch (_) {}
+                                },
+                              ),
+                            ],
                           ),
                       ],
                     ),

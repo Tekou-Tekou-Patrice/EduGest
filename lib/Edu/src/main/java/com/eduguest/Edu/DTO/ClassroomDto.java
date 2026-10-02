@@ -14,6 +14,8 @@ public class ClassroomDto {
     private String description;
     private Double tuitionFee;
     private Boolean examClass;
+    private Double promotionThreshold;
+    private Long promotionTargetClassId;
     private Long teacherId;
     private String teacherName;
     private List<Long> teacherIds = new ArrayList<>();

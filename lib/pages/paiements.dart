@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
+import '../components/export_language_dialog.dart';
 import '../components/my_button.dart';
 import '../components/my_textfield.dart';
 import '../models/payment.dart';
@@ -58,6 +59,22 @@ class _PaiementsState extends State<Paiements> {
     }
   }
 
+  Future<void> _exportReceipt(Payment payment, {required bool thermal}) async {
+    final languageCode = await ExportLanguageDialog.show(context);
+    if (languageCode == null || !mounted) return;
+    if (thermal) {
+      await ExportService.generateThermalReceipt(
+        payment: payment,
+        languageCode: languageCode,
+      );
+    } else {
+      await ExportService.generatePaymentReceipt(
+        payment,
+        languageCode: languageCode,
+      );
+    }
+  }
+
   void _showAddDialog({required bool schoolFees}) {
     final nameCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
@@ -75,7 +92,7 @@ class _PaiementsState extends State<Paiements> {
           title: Text(
             schoolFees
                 ? context.tr('recordSchoolFees')
-                : "Enregistrer un paiement simple",
+                : context.tr('simplePaymentRecording'),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -210,7 +227,7 @@ class _PaiementsState extends State<Paiements> {
                       content: Text(
                         schoolFees
                             ? context.tr('selectStudentAmount')
-                            : "Indiquez le payeur et un montant.",
+                            : context.tr('payerAndAmountRequired'),
                       ),
                     ),
                   );
@@ -239,9 +256,8 @@ class _PaiementsState extends State<Paiements> {
                         content: Text(context.tr('paymentSaved')),
                         action: SnackBarAction(
                           label: context.tr('ticket80'),
-                          onPressed: () => ExportService.generateThermalReceipt(
-                            payment: savedPayment,
-                          ),
+                          onPressed: () =>
+                              _exportReceipt(savedPayment, thermal: true),
                         ),
                       ),
                     );
@@ -285,7 +301,7 @@ class _PaiementsState extends State<Paiements> {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  "Montant : ${p.amount.toInt()} FCFA • ${p.description}",
+                  "${context.tr('amountPrefix')} : ${p.amount.toInt()} FCFA • ${p.description}",
                   style: TextStyle(fontSize: 13, color: AppColors.textMuted),
                 ),
                 SizedBox(height: 20),
@@ -299,16 +315,14 @@ class _PaiementsState extends State<Paiements> {
                     child: Icon(Icons.receipt_long, color: AppColors.primary),
                   ),
                   title: Text(
-                    "Imprimer Ticket Thermique (80mm)",
+                    context.tr('printThermalTicket'),
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text(
-                    "Format rouleau thermique pour imprimante de caisse / POS",
-                  ),
+                  subtitle: Text(context.tr('thermalRollDescription')),
                   trailing: Icon(Icons.print),
                   onTap: () {
                     Navigator.pop(context);
-                    ExportService.generateThermalReceipt(payment: p);
+                    _exportReceipt(p, thermal: true);
                   },
                 ),
                 Divider(),
@@ -329,7 +343,7 @@ class _PaiementsState extends State<Paiements> {
                   trailing: Icon(Icons.download),
                   onTap: () {
                     Navigator.pop(context);
-                    ExportService.generatePaymentReceipt(p);
+                    _exportReceipt(p, thermal: false);
                   },
                 ),
               ],
@@ -381,7 +395,7 @@ class _PaiementsState extends State<Paiements> {
             tabs: [
               Tab(
                 icon: Icon(Icons.point_of_sale_outlined),
-                text: "Paiement simple",
+                text: context.tr('simplePayment'),
               ),
               Tab(
                 icon: Icon(Icons.school_outlined),
@@ -494,8 +508,7 @@ class _PaiementsState extends State<Paiements> {
                           color: AppColors.primary,
                           size: 22,
                         ),
-                        onPressed: () =>
-                            ExportService.generateThermalReceipt(payment: p),
+                        onPressed: () => _exportReceipt(p, thermal: true),
                         tooltip: context.tr('thermalTicket'),
                       ),
                       IconButton(
@@ -504,8 +517,7 @@ class _PaiementsState extends State<Paiements> {
                           color: Colors.red,
                           size: 20,
                         ),
-                        onPressed: () =>
-                            ExportService.generatePaymentReceipt(p),
+                        onPressed: () => _exportReceipt(p, thermal: false),
                         tooltip: context.tr('standardPdfReceipt'),
                       ),
                     ],

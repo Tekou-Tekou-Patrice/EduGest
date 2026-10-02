@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:excel/excel.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -13,10 +15,256 @@ import '../service/school_notifier.dart';
 import 'package:intl/intl.dart';
 
 class ExportService {
+  static String _text(String languageCode, String french, String english) =>
+      languageCode == 'en' ? english : french;
+
+  static String _periodText(String languageCode, String period) {
+    final translations = {
+      '1er Trimestre': 'Term 1',
+      '2ème Trimestre': 'Term 2',
+      '3ème Trimestre': 'Term 3',
+      'Bilan Annuel': 'Annual review',
+    };
+    if (languageCode != 'en') return period;
+    if (translations.containsKey(period)) return translations[period]!;
+    if (period.startsWith('Séquence ')) {
+      return 'Sequence ${period.split(' ').last}';
+    }
+    return period;
+  }
+
+  static String _formattedDate(DateTime? date, String languageCode) {
+    if (date == null) return '-';
+    final format = languageCode == 'en' ? 'MM/dd/yyyy' : 'dd/MM/yyyy';
+    return DateFormat(format, languageCode).format(date);
+  }
+
+  static String _formattedAmount(double amount, String languageCode) =>
+      '${NumberFormat('#,###', languageCode).format(amount.round())} FCFA';
+
+  static Future<Uint8List> generateYearReceiptsArchivePdf({
+    required List<Payment> payments,
+    required AcademicYearRecap yearRecap,
+    SchoolInfo? schoolInfo,
+    String languageCode = 'fr',
+  }) async {
+    final pdf = pw.Document();
+    final sortedPayments = [...payments]
+      ..sort((a, b) => a.date.compareTo(b.date));
+    pdf.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _buildHeader(
+              _text(languageCode, 'ARCHIVE DES REÇUS', 'RECEIPT ARCHIVE'),
+              schoolName: schoolInfo?.name ?? yearRecap.schoolName,
+              academicYear: yearRecap.label,
+              languageCode: languageCode,
+            ),
+            pw.SizedBox(height: 24),
+            pw.Text(
+              '${sortedPayments.length} ${_text(languageCode, 'reçu(s) de paiement', 'payment receipt(s)')}',
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Text(
+              '${_text(languageCode, 'Total encaissé', 'Total collected')}: ${_formattedAmount(sortedPayments.fold(0.0, (sum, item) => sum + item.amount), languageCode)}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            if (sortedPayments.isEmpty) ...[
+              pw.SizedBox(height: 16),
+              pw.Text(
+                _text(
+                  languageCode,
+                  'Aucun paiement enregistré pour cette année.',
+                  'No payments were recorded for this year.',
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    for (final payment in sortedPayments) {
+      final dateStr = DateFormat(
+        languageCode == 'en' ? 'MM/dd/yyyy h:mm a' : 'dd/MM/yyyy HH:mm',
+        languageCode,
+      ).format(payment.date);
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a5,
+          build: (_) => pw.Container(
+            padding: const pw.EdgeInsets.all(20),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.black, width: 2),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                _buildHeader(
+                  _text(languageCode, 'REÇU DE PAIEMENT', 'PAYMENT RECEIPT'),
+                  schoolName: schoolInfo?.name ?? yearRecap.schoolName,
+                  academicYear: yearRecap.label,
+                  languageCode: languageCode,
+                ),
+                pw.SizedBox(height: 20),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      "${_text(languageCode, 'Reçu N°', 'Receipt No.')} : ${payment.id}",
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                    ),
+                    pw.Text("${_text(languageCode, 'Date', 'Date')}: $dateStr"),
+                  ],
+                ),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  "${_text(languageCode, 'Reçu de', 'Received from')} : ${payment.studentName}",
+                  style: const pw.TextStyle(fontSize: 14),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  "${_text(languageCode, 'La somme de', 'Amount')} : ${_formattedAmount(payment.amount, languageCode)}",
+                  style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  "${_text(languageCode, 'Motif', 'Reason')} : ${payment.description}",
+                  style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
+                ),
+                pw.SizedBox(height: 30),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      _text(languageCode, 'Le Client', 'Customer'),
+                      style: pw.TextStyle(
+                        decoration: pw.TextDecoration.underline,
+                      ),
+                    ),
+                    pw.Text(
+                      _text(languageCode, 'La Caisse', 'Cashier'),
+                      style: pw.TextStyle(
+                        decoration: pw.TextDecoration.underline,
+                      ),
+                    ),
+                  ],
+                ),
+                if (payment.recordedByName != null) ...[
+                  pw.SizedBox(height: 8),
+                  pw.Text(
+                    payment.recordedByName!,
+                    style: const pw.TextStyle(fontSize: 8),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+    return pdf.save();
+  }
+
+  static Future<Uint8List> generateYearBulletinsArchivePdf({
+    required List<Student> students,
+    required Map<String, List<Grade>> gradesByStudent,
+    required List<Exam> exams,
+    required Map<String, List<Absence>> absencesByStudent,
+    required String yearLabel,
+    List<Subject>? subjects,
+    SchoolInfo? schoolInfo,
+    String languageCode = 'fr',
+  }) async {
+    final pdf = pw.Document();
+    final effectiveCoefficients = {
+      for (final subject in subjects ?? <Subject>[])
+        subject.name.trim().toLowerCase(): subject.coefficient,
+    };
+    final groupedStudents = <String, List<Student>>{};
+    for (final student in students) {
+      groupedStudents.putIfAbsent(student.className, () => []).add(student);
+    }
+
+    if (students.isEmpty) {
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (_) => pw.Center(
+            child: pw.Text(
+              _text(
+                languageCode,
+                'Aucun élève à archiver pour $yearLabel.',
+                'No students to archive for $yearLabel.',
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    for (final classStudents in groupedStudents.values) {
+      final averages = <String, double>{
+        for (final student in classStudents)
+          student.id: _calculateWeightedAverage(
+            gradesByStudent[student.id] ?? const [],
+            exams,
+            subjectCoeffs: effectiveCoefficients,
+          ),
+      };
+      final ranked = [...classStudents]
+        ..sort((a, b) => (averages[b.id] ?? 0).compareTo(averages[a.id] ?? 0));
+      final classValues = averages.values.toList();
+      final classAverage = classValues.isEmpty
+          ? 0.0
+          : classValues.reduce((a, b) => a + b) / classValues.length;
+      final classMin = classValues.isEmpty
+          ? 0.0
+          : classValues.reduce((a, b) => a < b ? a : b);
+      final classMax = classValues.isEmpty
+          ? 0.0
+          : classValues.reduce((a, b) => a > b ? a : b);
+
+      for (final student in ranked) {
+        pdf.addPage(
+          pw.Page(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(28),
+            build: (_) => _buildBulletinWidget(
+              student: student,
+              grades: gradesByStudent[student.id] ?? const [],
+              exams: exams,
+              absences: absencesByStudent[student.id] ?? const [],
+              subjects: subjects,
+              schoolInfo: schoolInfo,
+              academicYearLabel: yearLabel,
+              period: 'Bilan Annuel',
+              rank: ranked.indexOf(student) + 1,
+              totalStudents: ranked.length,
+              classMin: classMin,
+              classMax: classMax,
+              classAvg: classAverage,
+              languageCode: languageCode,
+            ),
+          ),
+        );
+      }
+    }
+    return pdf.save();
+  }
+
   static Future<void> generatePdf({
     required Exam exam,
     required List<Grade> grades,
     required List<Student> students,
+    String languageCode = 'fr',
   }) async {
     final pdf = pw.Document();
     final studentMap = {for (var s in students) s.id: s.fullName};
@@ -26,7 +274,10 @@ class ExportService {
         pageFormat: PdfPageFormat.a4,
         build: (pw.Context context) {
           return [
-            _buildHeader("BORDEREAU DE NOTES"),
+            _buildHeader(
+              _text(languageCode, "BORDEREAU DE NOTES", "GRADE REPORT"),
+              languageCode: languageCode,
+            ),
             pw.SizedBox(height: 10),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -34,16 +285,22 @@ class ExportService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text("Examen : ${exam.title}"),
-                    pw.Text("Matière : ${exam.subject}"),
+                    pw.Text(
+                      "${_text(languageCode, 'Examen', 'Exam')} : ${exam.title}",
+                    ),
+                    pw.Text(
+                      "${_text(languageCode, 'Matière', 'Subject')} : ${exam.subject}",
+                    ),
                   ],
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text("Classe : ${exam.className}"),
                     pw.Text(
-                      "Date : ${exam.date.day}/${exam.date.month}/${exam.date.year}",
+                      "${_text(languageCode, 'Classe', 'Class')} : ${exam.className}",
+                    ),
+                    pw.Text(
+                      "${_text(languageCode, 'Date', 'Date')} : ${_formattedDate(exam.date, languageCode)}",
                     ),
                   ],
                 ),
@@ -60,18 +317,23 @@ class ExportService {
                 color: PdfColors.blueGrey,
               ),
               headers: [
-                'Rang',
-                'Nom et Prénom de l\'élève',
-                'Note / 20',
-                'Appréciation',
+                _text(languageCode, 'Rang', 'Rank'),
+                _text(
+                  languageCode,
+                  'Nom et Prénom de l\'élève',
+                  'Student name',
+                ),
+                _text(languageCode, 'Note / 20', 'Grade / 20'),
+                _text(languageCode, 'Appréciation', 'Comment'),
               ],
               data: List<List<dynamic>>.generate(grades.length, (index) {
                 final g = grades[index];
                 return [
                   index + 1,
-                  studentMap[g.studentId] ?? "Inconnu (${g.studentId})",
+                  studentMap[g.studentId] ??
+                      "${_text(languageCode, 'Inconnu', 'Unknown')} (${g.studentId})",
                   g.score.toStringAsFixed(2),
-                  _getAppreciation(g.score),
+                  _getAppreciation(g.score, languageCode),
                 ];
               }),
             ),
@@ -83,12 +345,16 @@ class ExportService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      "Moyenne de classe : ${_calculateAverage(grades).toStringAsFixed(2)} / 20",
+                      "${_text(languageCode, 'Moyenne de classe', 'Class average')} : ${_calculateAverage(grades).toStringAsFixed(2)} / 20",
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
                     pw.SizedBox(height: 40),
                     pw.Text(
-                      "Signature et Cachet de la Direction",
+                      _text(
+                        languageCode,
+                        "Signature et Cachet de la Direction",
+                        "Management signature and stamp",
+                      ),
                       style: pw.TextStyle(
                         decoration: pw.TextDecoration.underline,
                         fontSize: 10,
@@ -105,7 +371,8 @@ class ExportService {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Bordereau_${exam.title.replaceAll(' ', '_')}.pdf',
+      name:
+          '${_text(languageCode, 'Bordereau', 'Grade_Report')}_${exam.title.replaceAll(' ', '_')}.pdf',
     );
   }
 
@@ -117,12 +384,17 @@ class ExportService {
     List<Subject>? subjects,
     Map<String, double>? subjectCoefficients,
     SchoolInfo? schoolInfo,
+    String? academicYearLabel,
     String period = "1er Trimestre",
     int? rank,
     int? totalStudents,
     double? classMin,
     double? classMax,
     double? classAvg,
+    double promotionThreshold = 10,
+    String? promotionTargetClassName,
+    String? reportClassName,
+    String languageCode = 'fr',
   }) async {
     final pdf = pw.Document();
 
@@ -145,6 +417,10 @@ class ExportService {
             classMin: classMin,
             classMax: classMax,
             classAvg: classAvg,
+            promotionThreshold: promotionThreshold,
+            promotionTargetClassName: promotionTargetClassName,
+            reportClassName: reportClassName,
+            languageCode: languageCode,
           );
         },
       ),
@@ -152,7 +428,8 @@ class ExportService {
 
     await Printing.layoutPdf(
       onLayout: (format) async => pdf.save(),
-      name: 'Bulletin_${student.lastName}_${student.firstName}.pdf',
+      name:
+          '${_text(languageCode, 'Bulletin', 'Report_Card')}_${student.lastName}_${student.firstName}.pdf',
     );
   }
 
@@ -166,6 +443,9 @@ class ExportService {
     Map<String, double>? subjectCoefficients,
     SchoolInfo? schoolInfo,
     String period = "1er Trimestre",
+    double promotionThreshold = 10,
+    String? promotionTargetClassName,
+    String languageCode = 'fr',
   }) async {
     final pdf = pw.Document();
 
@@ -228,6 +508,10 @@ class ExportService {
               classMin: classMin,
               classMax: classMax,
               classAvg: classAvg,
+              promotionThreshold: promotionThreshold,
+              promotionTargetClassName: promotionTargetClassName,
+              reportClassName: className,
+              languageCode: languageCode,
             );
           },
         ),
@@ -236,7 +520,8 @@ class ExportService {
 
     await Printing.layoutPdf(
       onLayout: (format) async => pdf.save(),
-      name: 'Bulletins_Classe_${className.replaceAll(' ', '_')}.pdf',
+      name:
+          '${_text(languageCode, 'Bulletins_Classe', 'Class_Report_Cards')}_${className.replaceAll(' ', '_')}.pdf',
     );
   }
 
@@ -248,22 +533,28 @@ class ExportService {
     List<Subject>? subjects,
     Map<String, double>? subjectCoefficients,
     SchoolInfo? schoolInfo,
+    String? academicYearLabel,
     String period = "1er Trimestre",
     int? rank,
     int? totalStudents,
     double? classMin,
     double? classMax,
     double? classAvg,
+    double promotionThreshold = 10,
+    String? promotionTargetClassName,
+    String? reportClassName,
+    String languageCode = 'fr',
   }) {
     final schoolName =
         schoolInfo?.name ?? currentSchoolNotifier.value?.name ?? "EDUGUEST";
     final schoolAddress =
         schoolInfo?.address ??
         currentSchoolNotifier.value?.address ??
-        "Établissement Scolaire";
+        _text(languageCode, "Établissement Scolaire", "School");
     final schoolPhone =
         schoolInfo?.phone ?? currentSchoolNotifier.value?.phone ?? "";
     final currentYear =
+        academicYearLabel ??
         schoolInfo?.currentYearId ??
         currentSchoolNotifier.value?.currentYearId ??
         "2024-2025";
@@ -364,7 +655,7 @@ class ExportService {
                 ),
                 if (schoolPhone.isNotEmpty)
                   pw.Text(
-                    "Tél: $schoolPhone",
+                    "${_text(languageCode, 'Tél', 'Phone')}: $schoolPhone",
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.grey700,
@@ -386,7 +677,7 @@ class ExportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   pw.Text(
-                    "BULLETIN DE NOTES",
+                    _text(languageCode, "BULLETIN DE NOTES", "REPORT CARD"),
                     style: pw.TextStyle(
                       fontSize: 10,
                       fontWeight: pw.FontWeight.bold,
@@ -394,7 +685,7 @@ class ExportService {
                     ),
                   ),
                   pw.Text(
-                    "Session $currentYear",
+                    "${_text(languageCode, 'Session', 'School year')} $currentYear",
                     style: pw.TextStyle(
                       fontSize: 9,
                       fontWeight: pw.FontWeight.bold,
@@ -402,7 +693,7 @@ class ExportService {
                     ),
                   ),
                   pw.Text(
-                    period.toUpperCase(),
+                    _periodText(languageCode, period).toUpperCase(),
                     style: const pw.TextStyle(
                       fontSize: 8,
                       color: PdfColors.grey800,
@@ -435,7 +726,8 @@ class ExportService {
                     text: pw.TextSpan(
                       children: [
                         pw.TextSpan(
-                          text: "Nom & Prénom : ",
+                          text:
+                              "${_text(languageCode, 'Nom & Prénom', 'Name')} : ",
                           style: pw.TextStyle(
                             fontSize: 9,
                             fontWeight: pw.FontWeight.bold,
@@ -454,7 +746,7 @@ class ExportService {
                   ),
                   pw.SizedBox(height: 3),
                   pw.Text(
-                    "Matricule : ${student.id.isNotEmpty ? student.id : 'N/A'} • Classe : ${student.className}",
+                    "${_text(languageCode, 'Matricule', 'Student ID')} : ${student.id.isNotEmpty ? student.id : 'N/A'} • ${_text(languageCode, 'Classe', 'Class')} : ${reportClassName ?? student.className}",
                     style: const pw.TextStyle(fontSize: 8.5),
                   ),
                 ],
@@ -464,18 +756,18 @@ class ExportService {
                 children: [
                   if (student.birthDate != null)
                     pw.Text(
-                      "Né(e) le : ${DateFormat('dd/MM/yyyy').format(student.birthDate!)}",
+                      "${_text(languageCode, 'Né(e) le', 'Date of birth')} : ${DateFormat(languageCode == 'en' ? 'MM/dd/yyyy' : 'dd/MM/yyyy', languageCode).format(student.birthDate!)}",
                       style: const pw.TextStyle(fontSize: 8.5),
                     ),
                   if (student.parentName != null &&
                       student.parentName!.isNotEmpty)
                     pw.Text(
-                      "Parent / Tuteur : ${student.parentName} ${student.parentPhone != null ? '(${student.parentPhone})' : ''}",
+                      "${_text(languageCode, 'Parent / Tuteur', 'Parent / Guardian')} : ${student.parentName} ${student.parentPhone != null ? '(${student.parentPhone})' : ''}",
                       style: const pw.TextStyle(fontSize: 8.5),
                     ),
                   if (totalStudents != null)
                     pw.Text(
-                      "Effectif de la classe : $totalStudents élèves",
+                      "${_text(languageCode, 'Effectif de la classe', 'Class size')} : $totalStudents ${_text(languageCode, 'élèves', 'students')}",
                       style: const pw.TextStyle(
                         fontSize: 8.5,
                         color: PdfColors.grey700,
@@ -498,7 +790,7 @@ class ExportService {
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
                   child: pw.Text(
-                    "Matière",
+                    _text(languageCode, "Matière", "Subject"),
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColors.white,
@@ -509,7 +801,7 @@ class ExportService {
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
                   child: pw.Text(
-                    "Coeff",
+                    _text(languageCode, "Coeff", "Coeff."),
                     textAlign: pw.TextAlign.center,
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
@@ -521,7 +813,7 @@ class ExportService {
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
                   child: pw.Text(
-                    "Note / 20",
+                    _text(languageCode, "Note / 20", "Grade / 20"),
                     textAlign: pw.TextAlign.center,
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
@@ -533,7 +825,7 @@ class ExportService {
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
                   child: pw.Text(
-                    "Total Pts",
+                    _text(languageCode, "Total Pts", "Total points"),
                     textAlign: pw.TextAlign.center,
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
@@ -545,7 +837,11 @@ class ExportService {
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
                   child: pw.Text(
-                    "Appréciation & Avis du Professeur",
+                    _text(
+                      languageCode,
+                      "Appréciation & Avis du Professeur",
+                      "Teacher's comment",
+                    ),
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       color: PdfColors.white,
@@ -590,7 +886,9 @@ class ExportService {
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(4.5),
                           child: pw.Text(
-                            hasGrade ? g.score.toStringAsFixed(2) : "Non noté",
+                            hasGrade
+                                ? g.score.toStringAsFixed(2)
+                                : _text(languageCode, "Non noté", "Not graded"),
                             textAlign: pw.TextAlign.center,
                             style: pw.TextStyle(
                               fontSize: 8.5,
@@ -615,7 +913,9 @@ class ExportService {
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(4.5),
                           child: pw.Text(
-                            hasGrade ? _getAppreciation(g.score) : "En attente",
+                            hasGrade
+                                ? _getAppreciation(g.score, languageCode)
+                                : _text(languageCode, "En attente", "Pending"),
                             style: const pw.TextStyle(
                               fontSize: 8,
                               color: PdfColors.grey800,
@@ -682,7 +982,7 @@ class ExportService {
                         pw.Padding(
                           padding: const pw.EdgeInsets.all(4.5),
                           child: pw.Text(
-                            _getAppreciation(g.score),
+                            _getAppreciation(g.score, languageCode),
                             style: const pw.TextStyle(
                               fontSize: 8,
                               color: PdfColors.grey800,
@@ -699,7 +999,7 @@ class ExportService {
                 pw.Padding(
                   padding: const pw.EdgeInsets.all(5),
                   child: pw.Text(
-                    "TOTAL DES POINTS",
+                    _text(languageCode, "TOTAL DES POINTS", "TOTAL POINTS"),
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       fontSize: 8.5,
@@ -760,7 +1060,11 @@ class ExportService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      "BILAN ACADÉMIQUE",
+                      _text(
+                        languageCode,
+                        "BILAN ACADÉMIQUE",
+                        "ACADEMIC SUMMARY",
+                      ),
                       style: pw.TextStyle(
                         fontWeight: pw.FontWeight.bold,
                         fontSize: 9,
@@ -772,7 +1076,11 @@ class ExportService {
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          "MOYENNE GÉNÉRALE :",
+                          _text(
+                            languageCode,
+                            "MOYENNE GÉNÉRALE :",
+                            "OVERALL AVERAGE:",
+                          ),
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
                             fontSize: 10,
@@ -783,7 +1091,11 @@ class ExportService {
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
                             fontSize: 12,
-                            color: generalAvg >= 10
+                            color:
+                                generalAvg >=
+                                    (period == 'Bilan Annuel'
+                                        ? promotionThreshold
+                                        : 10)
                                 ? PdfColors.green800
                                 : PdfColors.red800,
                           ),
@@ -796,11 +1108,17 @@ class ExportService {
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
                           pw.Text(
-                            "Rang de l'élève :",
+                            _text(
+                              languageCode,
+                              "Rang de l'élève :",
+                              "Student rank:",
+                            ),
                             style: const pw.TextStyle(fontSize: 8.5),
                           ),
                           pw.Text(
-                            "$rank${rank == 1 ? 'er' : 'ème'} / ${totalStudents ?? '-'}",
+                            languageCode == 'en'
+                                ? "$rank${_englishOrdinalSuffix(rank)} / ${totalStudents ?? '-'}"
+                                : "$rank${rank == 1 ? 'er' : 'ème'} / ${totalStudents ?? '-'}",
                             style: pw.TextStyle(
                               fontWeight: pw.FontWeight.bold,
                               fontSize: 9,
@@ -810,10 +1128,35 @@ class ExportService {
                         ],
                       ),
                     ],
+                    if (period == 'Bilan Annuel' &&
+                        promotionTargetClassName != null &&
+                        promotionTargetClassName.trim().isNotEmpty) ...[
+                      pw.SizedBox(height: 4),
+                      pw.Text(
+                        generalAvg >= promotionThreshold
+                            ? _text(
+                                languageCode,
+                                'Admis en $promotionTargetClassName (seuil : ${promotionThreshold.toStringAsFixed(2)}/20).',
+                                'Promoted to $promotionTargetClassName (threshold: ${promotionThreshold.toStringAsFixed(2)}/20).',
+                              )
+                            : _text(
+                                languageCode,
+                                'Redouble (seuil requis : ${promotionThreshold.toStringAsFixed(2)}/20).',
+                                'Repeats the class (required: ${promotionThreshold.toStringAsFixed(2)}/20).',
+                              ),
+                        style: pw.TextStyle(
+                          fontWeight: pw.FontWeight.bold,
+                          fontSize: 8.5,
+                          color: generalAvg >= promotionThreshold
+                              ? PdfColors.green800
+                              : PdfColors.red800,
+                        ),
+                      ),
+                    ],
                     if (classAvg != null) ...[
                       pw.SizedBox(height: 2),
                       pw.Text(
-                        "Moy. Classe : ${classAvg.toStringAsFixed(2)} | Min : ${classMin?.toStringAsFixed(2) ?? '-'} | Max : ${classMax?.toStringAsFixed(2) ?? '-'}",
+                        "${_text(languageCode, 'Moy. Classe', 'Class avg.')} : ${classAvg.toStringAsFixed(2)} | Min : ${classMin?.toStringAsFixed(2) ?? '-'} | Max : ${classMax?.toStringAsFixed(2) ?? '-'}",
                         style: const pw.TextStyle(
                           fontSize: 7.5,
                           color: PdfColors.grey700,
@@ -847,7 +1190,11 @@ class ExportService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      "VIE SCOLAIRE & ASSIDUITÉ",
+                      _text(
+                        languageCode,
+                        "VIE SCOLAIRE & ASSIDUITÉ",
+                        "ATTENDANCE",
+                      ),
                       style: pw.TextStyle(
                         fontWeight: pw.FontWeight.bold,
                         fontSize: 9,
@@ -859,14 +1206,18 @@ class ExportService {
                       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                       children: [
                         pw.Text(
-                          "Total Absences :",
+                          _text(
+                            languageCode,
+                            "Total Absences :",
+                            "Total absences:",
+                          ),
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
                             fontSize: 9.5,
                           ),
                         ),
                         pw.Text(
-                          "$totalAbsenceHours Heure(s)",
+                          "$totalAbsenceHours ${_text(languageCode, 'Heure(s)', 'hour(s)')}",
                           style: pw.TextStyle(
                             fontWeight: pw.FontWeight.bold,
                             fontSize: 10,
@@ -879,7 +1230,7 @@ class ExportService {
                     ),
                     pw.SizedBox(height: 2),
                     pw.Text(
-                      "• Justifiées : $justifiedAbsenceHours h  |  • Non justifiées : $unjustifiedAbsenceHours h",
+                      "• ${_text(languageCode, 'Justifiées', 'Excused')}: $justifiedAbsenceHours h  |  • ${_text(languageCode, 'Non justifiées', 'Unexcused')}: $unjustifiedAbsenceHours h",
                       style: const pw.TextStyle(
                         fontSize: 8,
                         color: PdfColors.grey800,
@@ -888,10 +1239,22 @@ class ExportService {
                     pw.SizedBox(height: 2),
                     pw.Text(
                       totalAbsenceHours == 0
-                          ? "Assiduité exemplaire"
+                          ? _text(
+                              languageCode,
+                              "Assiduité exemplaire",
+                              "Excellent attendance",
+                            )
                           : (totalAbsenceHours < 6
-                                ? "Assiduité normale"
-                                : "Attention aux absences répétées"),
+                                ? _text(
+                                    languageCode,
+                                    "Assiduité normale",
+                                    "Good attendance",
+                                  )
+                                : _text(
+                                    languageCode,
+                                    "Attention aux absences répétées",
+                                    "Frequent absences",
+                                  )),
                       style: pw.TextStyle(
                         fontSize: 7.5,
                         fontStyle: pw.FontStyle.italic,
@@ -920,7 +1283,11 @@ class ExportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
                   pw.Text(
-                    "MENTIONS DU CONSEIL :",
+                    _text(
+                      languageCode,
+                      "MENTIONS DU CONSEIL :",
+                      "CLASS COUNCIL DECISION:",
+                    ),
                     style: pw.TextStyle(
                       fontSize: 8.5,
                       fontWeight: pw.FontWeight.bold,
@@ -929,12 +1296,28 @@ class ExportService {
                   pw.SizedBox(height: 3),
                   pw.Text(
                     generalAvg >= 16
-                        ? "[X] Félicitations du Conseil  [ ] Tableau d'Honneur  [ ] Encouragements"
+                        ? _text(
+                            languageCode,
+                            "[X] Félicitations du Conseil  [ ] Tableau d'Honneur  [ ] Encouragements",
+                            "[X] Congratulations  [ ] Honor Roll  [ ] Encouragement",
+                          )
                         : (generalAvg >= 14
-                              ? "[ ] Félicitations  [X] Tableau d'Honneur  [ ] Encouragements"
+                              ? _text(
+                                  languageCode,
+                                  "[ ] Félicitations  [X] Tableau d'Honneur  [ ] Encouragements",
+                                  "[ ] Congratulations  [X] Honor Roll  [ ] Encouragement",
+                                )
                               : (generalAvg >= 12
-                                    ? "[ ] Félicitations  [ ] Tableau d'Honneur  [X] Encouragements"
-                                    : "[ ] Tableau d'Honneur  [ ] Avertissement")),
+                                    ? _text(
+                                        languageCode,
+                                        "[ ] Félicitations  [ ] Tableau d'Honneur  [X] Encouragements",
+                                        "[ ] Congratulations  [ ] Honor Roll  [X] Encouragement",
+                                      )
+                                    : _text(
+                                        languageCode,
+                                        "[ ] Tableau d'Honneur  [ ] Avertissement",
+                                        "[ ] Honor Roll  [ ] Warning",
+                                      ))),
                     style: const pw.TextStyle(fontSize: 7.5),
                   ),
                 ],
@@ -943,14 +1326,18 @@ class ExportService {
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
                   pw.Text(
-                    "Appréciation générale :",
+                    _text(
+                      languageCode,
+                      "Appréciation générale :",
+                      "Overall comment:",
+                    ),
                     style: pw.TextStyle(
                       fontSize: 8.5,
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
                   pw.Text(
-                    _getAppreciation(generalAvg),
+                    _getAppreciation(generalAvg, languageCode),
                     style: pw.TextStyle(
                       fontSize: 9,
                       fontWeight: pw.FontWeight.bold,
@@ -972,7 +1359,7 @@ class ExportService {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  "Visa des Parents",
+                  _text(languageCode, "Visa des Parents", "Parent's signature"),
                   style: pw.TextStyle(
                     fontSize: 8.5,
                     fontWeight: pw.FontWeight.bold,
@@ -980,7 +1367,7 @@ class ExportService {
                 ),
                 pw.SizedBox(height: 25),
                 pw.Text(
-                  "Signature",
+                  _text(languageCode, "Signature", "Signature"),
                   style: const pw.TextStyle(
                     fontSize: 7,
                     color: PdfColors.grey600,
@@ -992,7 +1379,11 @@ class ExportService {
               crossAxisAlignment: pw.CrossAxisAlignment.center,
               children: [
                 pw.Text(
-                  "Le Professeur Principal",
+                  _text(
+                    languageCode,
+                    "Le Professeur Principal",
+                    "Head Teacher",
+                  ),
                   style: pw.TextStyle(
                     fontSize: 8.5,
                     fontWeight: pw.FontWeight.bold,
@@ -1000,7 +1391,7 @@ class ExportService {
                 ),
                 pw.SizedBox(height: 25),
                 pw.Text(
-                  "Visa",
+                  _text(languageCode, "Visa", "Approval"),
                   style: const pw.TextStyle(
                     fontSize: 7,
                     color: PdfColors.grey600,
@@ -1012,7 +1403,11 @@ class ExportService {
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
                 pw.Text(
-                  "Le Chef d'Établissement",
+                  _text(
+                    languageCode,
+                    "Le Chef d'Établissement",
+                    "Head of School",
+                  ),
                   style: pw.TextStyle(
                     fontSize: 8.5,
                     fontWeight: pw.FontWeight.bold,
@@ -1020,7 +1415,11 @@ class ExportService {
                 ),
                 pw.SizedBox(height: 25),
                 pw.Text(
-                  "Signature et Cachet",
+                  _text(
+                    languageCode,
+                    "Signature et Cachet",
+                    "Signature and stamp",
+                  ),
                   style: const pw.TextStyle(
                     fontSize: 7,
                     color: PdfColors.grey600,
@@ -1039,15 +1438,19 @@ class ExportService {
   static Future<void> generateThermalReceipt({
     required Payment payment,
     SchoolInfo? schoolInfo,
+    String languageCode = 'fr',
   }) async {
     final pdf = pw.Document();
-    final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(payment.date);
+    final dateStr = DateFormat(
+      languageCode == 'en' ? 'MM/dd/yyyy h:mm a' : 'dd/MM/yyyy HH:mm',
+      languageCode,
+    ).format(payment.date);
     final schoolName =
         schoolInfo?.name ?? currentSchoolNotifier.value?.name ?? "EDUGUEST";
     final schoolAddress =
         schoolInfo?.address ??
         currentSchoolNotifier.value?.address ??
-        "Établissement Scolaire";
+        _text(languageCode, "Établissement Scolaire", "School");
     final schoolPhone =
         schoolInfo?.phone ?? currentSchoolNotifier.value?.phone ?? "";
     final currentYear =
@@ -1089,7 +1492,7 @@ class ExportService {
                   ),
                 if (schoolPhone.isNotEmpty)
                   pw.Text(
-                    "Tél: $schoolPhone",
+                    "${_text(languageCode, 'Tél', 'Phone')}: $schoolPhone",
                     textAlign: pw.TextAlign.center,
                     style: const pw.TextStyle(
                       fontSize: 8,
@@ -1098,7 +1501,7 @@ class ExportService {
                   ),
                 if (currentYear.isNotEmpty)
                   pw.Text(
-                    "Année Scolaire $currentYear",
+                    "${_text(languageCode, 'Année Scolaire', 'School year')} $currentYear",
                     textAlign: pw.TextAlign.center,
                     style: pw.TextStyle(
                       fontSize: 8,
@@ -1114,7 +1517,7 @@ class ExportService {
                 pw.SizedBox(height: 2),
 
                 pw.Text(
-                  "REÇU DE PAIEMENT",
+                  _text(languageCode, "REÇU DE PAIEMENT", "PAYMENT RECEIPT"),
                   style: pw.TextStyle(
                     fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
@@ -1129,12 +1532,12 @@ class ExportService {
                   ),
                 ),
                 pw.Text(
-                  "Date : $dateStr",
+                  "${_text(languageCode, 'Date', 'Date')} : $dateStr",
                   style: const pw.TextStyle(fontSize: 8),
                 ),
                 if (payment.recordedByName != null)
                   pw.Text(
-                    "Caissier(ère) : ${payment.recordedByName}",
+                    "${_text(languageCode, 'Caissier(ère)', 'Cashier')} : ${payment.recordedByName}",
                     style: const pw.TextStyle(fontSize: 8),
                   ),
 
@@ -1151,7 +1554,7 @@ class ExportService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        "ÉLÈVE : ${payment.studentName}",
+                        "${_text(languageCode, 'ÉLÈVE', 'STUDENT')} : ${payment.studentName}",
                         style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold,
@@ -1159,7 +1562,7 @@ class ExportService {
                       ),
                       pw.SizedBox(height: 2),
                       pw.Text(
-                        "MOTIF : ${payment.description}",
+                        "${_text(languageCode, 'MOTIF', 'REASON')} : ${payment.description}",
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ],
@@ -1185,7 +1588,7 @@ class ExportService {
                   child: pw.Column(
                     children: [
                       pw.Text(
-                        "MONTANT ENCAISSÉ",
+                        _text(languageCode, "MONTANT ENCAISSÉ", "AMOUNT PAID"),
                         style: pw.TextStyle(
                           fontSize: 8,
                           fontWeight: pw.FontWeight.bold,
@@ -1203,8 +1606,12 @@ class ExportService {
                         pw.SizedBox(height: 4),
                         pw.Text(
                           payment.tuitionCompleted
-                              ? "SCOLARITÉ TERMINÉE"
-                              : "RESTE À PAYER : ${payment.remaining!.toInt()} FCFA",
+                              ? _text(
+                                  languageCode,
+                                  "SCOLARITÉ TERMINÉE",
+                                  "TUITION PAID",
+                                )
+                              : "${_text(languageCode, 'RESTE À PAYER', 'BALANCE DUE')} : ${payment.remaining!.toInt()} FCFA",
                           style: pw.TextStyle(
                             fontSize: 9,
                             fontWeight: pw.FontWeight.bold,
@@ -1226,7 +1633,11 @@ class ExportService {
                 pw.SizedBox(height: 6),
 
                 pw.Text(
-                  "*** MERCI DE VOTRE PAIEMENT ***",
+                  _text(
+                    languageCode,
+                    "*** MERCI DE VOTRE PAIEMENT ***",
+                    "*** THANK YOU FOR YOUR PAYMENT ***",
+                  ),
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(
                     fontSize: 8,
@@ -1235,7 +1646,11 @@ class ExportService {
                 ),
                 pw.SizedBox(height: 2),
                 pw.Text(
-                  "Conservez ce ticket comme justificatif officiel",
+                  _text(
+                    languageCode,
+                    "Conservez ce ticket comme justificatif officiel",
+                    "Keep this receipt as official proof of payment",
+                  ),
                   textAlign: pw.TextAlign.center,
                   style: const pw.TextStyle(
                     fontSize: 7,
@@ -1244,7 +1659,11 @@ class ExportService {
                 ),
                 pw.SizedBox(height: 4),
                 pw.Text(
-                  "EduGest POS System",
+                  _text(
+                    languageCode,
+                    "Système de caisse EduGest",
+                    "EduGest POS system",
+                  ),
                   style: const pw.TextStyle(
                     fontSize: 6,
                     color: PdfColors.grey600,
@@ -1260,14 +1679,21 @@ class ExportService {
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Ticket_${payment.studentName.replaceAll(' ', '_')}.pdf',
+      name:
+          '${_text(languageCode, 'Ticket', 'Receipt')}_${payment.studentName.replaceAll(' ', '_')}.pdf',
       format: PdfPageFormat.roll80,
     );
   }
 
-  static Future<void> generatePaymentReceipt(Payment payment) async {
+  static Future<void> generatePaymentReceipt(
+    Payment payment, {
+    String languageCode = 'fr',
+  }) async {
     final pdf = pw.Document();
-    final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(payment.date);
+    final dateStr = DateFormat(
+      languageCode == 'en' ? 'MM/dd/yyyy h:mm a' : 'dd/MM/yyyy HH:mm',
+      languageCode,
+    ).format(payment.date);
 
     pdf.addPage(
       pw.Page(
@@ -1281,26 +1707,29 @@ class ExportService {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                _buildHeader("REÇU DE PAIEMENT"),
+                _buildHeader(
+                  _text(languageCode, "REÇU DE PAIEMENT", "PAYMENT RECEIPT"),
+                  languageCode: languageCode,
+                ),
                 pw.SizedBox(height: 20),
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     pw.Text(
-                      "Reçu N°: ${payment.id.isEmpty ? 'TEMP' : payment.id}",
+                      "${_text(languageCode, 'Reçu N°', 'Receipt No.')} : ${payment.id.isEmpty ? 'TEMP' : payment.id}",
                       style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                     ),
-                    pw.Text("Date: $dateStr"),
+                    pw.Text("${_text(languageCode, 'Date', 'Date')}: $dateStr"),
                   ],
                 ),
                 pw.SizedBox(height: 20),
                 pw.Text(
-                  "Reçu de : ${payment.studentName}",
+                  "${_text(languageCode, 'Reçu de', 'Received from')} : ${payment.studentName}",
                   style: pw.TextStyle(fontSize: 14),
                 ),
                 pw.SizedBox(height: 10),
                 pw.Text(
-                  "La somme de : ${payment.amount.toInt()} FCFA",
+                  "${_text(languageCode, 'La somme de', 'Amount')} : ${payment.amount.toInt()} FCFA",
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
@@ -1308,15 +1737,19 @@ class ExportService {
                 ),
                 pw.SizedBox(height: 10),
                 pw.Text(
-                  "Motif : ${payment.description}",
+                  "${_text(languageCode, 'Motif', 'Reason')} : ${payment.description}",
                   style: pw.TextStyle(fontStyle: pw.FontStyle.italic),
                 ),
                 if (payment.remaining != null) ...[
                   pw.SizedBox(height: 10),
                   pw.Text(
                     payment.tuitionCompleted
-                        ? "Scolarité terminée"
-                        : "Reste à payer : ${payment.remaining!.toInt()} FCFA",
+                        ? _text(
+                            languageCode,
+                            "Scolarité terminée",
+                            "Tuition paid",
+                          )
+                        : "${_text(languageCode, 'Reste à payer', 'Balance due')} : ${payment.remaining!.toInt()} FCFA",
                     style: pw.TextStyle(
                       fontWeight: pw.FontWeight.bold,
                       color: payment.tuitionCompleted
@@ -1332,7 +1765,7 @@ class ExportService {
                     pw.Column(
                       children: [
                         pw.Text(
-                          "Le Client",
+                          _text(languageCode, "Le Client", "Customer"),
                           style: pw.TextStyle(
                             decoration: pw.TextDecoration.underline,
                           ),
@@ -1342,7 +1775,7 @@ class ExportService {
                     pw.Column(
                       children: [
                         pw.Text(
-                          "La Caisse",
+                          _text(languageCode, "La Caisse", "Cashier"),
                           style: pw.TextStyle(
                             decoration: pw.TextDecoration.underline,
                           ),
@@ -1368,7 +1801,8 @@ class ExportService {
 
     await Printing.layoutPdf(
       onLayout: (format) async => pdf.save(),
-      name: 'Recu_${payment.studentName.replaceAll(' ', '_')}.pdf',
+      name:
+          '${_text(languageCode, 'Recu', 'Receipt')}_${payment.studentName.replaceAll(' ', '_')}.pdf',
     );
   }
 
@@ -1376,17 +1810,22 @@ class ExportService {
     String title, {
     String? schoolName,
     String? academicYear,
+    String languageCode = 'fr',
   }) {
     final name = (schoolName != null && schoolName.isNotEmpty)
         ? schoolName
         : (currentSchoolNotifier.value?.name.isNotEmpty == true
               ? currentSchoolNotifier.value!.name
-              : "EDUGUEST - SYSTÈME DE GESTION");
+              : _text(
+                  languageCode,
+                  "EDUGUEST - SYSTÈME DE GESTION",
+                  "EDUGUEST - MANAGEMENT SYSTEM",
+                ));
     final year = (academicYear != null && academicYear.isNotEmpty)
-        ? "Année Scolaire $academicYear"
+        ? "${_text(languageCode, 'Année Scolaire', 'School year')} $academicYear"
         : (currentSchoolNotifier.value?.currentYearId.isNotEmpty == true
-              ? "Année Scolaire ${currentSchoolNotifier.value!.currentYearId}"
-              : "Gestion Scolaire");
+              ? "${_text(languageCode, 'Année Scolaire', 'School year')} ${currentSchoolNotifier.value!.currentYearId}"
+              : _text(languageCode, "Gestion Scolaire", "School Management"));
 
     return pw.Column(
       children: [
@@ -1446,24 +1885,47 @@ class ExportService {
     return totalCoeffs == 0 ? 0 : totalPoints / totalCoeffs;
   }
 
-  static String _getAppreciation(double score) {
+  static String _getAppreciation(double score, String languageCode) {
     if (score >= 16) return "Excellent";
-    if (score >= 14) return "Très Bien";
-    if (score >= 12) return "Bien";
-    if (score >= 10) return "Passable";
-    if (score >= 8) return "Médiocre";
-    return "Insuffisant";
+    if (score >= 14) return _text(languageCode, "Très Bien", "Very Good");
+    if (score >= 12) return _text(languageCode, "Bien", "Good");
+    if (score >= 10) return _text(languageCode, "Passable", "Satisfactory");
+    if (score >= 8) return _text(languageCode, "Médiocre", "Poor");
+    return _text(languageCode, "Insuffisant", "Insufficient");
   }
 
-  static Future<void> generateYearRecapPdf({
+  static String _englishOrdinalSuffix(int rank) {
+    final lastTwoDigits = rank % 100;
+    if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return 'th';
+    return switch (rank % 10) {
+      1 => 'st',
+      2 => 'nd',
+      3 => 'rd',
+      _ => 'th',
+    };
+  }
+
+  static Future<Uint8List?> generateYearRecapPdf({
     required AcademicYearRecap yearRecap,
     SchoolInfo? schoolInfo,
+    String languageCode = 'fr',
+    bool returnBytes = false,
   }) async {
     final pdf = pw.Document();
     final schoolName = yearRecap.schoolName ?? schoolInfo?.name ?? "EduGest";
-    final schoolAddress = schoolInfo?.address ?? "Établissement Scolaire";
+    final schoolAddress =
+        schoolInfo?.address ??
+        _text(languageCode, "Établissement Scolaire", "School");
     final schoolPhone = schoolInfo?.phone ?? "";
     final schoolEmail = schoolInfo?.email ?? "";
+    final startDate = _formattedDate(yearRecap.startDate, languageCode);
+    final endDate = _formattedDate(yearRecap.endDate, languageCode);
+    final closedAt = yearRecap.closedAt == null
+        ? endDate
+        : DateFormat(
+            languageCode == 'en' ? 'MM/dd/yyyy h:mm a' : 'dd/MM/yyyy HH:mm',
+            languageCode,
+          ).format(yearRecap.closedAt!);
 
     pdf.addPage(
       pw.MultiPage(
@@ -1497,7 +1959,7 @@ class ExportService {
                     ),
                     if (schoolPhone.isNotEmpty)
                       pw.Text(
-                        "Tél: $schoolPhone",
+                        "${_text(languageCode, 'Tél', 'Phone')}: $schoolPhone",
                         style: const pw.TextStyle(
                           fontSize: 9,
                           color: PdfColors.grey700,
@@ -1527,7 +1989,7 @@ class ExportService {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text(
-                        "RAPPORT ANNUEL",
+                        _text(languageCode, "RAPPORT ANNUEL", "ANNUAL REPORT"),
                         style: pw.TextStyle(
                           fontSize: 10,
                           fontWeight: pw.FontWeight.bold,
@@ -1535,7 +1997,7 @@ class ExportService {
                         ),
                       ),
                       pw.Text(
-                        "Session : ${yearRecap.label}",
+                        "${_text(languageCode, 'Session', 'School year')} : ${yearRecap.label}",
                         style: pw.TextStyle(
                           fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
@@ -1554,7 +2016,11 @@ class ExportService {
             // Titre du Document
             pw.Center(
               child: pw.Text(
-                "RÉCAPITULATIF OFFICIEL DE L'ANNÉE SCOLAIRE",
+                _text(
+                  languageCode,
+                  "RÉCAPITULATIF OFFICIEL DE L'ANNÉE SCOLAIRE",
+                  "OFFICIAL SCHOOL YEAR SUMMARY",
+                ),
                 style: pw.TextStyle(
                   fontSize: 14,
                   fontWeight: pw.FontWeight.bold,
@@ -1566,7 +2032,7 @@ class ExportService {
             pw.SizedBox(height: 4),
             pw.Center(
               child: pw.Text(
-                "Période du ${yearRecap.formattedStartDate} au ${yearRecap.formattedEndDate} • Clôturée le ${yearRecap.formattedClosedAt}",
+                "${_text(languageCode, 'Période du', 'Period from')} $startDate ${_text(languageCode, 'au', 'to')} $endDate • ${_text(languageCode, 'Clôturée le', 'Closed on')} $closedAt",
                 style: const pw.TextStyle(
                   fontSize: 9,
                   color: PdfColors.grey700,
@@ -1583,7 +2049,11 @@ class ExportService {
               ),
               color: PdfColors.blueGrey100,
               child: pw.Text(
-                "1. BILAN FINANCIER ET COMPTABLE",
+                _text(
+                  languageCode,
+                  "1. BILAN FINANCIER ET COMPTABLE",
+                  "1. FINANCIAL SUMMARY",
+                ),
                 style: pw.TextStyle(
                   fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
@@ -1601,7 +2071,7 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Rubrique",
+                        _text(languageCode, "Rubrique", "Category"),
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
                           fontSize: 9,
@@ -1611,7 +2081,7 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Montant (FCFA)",
+                        _text(languageCode, "Montant (FCFA)", "Amount (FCFA)"),
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
@@ -1626,14 +2096,18 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Total des Recettes / Frais de scolarité perçus",
+                        _text(
+                          languageCode,
+                          "Total des Recettes / Frais de scolarité perçus",
+                          "Total revenue / tuition collected",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        yearRecap.formattedRevenue,
+                        _formattedAmount(yearRecap.totalRevenue, languageCode),
                         textAlign: pw.TextAlign.right,
                         style: const pw.TextStyle(fontSize: 9),
                       ),
@@ -1645,14 +2119,18 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Total des Dépenses de fonctionnement",
+                        _text(
+                          languageCode,
+                          "Total des Dépenses de fonctionnement",
+                          "Total operating expenses",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        yearRecap.formattedExpenses,
+                        _formattedAmount(yearRecap.totalExpenses, languageCode),
                         textAlign: pw.TextAlign.right,
                         style: const pw.TextStyle(fontSize: 9),
                       ),
@@ -1665,7 +2143,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "SOLDE NET D'EXERCICE (Recettes - Dépenses)",
+                        _text(
+                          languageCode,
+                          "SOLDE NET D'EXERCICE (Recettes - Dépenses)",
+                          "NET BALANCE (Revenue - Expenses)",
+                        ),
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
                           fontSize: 9,
@@ -1675,7 +2157,7 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        yearRecap.formattedBalance,
+                        _formattedAmount(yearRecap.balance, languageCode),
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
@@ -1700,7 +2182,11 @@ class ExportService {
               ),
               color: PdfColors.blueGrey100,
               child: pw.Text(
-                "2. EFFECTIFS ET ACTIVITÉ PÉDAGOGIQUE",
+                _text(
+                  languageCode,
+                  "2. EFFECTIFS ET ACTIVITÉ PÉDAGOGIQUE",
+                  "2. ENROLLMENT AND ACADEMIC ACTIVITY",
+                ),
                 style: pw.TextStyle(
                   fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
@@ -1718,7 +2204,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Indicateur Pédagogique",
+                        _text(
+                          languageCode,
+                          "Indicateur Pédagogique",
+                          "Academic indicator",
+                        ),
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
                           fontSize: 9,
@@ -1728,7 +2218,7 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Nombre Total",
+                        _text(languageCode, "Nombre Total", "Total"),
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
@@ -1743,7 +2233,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Nombre d'élèves inscrits",
+                        _text(
+                          languageCode,
+                          "Nombre d'élèves inscrits",
+                          "Enrolled students",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
@@ -1762,7 +2256,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Corps professoral / Enseignants",
+                        _text(
+                          languageCode,
+                          "Corps professoral / Enseignants",
+                          "Teaching staff",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
@@ -1781,7 +2279,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Séances de cours / Leçons consignées",
+                        _text(
+                          languageCode,
+                          "Séances de cours / Leçons consignées",
+                          "Lessons recorded",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
@@ -1800,7 +2302,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Évaluations et Examens organisés",
+                        _text(
+                          languageCode,
+                          "Évaluations et Examens organisés",
+                          "Assessments and exams held",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
@@ -1826,7 +2332,11 @@ class ExportService {
               ),
               color: PdfColors.blueGrey100,
               child: pw.Text(
-                "3. VIE SCOLAIRE ET DISCIPLINE",
+                _text(
+                  languageCode,
+                  "3. VIE SCOLAIRE ET DISCIPLINE",
+                  "3. SCHOOL LIFE AND DISCIPLINE",
+                ),
                 style: pw.TextStyle(
                   fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
@@ -1844,7 +2354,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Type d'enregistrement",
+                        _text(
+                          languageCode,
+                          "Type d'enregistrement",
+                          "Record type",
+                        ),
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
                           fontSize: 9,
@@ -1854,7 +2368,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Total Enregistré",
+                        _text(
+                          languageCode,
+                          "Total Enregistré",
+                          "Total recorded",
+                        ),
                         textAlign: pw.TextAlign.right,
                         style: pw.TextStyle(
                           fontWeight: pw.FontWeight.bold,
@@ -1869,7 +2387,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Absences signalées et traitées",
+                        _text(
+                          languageCode,
+                          "Absences signalées et traitées",
+                          "Absences reported and processed",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
@@ -1888,7 +2410,11 @@ class ExportService {
                     pw.Padding(
                       padding: const pw.EdgeInsets.all(6),
                       child: pw.Text(
-                        "Sanctions et mesures disciplinaires",
+                        _text(
+                          languageCode,
+                          "Sanctions et mesures disciplinaires",
+                          "Disciplinary measures",
+                        ),
                         style: const pw.TextStyle(fontSize: 9),
                       ),
                     ),
@@ -1914,7 +2440,11 @@ class ExportService {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      "Le Proviseur / Direction",
+                      _text(
+                        languageCode,
+                        "Le Proviseur / Direction",
+                        "Principal / Management",
+                      ),
                       style: pw.TextStyle(
                         fontSize: 9,
                         fontWeight: pw.FontWeight.bold,
@@ -1922,7 +2452,11 @@ class ExportService {
                     ),
                     pw.SizedBox(height: 35),
                     pw.Text(
-                      "Signature et Cachet",
+                      _text(
+                        languageCode,
+                        "Signature et Cachet",
+                        "Signature and stamp",
+                      ),
                       style: const pw.TextStyle(
                         fontSize: 8,
                         color: PdfColors.grey600,
@@ -1934,7 +2468,11 @@ class ExportService {
                   crossAxisAlignment: pw.CrossAxisAlignment.end,
                   children: [
                     pw.Text(
-                      "La Fondatrice / Administration Générale",
+                      _text(
+                        languageCode,
+                        "La Fondatrice / Administration Générale",
+                        "Founder / General Administration",
+                      ),
                       style: pw.TextStyle(
                         fontSize: 9,
                         fontWeight: pw.FontWeight.bold,
@@ -1942,7 +2480,7 @@ class ExportService {
                     ),
                     pw.SizedBox(height: 35),
                     pw.Text(
-                      "Visa et Approbation",
+                      _text(languageCode, "Visa et Approbation", "Approval"),
                       style: const pw.TextStyle(
                         fontSize: 8,
                         color: PdfColors.grey600,
@@ -1957,35 +2495,52 @@ class ExportService {
       ),
     );
 
+    final bytes = await pdf.save();
+    if (returnBytes) return bytes;
     await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
+      onLayout: (PdfPageFormat format) async => bytes,
       name:
           'Recap_${yearRecap.label.replaceAll(' ', '_').replaceAll('/', '-')}.pdf',
     );
+    return null;
   }
 
   static Future<void> generateExcel({
     required Exam exam,
     required List<Grade> grades,
     required List<Student> students,
+    String languageCode = 'fr',
   }) async {
     var excel = Excel.createExcel();
-    Sheet sheetObject = excel['Notes_${exam.className}'];
+    Sheet sheetObject =
+        excel['${_text(languageCode, 'Notes', 'Grades')}_${exam.className}'];
     excel.delete('Sheet1');
 
-    sheetObject.appendRow([TextCellValue('EDUGUEST - RAPPORT DE NOTES')]);
     sheetObject.appendRow([
-      TextCellValue('Examen: ${exam.title}'),
-      TextCellValue('Matière: ${exam.subject}'),
-      TextCellValue('Classe: ${exam.className}'),
+      TextCellValue(
+        _text(
+          languageCode,
+          'EDUGUEST - RAPPORT DE NOTES',
+          'EDUGUEST - GRADE REPORT',
+        ),
+      ),
+    ]);
+    sheetObject.appendRow([
+      TextCellValue('${_text(languageCode, 'Examen', 'Exam')}: ${exam.title}'),
+      TextCellValue(
+        '${_text(languageCode, 'Matière', 'Subject')}: ${exam.subject}',
+      ),
+      TextCellValue(
+        '${_text(languageCode, 'Classe', 'Class')}: ${exam.className}',
+      ),
     ]);
     sheetObject.appendRow([]);
 
     sheetObject.appendRow([
-      TextCellValue('Nom de l\'élève'),
-      TextCellValue('Note / 20'),
-      TextCellValue('Coefficient'),
-      TextCellValue('Note Finale'),
+      TextCellValue(_text(languageCode, 'Nom de l\'élève', 'Student name')),
+      TextCellValue(_text(languageCode, 'Note / 20', 'Grade / 20')),
+      TextCellValue(_text(languageCode, 'Coefficient', 'Coefficient')),
+      TextCellValue(_text(languageCode, 'Note Finale', 'Final grade')),
     ]);
 
     final studentMap = {for (var s in students) s.id: s.fullName};
@@ -1998,6 +2553,9 @@ class ExportService {
       ]);
     }
 
-    excel.save(fileName: 'Notes_${exam.title.replaceAll(' ', '_')}.xlsx');
+    excel.save(
+      fileName:
+          '${_text(languageCode, 'Notes', 'Grades')}_${exam.title.replaceAll(' ', '_')}.xlsx',
+    );
   }
 }

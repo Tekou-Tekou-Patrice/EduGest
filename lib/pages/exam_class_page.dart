@@ -107,7 +107,7 @@ class _ExamClassPageState extends State<ExamClassPage> {
       }
     }
     if (_examNameController.text.trim().isEmpty) {
-      _message("Le nom de l'examen est obligatoire");
+      _message(context.tr('examNameRequired'));
       return;
     }
     setState(() => _saving = true);
@@ -295,7 +295,7 @@ class _ExamClassPageState extends State<ExamClassPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Suivi des examens',
+                          context.tr('examTracking'),
                           style: TextStyle(color: Colors.white70, fontSize: 13),
                         ),
                         SizedBox(height: 4),
@@ -337,13 +337,13 @@ class _ExamClassPageState extends State<ExamClassPage> {
                           Colors.green,
                         ),
                         _summaryCard(
-                          'Dossiers complets',
+                          context.tr('examDocumentsComplete'),
                           '$dossierCount/${_students.length}',
                           Icons.folder,
                           Colors.blue,
                         ),
                         _summaryCard(
-                          'Frais complets',
+                          context.tr('feesComplete'),
                           '$feesCount/${_students.length}',
                           Icons.payments,
                           Colors.orange,
@@ -388,8 +388,6 @@ class _ExamClassPageState extends State<ExamClassPage> {
   Widget _summaryCard(String label, String value, IconData icon, Color color) {
     return SizedBox(
       width: 190,
-
-
 
       child: Container(
         padding: EdgeInsets.all(14),
@@ -445,7 +443,9 @@ class _ExamClassPageState extends State<ExamClassPage> {
                   width: 280,
                   child: TextField(
                     controller: _examNameController,
-                    decoration: InputDecoration(labelText: 'Nom de l’examen'),
+                    decoration: InputDecoration(
+                      labelText: context.tr('examName'),
+                    ),
                   ),
                 ),
                 SizedBox(
@@ -473,7 +473,7 @@ class _ExamClassPageState extends State<ExamClassPage> {
                     child: TextField(
                       controller: entry.value,
                       decoration: InputDecoration(
-                        labelText: 'Document ${index + 1}',
+                        labelText: '${context.tr('document')} ${index + 1}',
                       ),
                     ),
                   ),

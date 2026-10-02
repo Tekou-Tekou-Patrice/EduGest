@@ -75,6 +75,10 @@
         <span class="icon">⚡</span>
         <span>Console API & Diagnostic</span>
       </a>
+      <a class="nav-item" data-tab="archives">
+        <span class="icon">📚</span>
+        <span>Archives annuelles</span>
+      </a>
     </nav>
 
     <div class="sidebar-footer">
@@ -112,6 +116,8 @@
           <div class="status-dot offline" id="server-status-dot"></div>
           <span id="server-status-text">Connexion...</span>
         </div>
+
+        <button class="btn btn-secondary" id="platform-auth-button" onclick="togglePlatformAdminAuth()">Connexion propriétaire</button>
 
         <!-- Theme Toggle -->
         <button class="btn-icon" id="theme-toggle-btn" title="Basculer le thème clair/sombre">🌓</button>
@@ -657,6 +663,30 @@
         </div>
       </section>
 
+      <section class="tab-pane" id="pane-archives">
+        <div class="page-header">
+          <div class="page-title">
+            <h2>Archives annuelles des écoles</h2>
+            <p>Accès réservé au compte propriétaire. Saisissez le code privé de l’école pour consulter et télécharger ses PDF archivés.</p>
+          </div>
+        </div>
+        <div class="card" style="padding: 24px; margin-bottom: 20px;">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="archive-school-code">Code privé de l’école</label>
+              <input class="form-control" type="password" id="archive-school-code" autocomplete="off" placeholder="Saisir le code privé">
+            </div>
+            <div class="form-group" style="display:flex; align-items:flex-end;">
+              <button class="btn btn-primary" id="load-platform-archives" onclick="loadPlatformArchives()">Afficher les récapitulatifs</button>
+            </div>
+          </div>
+          <div id="platform-archives-status" role="status" style="color:var(--text-muted);"></div>
+        </div>
+        <div class="schools-grid" id="platform-archives-list">
+          <div class="table-empty">Choisissez une école, connectez-vous au compte propriétaire et saisissez le code privé.</div>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
@@ -679,9 +709,9 @@
           <input type="text" class="form-control" id="school-name-input" required placeholder="Ex: Collège & Lycée Bilingue Excellence">
         </div>
         <div class="form-group">
-          <label>Code d'accès de l'école *</label>
-          <input type="text" class="form-control" id="school-code-input" required placeholder="Ex: EXCELLENCE-2026" style="text-transform: uppercase;">
-          <small style="color: var(--text-dim); font-size: 11px;">Ce code permettra aux enseignants et directeurs de rejoindre l'établissement.</small>
+          <label>Code privé de l'établissement</label>
+          <input type="text" class="form-control" id="school-code-input" readonly disabled placeholder="Généré automatiquement et unique (ex: EDU-XXXXXXXXXXXX)" style="background: var(--bg-hover, #f3f4f6); cursor: not-allowed;">
+          <small style="color: var(--text-dim); font-size: 11px;">Le code privé unique est généré automatiquement par le système lors de la création.</small>
         </div>
         <div class="form-group">
           <label>ID du Fondateur (Optionnel)</label>
@@ -1086,6 +1116,33 @@
       <button type="button" class="btn btn-secondary" onclick="closeModal('modal-api-config')">Annuler</button>
       <button type="button" class="btn btn-primary" onclick="saveApiBaseUrl()">Tester & Enregistrer</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-platform-admin-login">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3>Connexion propriétaire</h3>
+      <button class="modal-close-btn" onclick="closeModal('modal-platform-admin-login')">✕</button>
+    </div>
+    <form id="form-platform-admin-login" onsubmit="handlePlatformAdminLogin(event)">
+      <div class="modal-body">
+        <p style="color:var(--text-muted); margin-top:0;">Connectez-vous avec le compte propriétaire dédié. Les comptes des écoles ne peuvent pas ouvrir les archives du portail.</p>
+        <div class="form-group">
+          <label for="platform-admin-username">Nom d’utilisateur</label>
+          <input class="form-control" id="platform-admin-username" autocomplete="username" required value="TEKOU PATRICE">
+        </div>
+        <div class="form-group">
+          <label for="platform-admin-password">Mot de passe</label>
+          <input class="form-control" id="platform-admin-password" type="password" autocomplete="current-password" required>
+        </div>
+        <div id="platform-admin-login-error" role="alert" style="color:var(--danger);"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-platform-admin-login')">Annuler</button>
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+      </div>
+    </form>
   </div>
 </div>
 

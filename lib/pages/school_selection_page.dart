@@ -106,7 +106,7 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
-            tooltip: 'Actualiser la liste des ecoles',
+            tooltip: context.tr('refreshSchoolList'),
             onPressed: _refreshSchools,
           ),
           IconButton(
@@ -169,7 +169,7 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                       OutlinedButton.icon(
                         onPressed: _refreshSchools,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Actualiser la liste'),
+                        label: Text(context.tr('refreshSchoolList')),
                       ),
                     ],
                   ),
@@ -237,7 +237,8 @@ class _SchoolSelectionPageState extends State<SchoolSelectionPage> {
                           ),
                           if (school.role != null)
                             Text(
-                              '${context.tr('role')}: ${school.roleLabel}',
+                              '${context.tr('role')}: '
+                              '${context.trRole(school.role!.name, schoolLevel: school.schoolLevel)}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.primary,

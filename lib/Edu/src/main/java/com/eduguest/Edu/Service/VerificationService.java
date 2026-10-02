@@ -36,8 +36,6 @@ public class VerificationService {
     private String evolutionApiKey;
     @Value("${edugest.evolution.instance:}")
     private String evolutionInstance;
-    @Value("${edugest.verification.whatsapp-first:false}")
-    private boolean whatsappFirst;
     @Value("${edugest.verification.local-code-enabled:false}")
     private boolean localCodeEnabled;
 
@@ -83,29 +81,23 @@ public class VerificationService {
                 + "Vous pouvez maintenant vous connecter avec votre adresse e-mail et votre mot de passe.\n\n"
                 + "Contact de l'école : " + (schoolPhone == null ? "" : schoolPhone);
         boolean sent = false;
-        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+        try {
+            sent = sendWhatsApp(user, message);
+        } catch (RuntimeException error) {
+            log.warn("Envoi du message de bienvenue par WhatsApp impossible pour {}, tentative e-mail",
+                    user.getId(), error);
+        }
+        if (!sent && user.getEmail() != null && !user.getEmail().isBlank()) {
             try {
-                SimpleMailMessage mail = new SimpleMailMessage();
-                mail.setTo(user.getEmail());
-                if (mailFrom != null && !mailFrom.isBlank()) mail.setFrom(mailFrom);
-                if (schoolEmail != null && !schoolEmail.isBlank()) mail.setReplyTo(schoolEmail);
-                mail.setSubject(subject);
-                mail.setText(message);
-                mailSender.send(mail);
+                sendEmail(user.getEmail(), subject, message, schoolEmail);
                 sent = true;
             } catch (RuntimeException error) {
                 log.warn("Envoi du message de bienvenue par e-mail impossible pour {}", user.getId(), error);
             }
         }
-        if (evolutionEnabled && user.getPhone() != null && !user.getPhone().isBlank()) {
-            try {
-                sent = sendWhatsApp(user, message) || sent;
-            } catch (RuntimeException error) {
-                log.warn("Envoi du message de bienvenue par WhatsApp impossible pour {}", user.getId(), error);
-            }
-        }
         if (!sent) {
-            log.info("Message de bienvenue non envoyé : aucun canal disponible pour {}", user.getId());
+            log.error("Message de bienvenue non envoyé : WhatsApp et e-mail indisponibles pour {}",
+                    user.getId());
         }
     }
 
@@ -123,36 +115,36 @@ public class VerificationService {
 
     private void send(User user, String code) {
         String message = "Votre code EduGest est " + code + ". Il est valable 15 minutes.";
-        if (whatsappFirst) {
-            try {
-                if (sendWhatsApp(user, message)) {
-                    return;
-                }
-            } catch (RuntimeException error) {
-                log.warn("Envoi WhatsApp prioritaire impossible pour {}, tentative e-mail", user.getId(), error);
+        try {
+            if (sendWhatsApp(user, message)) {
+                return;
             }
+        } catch (RuntimeException error) {
+            log.warn("Envoi WhatsApp impossible pour {}, tentative e-mail", user.getId(), error);
         }
         if (user.getEmail() != null && !user.getEmail().isBlank()) {
             try {
-                SimpleMailMessage mail = new SimpleMailMessage();
-                mail.setTo(user.getEmail());
-                if (mailFrom != null && !mailFrom.isBlank()) mail.setFrom(mailFrom);
-                mail.setSubject("Code de vérification EduGest");
-                mail.setText(message);
-                mailSender.send(mail);
+                sendEmail(user.getEmail(), "Code de vérification EduGest", message, null);
                 return;
             } catch (RuntimeException error) {
-                // E-mail prioritaire, WhatsApp devient le relais si le SMTP est indisponible.
-                log.warn("Envoi e-mail du code impossible, tentative WhatsApp pour {}", user.getId(), error);
+                log.warn("Envoi e-mail du code impossible pour {}", user.getId(), error);
             }
         }
-        if (!sendWhatsApp(user, message)) {
-            if (localCodeEnabled) {
-                log.info("Code de vérification local pour {} : {}", user.getId(), code);
-                return;
-            }
-            throw new IllegalStateException("Aucun canal de vérification configuré");
+        if (localCodeEnabled) {
+            log.info("Code de vérification local pour {} : {}", user.getId(), code);
+            return;
         }
+        throw new IllegalStateException("Aucun canal de vérification configuré");
+    }
+
+    private void sendEmail(String recipient, String subject, String message, String replyTo) {
+        SimpleMailMessage mail = new SimpleMailMessage();
+        mail.setTo(recipient);
+        if (mailFrom != null && !mailFrom.isBlank()) mail.setFrom(mailFrom);
+        if (replyTo != null && !replyTo.isBlank()) mail.setReplyTo(replyTo);
+        mail.setSubject(subject);
+        mail.setText(message);
+        mailSender.send(mail);
     }
 
     private boolean sendWhatsApp(User user, String message) {

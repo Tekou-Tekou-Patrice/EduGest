@@ -2,8 +2,10 @@ package com.eduguest.Edu.Controllers;
 
 import com.eduguest.Edu.DTO.AcademicYearDto;
 import com.eduguest.Edu.DTO.SchoolInfoDto;
+import com.eduguest.Edu.Config.RequireRoles;
 import com.eduguest.Edu.Service.AcademicYearService;
 import com.eduguest.Edu.Service.SchoolInfoService;
+import com.eduguest.Edu.Entity.UserRole;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -36,11 +38,13 @@ public class SchoolInfoController {
     }
 
     @GetMapping("/years")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE})
     public ResponseEntity<List<AcademicYearDto>> listYears() {
         return ResponseEntity.ok(academicYearService.listAll());
     }
 
     @GetMapping("/years/recaps")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE})
     public ResponseEntity<List<AcademicYearDto>> listRecaps() {
         return ResponseEntity.ok(academicYearService.listRecaps());
     }

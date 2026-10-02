@@ -1,6 +1,8 @@
 package com.eduguest.Edu.Controllers;
 
 import com.eduguest.Edu.DTO.AcademicYearDto;
+import com.eduguest.Edu.Config.RequireRoles;
+import com.eduguest.Edu.Entity.UserRole;
 import com.eduguest.Edu.Service.AcademicYearService;
 import com.eduguest.Edu.Service.SchoolContextService;
 import org.springframework.http.ResponseEntity;
@@ -25,12 +27,9 @@ public class AcademicYearController {
     }
 
     @GetMapping
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE})
     public ResponseEntity<List<AcademicYearDto>> listAll() {
-        try {
-            return ResponseEntity.ok(academicYearService.listAll());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
+        return ResponseEntity.ok(academicYearService.listAll());
     }
 
     @GetMapping("/active")
@@ -45,12 +44,9 @@ public class AcademicYearController {
     }
 
     @GetMapping("/recaps")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE})
     public ResponseEntity<List<AcademicYearDto>> listRecaps() {
-        try {
-            return ResponseEntity.ok(academicYearService.listRecaps());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
-        }
+        return ResponseEntity.ok(academicYearService.listRecaps());
     }
 
     @GetMapping("/waiting-for-new")

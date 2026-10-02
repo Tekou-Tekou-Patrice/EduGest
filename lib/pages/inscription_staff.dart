@@ -5,6 +5,7 @@ import '../components/app_colors.dart';
 import '../components/my_button.dart';
 import '../components/my_textfield.dart';
 import '../service/api_service.dart';
+import '../service/school_notifier.dart';
 import '../models/app_user.dart';
 
 class InscriptionStaff extends StatefulWidget {
@@ -25,13 +26,18 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
   String _selectedRole = 'ENSEIGNANT';
   bool _isLoading = false;
 
+  String get _schoolLevel =>
+      currentSchoolNotifier.value?.schoolLevel ?? 'COLLEGE';
+
+  bool get _isPrimarySchool => _schoolLevel == 'PRIMARY';
+
   List<String> get _roles {
     switch (widget.currentUser?.role) {
       case UserRole.fondateur:
         return [
           'PROVISEUR',
-          'CENSEUR',
-          'SURVEILLANT_GENERAL',
+          if (!_isPrimarySchool) 'CENSEUR',
+          if (!_isPrimarySchool) 'SURVEILLANT_GENERAL',
           'SECRETAIRE',
           'COMPTABLE',
           'ENSEIGNANT',
@@ -39,24 +45,34 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
       case UserRole.proviseur:
         return ['SECRETAIRE'];
       case UserRole.secretaire:
-        return ['CENSEUR', 'SURVEILLANT_GENERAL', 'COMPTABLE', 'ENSEIGNANT'];
+        return [
+          if (!_isPrimarySchool) 'CENSEUR',
+          if (!_isPrimarySchool) 'SURVEILLANT_GENERAL',
+          'COMPTABLE',
+          'ENSEIGNANT',
+        ];
       default:
         return [];
     }
-
   }
 
   String _roleLabel(String role) {
-    final english = Localizations.localeOf(context).languageCode == 'en';
-    const labels = {
-      'PROVISEUR': ['Proviseur', 'Principal'],
-      'CENSEUR': ['Censeur', 'Dean'],
-      'SURVEILLANT_GENERAL': ['Surveillant Général', 'General Supervisor'],
-      'SECRETAIRE': ['Secrétaire', 'Secretary'],
-      'COMPTABLE': ['Comptable', 'Accountant'],
-      'ENSEIGNANT': ['Enseignant', 'Teacher'],
+    if (role == 'PROVISEUR' && _isPrimarySchool) {
+      return context.tr('role_primaryDirector');
+    }
+    if (role == 'ENSEIGNANT' && _isPrimarySchool) {
+      return context.tr('role_primaryTeacher');
+    }
+    final roleKey = switch (role) {
+      'PROVISEUR' => 'role_proviseur',
+      'CENSEUR' => 'role_censeur',
+      'SURVEILLANT_GENERAL' => 'role_surveillantGeneral',
+      'SECRETAIRE' => 'role_secretaire',
+      'COMPTABLE' => 'role_comptable',
+      'ENSEIGNANT' => 'role_enseignant',
+      _ => null,
     };
-    return labels[role]?[english ? 1 : 0] ?? role;
+    return roleKey == null ? role : context.tr(roleKey);
   }
 
   Future<void> _handleRegister() async {
@@ -66,6 +82,12 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
         _phoneController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr('staffFieldsRequired'))),
+      );
+      return;
+    }
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('passwordTooShort'))),
       );
       return;
     }
@@ -196,7 +218,31 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
                 icon: Icons.lock_outline,
                 obscureText: true,
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        context.tr('passwordCharacteristics'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
               Text(
                 context.tr('assignedPosition'),
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
@@ -219,7 +265,12 @@ class _InscriptionStaffState extends State<InscriptionStaff> {
                   ),
                 ),
                 items: roles
-                    .map((r) => DropdownMenuItem(value: r, child: Text(_roleLabel(r))))
+                    .map(
+                      (r) => DropdownMenuItem(
+                        value: r,
+                        child: Text(_roleLabel(r)),
+                      ),
+                    )
                     .toList(),
                 onChanged: (val) => setState(() => _selectedRole = val!),
               ),

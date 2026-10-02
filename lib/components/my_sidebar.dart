@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/school_info.dart';
 import '../service/school_notifier.dart';
 import '../localization/app_localizations.dart';
+import '../pages/help_manual_page.dart';
 import 'app_colors.dart';
 
 class SidebarItem {
@@ -65,6 +66,7 @@ class MySidebar extends StatelessWidget {
                 ),
               ),
             ),
+            _buildHelpButton(context),
             _buildSidebarUser(context),
             Padding(
               padding: EdgeInsets.only(left: 16, right: 16, bottom: 12),
@@ -75,6 +77,37 @@ class MySidebar extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHelpButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        child: ListTile(
+          dense: true,
+          leading: const Icon(
+            Icons.help_outline,
+            color: Colors.white70,
+            size: 19,
+          ),
+          title: Text(
+            AppLocalizations.of(context).translate('helpManual'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const HelpManualPage()),
+            );
+          },
         ),
       ),
     );

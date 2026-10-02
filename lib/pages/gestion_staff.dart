@@ -1,5 +1,6 @@
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/service/api_service.dart';
+import 'package:edugest/service/school_notifier.dart';
 import 'package:edugest/pages/inscription_staff.dart';
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
@@ -77,7 +78,7 @@ class _GestionStaffState extends State<GestionStaff> {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
-              "Gestion du Personnel",
+              context.tr('staffManagement'),
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             Wrap(
@@ -101,7 +102,7 @@ class _GestionStaffState extends State<GestionStaff> {
                     onPressed: _showAddStaffDialog,
                     icon: Icon(Icons.person_add, color: Colors.white),
                     label: Text(
-                      "Ajouter Staff",
+                      context.tr('addStaff'),
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -126,6 +127,10 @@ class _GestionStaffState extends State<GestionStaff> {
             itemCount: _staffList.length,
             itemBuilder: (context, index) {
               final member = _staffList[index];
+              final roleLabel = context.trRole(
+                member.role.name,
+                schoolLevel: currentSchoolNotifier.value?.schoolLevel,
+              );
               return Container(
                 margin: EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
@@ -149,7 +154,7 @@ class _GestionStaffState extends State<GestionStaff> {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    "${member.displayRole} • ${member.email}"
+                    "$roleLabel • ${member.email}"
                     "${member.phone?.trim().isNotEmpty == true ? '\n${context.tr('contactPhone')} : ${member.phone}' : '\n${context.tr('contactPhone')} : ${context.tr('notProvided')}'}",
                   ),
                   trailing:
@@ -163,7 +168,9 @@ class _GestionStaffState extends State<GestionStaff> {
                               builder: (context) => AlertDialog(
                                 title: Text(context.tr('confirm')),
                                 content: Text(
-                                  "Voulez-vous supprimer ${member.name} ?",
+                                  context
+                                      .tr('deleteStaffConfirm')
+                                      .replaceAll('{name}', member.name),
                                 ),
                                 actions: [
                                   TextButton(

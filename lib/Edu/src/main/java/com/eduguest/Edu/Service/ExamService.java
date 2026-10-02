@@ -4,7 +4,10 @@ import com.eduguest.Edu.DTO.ExamDto;
 import com.eduguest.Edu.DTO.GradeDto;
 import com.eduguest.Edu.Entity.Exam;
 import com.eduguest.Edu.Entity.Grade;
+import com.eduguest.Edu.Entity.BulletinPublication;
 import com.eduguest.Edu.Entity.Subject;
+import com.eduguest.Edu.Entity.UserRole;
+import com.eduguest.Edu.Repository.BulletinPublicationRepository;
 import com.eduguest.Edu.Repository.ExamRepository;
 import com.eduguest.Edu.Repository.GradeRepository;
 import com.eduguest.Edu.Repository.ScheduleItemRepository;
@@ -12,6 +15,7 @@ import com.eduguest.Edu.Repository.SubjectRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -27,6 +31,8 @@ public class ExamService {
     private final AppNotificationService notificationService;
     private final SubjectRepository subjectRepository;
     private final AuditLogService auditLogService;
+    private final BulletinPublicationRepository bulletinPublicationRepository;
+    private final UserSecurityContextService userSecurityContextService;
 
     public ExamService(ExamRepository examRepository,
                        GradeRepository gradeRepository,
@@ -35,7 +41,9 @@ public class ExamService {
                        SchoolContextService schoolContextService,
                        AppNotificationService notificationService,
                        SubjectRepository subjectRepository,
-                       AuditLogService auditLogService) {
+                       AuditLogService auditLogService,
+                       BulletinPublicationRepository bulletinPublicationRepository,
+                       UserSecurityContextService userSecurityContextService) {
         this.schoolContextService = schoolContextService;
         this.examRepository = examRepository;
         this.gradeRepository = gradeRepository;
@@ -44,6 +52,8 @@ public class ExamService {
         this.notificationService = notificationService;
         this.subjectRepository = subjectRepository;
         this.auditLogService = auditLogService;
+        this.bulletinPublicationRepository = bulletinPublicationRepository;
+        this.userSecurityContextService = userSecurityContextService;
     }
 
     @Transactional
@@ -122,6 +132,7 @@ public class ExamService {
 
     @Transactional
     public GradeDto saveGrade(GradeDto dto) {
+        validateGradeScore(dto.getScore());
         Grade entity = new Grade();
         entity.setStudentId(dto.getStudentId());
         entity.setExamId(dto.getExamId());
@@ -207,6 +218,7 @@ public class ExamService {
                 }
                 try {
                     double score = Double.parseDouble(entry.getValue().toString().replace(',', '.'));
+                    validateGradeScore(score);
                     Grade grade = new Grade();
                     grade.setStudentId(studentId);
                     grade.setExamId(examId);
@@ -269,7 +281,13 @@ public class ExamService {
                 .orElseThrow(() -> new RuntimeException("Évaluation introuvable"));
         schoolContextService.verifyAndAssign(grade);
         schoolContextService.verifyAndAssign(exam);
-        if (exam.getSubmittedAt() != null &&
+        validateGradeScore(dto.getScore());
+        if (isPublishedForExam(exam)) {
+            throw new IllegalStateException("Les notes ne peuvent plus être modifiées après la publication du bulletin aux parents.");
+        }
+        boolean schoolAdmin = userSecurityContextService.hasAnyRole(
+                UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE);
+        if (!schoolAdmin && exam.getSubmittedAt() != null &&
                 ChronoUnit.DAYS.between(exam.getSubmittedAt(), LocalDateTime.now()) >= 7) {
             throw new IllegalStateException("La période de modification des notes est expirée (7 jours).");
         }
@@ -294,6 +312,66 @@ public class ExamService {
 
         notificationService.notifyGrade(saved);
         return mapToGradeDto(saved);
+    }
+
+    @Transactional
+    public List<GradeDto> updateGrades(List<GradeDto> grades) {
+        if (grades == null || grades.isEmpty()) {
+            throw new IllegalArgumentException("Aucune note à modifier.");
+        }
+        return grades.stream()
+                .map(dto -> {
+                    if (dto.getId() == null) {
+                        throw new IllegalArgumentException("Identifiant de note obligatoire.");
+                    }
+                    return updateGrade(dto.getId(), dto);
+                })
+                .toList();
+    }
+
+    private void validateGradeScore(Double score) {
+        if (score == null || !Double.isFinite(score) || score < 0 || score > 20) {
+            throw new IllegalArgumentException("Une note doit être comprise entre 0 et 20.");
+        }
+    }
+
+    private boolean isPublishedForExam(Exam exam) {
+        String title = normalizePeriod(exam.getTitle());
+        int sequence = 0;
+        for (int value = 1; value <= 6; value++) {
+            if (title.matches(".*\\bsequence\\s*" + value + "\\b.*")) {
+                sequence = value;
+                break;
+            }
+        }
+        final int sequenceNumber = sequence;
+        return academicYearService.filterCurrentYear(
+                        schoolContextService.scope(bulletinPublicationRepository.findAll()),
+                        BulletinPublication::getAcademicYearId)
+                .stream()
+                .filter(BulletinPublication::isPublished)
+                .filter(publication -> publication.getClassName() != null
+                        && publication.getClassName().equalsIgnoreCase(exam.getClassName()))
+                .anyMatch(publication -> {
+                    String period = normalizePeriod(publication.getPeriod());
+                    if (period.contains("bilan annuel")) return true;
+                    if (sequenceNumber == 0) return period.equals(title);
+                    if (period.matches(".*sequence\\s*" + sequenceNumber + ".*")) return true;
+                    return switch (sequenceNumber) {
+                        case 1, 2 -> period.contains("1er trimestre") || period.contains("trimestre 1");
+                        case 3, 4 -> period.contains("2eme trimestre") || period.contains("trimestre 2");
+                        case 5, 6 -> period.contains("3eme trimestre") || period.contains("trimestre 3");
+                        default -> false;
+                    };
+                });
+    }
+
+    private String normalizePeriod(String value) {
+        if (value == null) return "";
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .trim()
+                .toLowerCase(Locale.ROOT);
     }
 
     @Transactional

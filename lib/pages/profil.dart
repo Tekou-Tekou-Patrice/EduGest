@@ -6,6 +6,7 @@ import '../localization/app_localizations.dart';
 import '../localization/locale_notifier.dart';
 import '../components/app_colors.dart';
 import '../models/app_user.dart';
+import '../service/school_notifier.dart';
 
 class Profil extends StatefulWidget {
   final AppUser user;
@@ -73,7 +74,7 @@ class _ProfilState extends State<Profil> {
               SizedBox(height: 16),
               MyTextfield(
                 controller: confirmPasswordController,
-                hintText: "Confirmer le mot de passe",
+                hintText: context.tr('confirmPassword'),
                 icon: Icons.lock_reset,
                 obscureText: true,
               ),
@@ -92,9 +93,7 @@ class _ProfilState extends State<Profil> {
                   newPasswordController.text.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      "Saisissez le code et le nouveau mot de passe",
-                    ),
+                    content: Text(context.tr('enterCodeAndNewPassword')),
                   ),
                 );
                 return;
@@ -102,9 +101,7 @@ class _ProfilState extends State<Profil> {
               if (newPasswordController.text !=
                   confirmPasswordController.text) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("Les mots de passe ne correspondent pas"),
-                  ),
+                  SnackBar(content: Text(context.tr('passwordsDoNotMatch'))),
                 );
                 return;
               }
@@ -123,9 +120,9 @@ class _ProfilState extends State<Profil> {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(e.toString())));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(ApiService.friendlyErrorMessage(e))),
+                  );
                 }
               }
             },
@@ -145,7 +142,7 @@ class _ProfilState extends State<Profil> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Mon Profil",
+          context.tr('myProfile'),
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -190,7 +187,10 @@ class _ProfilState extends State<Profil> {
                     ),
                     SizedBox(height: 6),
                     Text(
-                      widget.user.displayRole,
+                      context.trRole(
+                        widget.user.role.name,
+                        schoolLevel: currentSchoolNotifier.value?.schoolLevel,
+                      ),
                       style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 13,
@@ -205,7 +205,7 @@ class _ProfilState extends State<Profil> {
 
         SizedBox(height: 32),
 
-        _buildSectionTitle("Informations personnelles"),
+        _buildSectionTitle(context.tr('personalInformation')),
         SizedBox(height: 12),
         Container(
           padding: EdgeInsets.all(16),
@@ -224,14 +224,17 @@ class _ProfilState extends State<Profil> {
               Divider(height: 24),
               _buildInfoRow(
                 Icons.person_outline,
-                "Utilisateur",
+                context.tr('user'),
                 widget.user.name,
               ),
               Divider(height: 24),
               _buildInfoRow(
                 Icons.badge_outlined,
                 context.tr('role'),
-                widget.user.displayRole,
+                context.trRole(
+                  widget.user.role.name,
+                  schoolLevel: currentSchoolNotifier.value?.schoolLevel,
+                ),
               ),
             ],
           ),

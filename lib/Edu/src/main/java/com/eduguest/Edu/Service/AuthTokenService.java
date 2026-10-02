@@ -17,7 +17,8 @@ import java.util.Base64;
 @Service
 public class AuthTokenService {
     private static final String HMAC_ALGORITHM = "HmacSHA256";
-    private static final long TOKEN_LIFETIME_SECONDS = 8 * 60 * 60;
+    // Durée de validité de session fixée à 1 mois (30 jours). À expiration, l'utilisateur doit se reconnecter.
+    private static final long TOKEN_LIFETIME_SECONDS = 30L * 24 * 60 * 60;
 
     private final byte[] secret;
 

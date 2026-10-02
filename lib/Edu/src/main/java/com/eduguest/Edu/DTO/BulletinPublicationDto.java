@@ -11,6 +11,9 @@ public class BulletinPublicationDto {
     private String studentId;
     private String publishedBy;
     private String publishedByRole;
+    private String languageCode = "fr";
     private LocalDateTime publishedAt;
     private boolean published = true;
+    private Double promotionThreshold;
+    private String promotionTargetClassName;
 }

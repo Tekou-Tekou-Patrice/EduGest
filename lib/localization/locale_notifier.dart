@@ -15,9 +15,9 @@ class LocaleNotifier extends ValueNotifier<Locale> {
   Future<void> loadForUser(String userId) async {
     final preferences = await SharedPreferences.getInstance();
     final savedLanguage = preferences.getString('edugest_language_$userId');
-    if (savedLanguage == 'fr' || savedLanguage == 'en') {
-      value = Locale(savedLanguage!);
-    }
+    value = savedLanguage == 'fr' || savedLanguage == 'en'
+        ? Locale(savedLanguage!)
+        : const Locale('fr');
   }
 
   Future<void> setLocale(Locale locale) async {

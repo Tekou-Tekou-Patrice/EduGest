@@ -29,6 +29,7 @@ import 'package:edugest/pages/recap_annees.dart';
 import 'package:edugest/pages/bulletins_page.dart';
 import 'package:edugest/pages/programme_page.dart';
 import 'package:edugest/pages/teacher_room_check_page.dart';
+import 'package:edugest/pages/staff_attendance_page.dart';
 import 'package:edugest/pages/pensions_page.dart';
 import 'package:edugest/pages/exam_classes_page.dart';
 import 'package:edugest/pages/suivi_cours_page.dart';
@@ -71,8 +72,14 @@ class _DashboardPageState extends State<DashboardPage> {
         setState(() {
           _studentCount = students.length;
           _staffCount = staff.length;
-          _financeReceived =
-              stats['totalReceived'] ?? stats['totalIncomes'] ?? 0;
+          final revenue =
+              stats['totalRevenue'] ??
+              stats['totalReceived'] ??
+              stats['totalIncomes'] ??
+              0;
+          _financeReceived = revenue is num
+              ? revenue
+              : num.tryParse(revenue.toString()) ?? 0;
           _isStatsLoading = false;
         });
       }
@@ -100,6 +107,19 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  String _schoolLevel() {
+    return currentSchoolNotifier.value?.schoolLevel ?? 'COLLEGE';
+  }
+
+  bool _isPrimarySchool() => _schoolLevel() == 'PRIMARY';
+
+  String _displayUserRole() {
+    return context.trRole(
+      widget.currentUser.role.name,
+      schoolLevel: _schoolLevel(),
+    );
+  }
+
   String _tabLabel(AppLocalizations loc, String tabKey) {
     switch (tabKey) {
       case 'dashboard':
@@ -111,7 +131,9 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'students':
         return loc.translate('students');
       case 'teachers':
-        return loc.translate('teacherList');
+        return loc.translate(
+          _isPrimarySchool() ? 'teacherListPrimary' : 'teacherList',
+        );
       case 'myNotes':
         return loc.translate('notesAndAssessments');
       case 'myNotebook':
@@ -149,13 +171,15 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'recapYears':
         return loc.translate('recapYears');
       case 'settings':
-        return 'Paramètres';
+        return loc.translate('settings');
       case 'profile':
         return loc.translate('myProfile');
       case 'programme':
         return loc.translate('programProgress');
       case 'teacherRoomChecks':
         return loc.translate('teacherRoomChecks');
+      case 'staffAttendance':
+        return loc.translate('staffQrAttendance');
       default:
         return loc.translate('dashboard');
     }
@@ -174,15 +198,27 @@ class _DashboardPageState extends State<DashboardPage> {
     final loc = AppLocalizations.of(context);
     final role = widget.currentUser.role;
 
-    final bool isFondateur = role == UserRole.fondateur;
+    final bool isPrimary = _isPrimarySchool();
+    final bool isFondateur =
+        role == UserRole.fondateur ||
+        widget.currentUser.displayRole.toLowerCase() == 'fondateur' ||
+        widget.currentUser.displayRole.toLowerCase() == 'founder';
     final bool isProviseur = role == UserRole.proviseur;
-    final bool isCenseur = role == UserRole.censeur;
+    final bool isCenseur = !isPrimary && role == UserRole.censeur;
     final bool isSecretaire = role == UserRole.secretaire;
     final bool isSG =
-        role == UserRole.surveillantGeneral || role == UserRole.surveillant;
+        !isPrimary &&
+        (role == UserRole.surveillantGeneral || role == UserRole.surveillant);
     final bool isComptable = role == UserRole.comptable;
     final bool isEnseignant = role == UserRole.enseignant;
     final bool isParent = role == UserRole.parent;
+    final bool hasPrimaryCenseurFunctions =
+        isPrimary && (isProviseur || isSecretaire);
+    final bool hasPrimarySGFunctions =
+        isPrimary && (isProviseur || isSecretaire);
+    final bool canCenseurFunctions =
+        isFondateur || isCenseur || hasPrimaryCenseurFunctions;
+    final bool canSGFunctions = isFondateur || isSG || hasPrimarySGFunctions;
 
     final List<SidebarSection> sections = [];
 
@@ -193,7 +229,10 @@ class _DashboardPageState extends State<DashboardPage> {
           title: loc.translate('principal'),
           items: [
             _navItem(loc, Icons.dashboard, 'dashboard'),
-            if (isFondateur || isCenseur || isSG || isEnseignant)
+            if (isFondateur ||
+                canCenseurFunctions ||
+                canSGFunctions ||
+                isEnseignant)
               _navItem(loc, Icons.calendar_month, 'timetable'),
             if (isEnseignant) _navItem(loc, Icons.how_to_reg, 'appel'),
           ],
@@ -209,10 +248,10 @@ class _DashboardPageState extends State<DashboardPage> {
     if (isFondateur || isProviseur) {
       acadItems.add(_navItem(loc, Icons.people, 'teachers'));
     }
-    if (isFondateur || isCenseur || isEnseignant) {
+    if (isFondateur || canCenseurFunctions || isEnseignant) {
       acadItems.add(_navItem(loc, Icons.edit_note, 'myNotes'));
     }
-    if (isFondateur || isProviseur || isCenseur || isEnseignant) {
+    if (isFondateur || isProviseur || canCenseurFunctions || isEnseignant) {
       acadItems.add(_navItem(loc, Icons.menu_book, 'courseTracking'));
     }
     if (isEnseignant) {
@@ -220,26 +259,45 @@ class _DashboardPageState extends State<DashboardPage> {
     }
     if (isFondateur ||
         isProviseur ||
-        isCenseur ||
+        canCenseurFunctions ||
         isSecretaire ||
         isComptable ||
-        isSG) {
+        canSGFunctions) {
       acadItems.add(_navItem(loc, Icons.event, 'events'));
     }
-    if (isFondateur || isSG) {
+    if (isFondateur || isProviseur || isSecretaire) {
+      acadItems.add(_navItem(loc, Icons.edit_note, 'receptionNotes'));
+    }
+    if (isFondateur || canSGFunctions) {
       acadItems.add(_navItem(loc, Icons.event_busy, 'absences'));
     }
-    if (isFondateur || isProviseur || isCenseur || isSG || isEnseignant) {
+    if (isFondateur ||
+        isProviseur ||
+        canCenseurFunctions ||
+        canSGFunctions ||
+        isEnseignant) {
       acadItems.add(_navItem(loc, Icons.gavel, 'discipline'));
     }
-    if (isFondateur || isProviseur || isCenseur) {
+    if (isFondateur || isProviseur || canCenseurFunctions || isSecretaire) {
       acadItems.add(_navItem(loc, Icons.assignment, 'bulletins'));
     }
     if (isParent) {
       acadItems.add(_navItem(loc, Icons.menu_book, 'programme'));
     }
-    if (isFondateur || isProviseur || isSecretaire || isSG || isEnseignant) {
+    if (isFondateur ||
+        isProviseur ||
+        isSecretaire ||
+        canSGFunctions ||
+        isEnseignant) {
       acadItems.add(_navItem(loc, Icons.fact_check, 'teacherRoomChecks'));
+    }
+    if (isFondateur ||
+        isProviseur ||
+        isSecretaire ||
+        canCenseurFunctions ||
+        canSGFunctions ||
+        isEnseignant) {
+      acadItems.add(_navItem(loc, Icons.qr_code_2, 'staffAttendance'));
     }
     if (acadItems.isNotEmpty) {
       sections.add(
@@ -252,7 +310,7 @@ class _DashboardPageState extends State<DashboardPage> {
 
     // 3. ADMINISTRATION & FINANCE
     final List<SidebarItem> adminItems = [];
-    if (isFondateur || isProviseur) {
+    if (isFondateur || isProviseur || isSecretaire) {
       adminItems.add(_navItem(loc, Icons.history_edu, 'recapYears'));
     }
     if (isFondateur || isProviseur || isSecretaire) {
@@ -260,26 +318,34 @@ class _DashboardPageState extends State<DashboardPage> {
         _navItem(loc, Icons.admin_panel_settings, 'managementStaff'),
       );
     }
-    if (isFondateur || isProviseur || isComptable || isCenseur || isParent) {
+    if (isFondateur ||
+        isProviseur ||
+        isComptable ||
+        canCenseurFunctions ||
+        isParent) {
       adminItems.add(_navItem(loc, Icons.payments, 'payments'));
     }
     if (isFondateur || isProviseur || isComptable) {
       adminItems.add(_navItem(loc, Icons.account_balance, 'expenses'));
     }
-    if (isFondateur || isProviseur || isCenseur || isComptable) {
+    if (isFondateur || isProviseur || canCenseurFunctions || isComptable) {
       adminItems.add(_navItem(loc, Icons.fact_check, 'pensions'));
     }
     if (isFondateur ||
         isProviseur ||
-        isCenseur ||
+        canCenseurFunctions ||
         isSecretaire ||
         isComptable) {
       adminItems.add(_navItem(loc, Icons.assignment_turned_in, 'examClasses'));
     }
-    if (isFondateur || isProviseur || isCenseur || isEnseignant) {
+    if (isFondateur ||
+        isProviseur ||
+        canCenseurFunctions ||
+        isEnseignant ||
+        isSecretaire) {
       adminItems.add(_navItem(loc, Icons.meeting_room, 'classes'));
     }
-    if (isFondateur || isProviseur || isCenseur) {
+    if (isFondateur || isProviseur || canCenseurFunctions) {
       adminItems.add(_navItem(loc, Icons.book_outlined, 'subjects'));
     }
     if (isFondateur) {
@@ -287,12 +353,18 @@ class _DashboardPageState extends State<DashboardPage> {
     }
 
     if (adminItems.isNotEmpty) {
-      sections.add(SidebarSection(title: 'Administration', items: adminItems));
+      sections.add(
+        SidebarSection(title: context.tr('administration'), items: adminItems),
+      );
     }
 
     // 4. COMMUNICATION
     final List<SidebarItem> commItems = [];
-    if (isFondateur || isSecretaire || isSG || isComptable || isParent) {
+    if (isFondateur ||
+        isSecretaire ||
+        canSGFunctions ||
+        isComptable ||
+        isParent) {
       commItems.add(
         _navItem(loc, Icons.notifications_active, 'adminAnnouncements'),
       );
@@ -323,7 +395,7 @@ class _DashboardPageState extends State<DashboardPage> {
               child: MySidebar(
                 sections: _sidebarSections,
                 userName: widget.currentUser.name,
-                userRole: widget.currentUser.displayRole,
+                userRole: _displayUserRole(),
                 onLogout: _logout,
               ),
             )
@@ -335,7 +407,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 MySidebar(
                   sections: _sidebarSections,
                   userName: widget.currentUser.name,
-                  userRole: widget.currentUser.displayRole,
+                  userRole: _displayUserRole(),
                   onLogout: _logout,
                 ),
                 Expanded(child: _buildMainArea(isMobile: false)),
@@ -345,19 +417,32 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildMainArea({required bool isMobile}) {
-    return Column(
-      children: [
-        _buildHeader(isMobile),
-        Expanded(
-          child: SingleChildScrollView(
+    final content = selectedTab == 'settings'
+        ? _buildBodyContent()
+        : selectedTab == 'staffAttendance'
+        ? Column(
+            children: [
+              _buildSchoolStatusBanner(),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(isMobile ? 16 : 24),
+                  child: _buildBodyContent(),
+                ),
+              ),
+            ],
+          )
+        : SingleChildScrollView(
             physics: BouncingScrollPhysics(),
             padding: EdgeInsets.all(isMobile ? 16 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [_buildSchoolStatusBanner(), _buildBodyContent()],
             ),
-          ),
-        ),
+          );
+    return Column(
+      children: [
+        _buildHeader(isMobile),
+        Expanded(child: content),
       ],
     );
   }
@@ -507,7 +592,7 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      "${widget.currentUser.name} • ${widget.currentUser.displayRole} • $schoolText$yearText",
+                      "${widget.currentUser.name} • ${_displayUserRole()} • $schoolText$yearText",
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: AppColors.textMuted,
@@ -536,6 +621,14 @@ class _DashboardPageState extends State<DashboardPage> {
             tooltip: context.tr('notifications'),
             onPressed: _showNotifications,
           ),
+          if (widget.currentUser.role == UserRole.fondateur ||
+              widget.currentUser.displayRole.toLowerCase() == 'fondateur' ||
+              widget.currentUser.displayRole.toLowerCase() == 'founder')
+            IconButton(
+              icon: const Icon(Icons.settings, color: AppColors.textMuted),
+              tooltip: context.tr('settings'),
+              onPressed: () => _handleNavigation('settings', context),
+            ),
           SizedBox(width: 12),
           GestureDetector(
             onTap: () => setState(() => selectedTab = "profile"),
@@ -609,7 +702,10 @@ class _DashboardPageState extends State<DashboardPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Impossible de charger les notifications: $error'),
+            content: Text(
+              '${context.tr('loadNotificationsError')}: '
+              '${ApiService.friendlyErrorMessage(error)}',
+            ),
           ),
         );
       }
@@ -627,7 +723,7 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'myNotes':
         return Notes(currentUser: widget.currentUser);
       case 'receptionNotes':
-        return ReceptionNotes();
+        return ReceptionNotes(currentUser: widget.currentUser);
       case 'events':
         return Evenement();
       case 'adminAnnouncements':
@@ -653,6 +749,7 @@ class _DashboardPageState extends State<DashboardPage> {
       case 'classes':
         return GestionClasses(
           readOnly: widget.currentUser.role == UserRole.enseignant,
+          currentUser: widget.currentUser,
         );
       case 'subjects':
         return GestionMatieres();
@@ -671,6 +768,8 @@ class _DashboardPageState extends State<DashboardPage> {
         return SuiviCoursPage(currentUser: widget.currentUser);
       case 'teacherRoomChecks':
         return TeacherRoomCheckPage(currentUser: widget.currentUser);
+      case 'staffAttendance':
+        return StaffAttendancePage(currentUser: widget.currentUser);
       case 'profile':
         return Profil(user: widget.currentUser);
       case 'managementStaff':
@@ -788,7 +887,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Colors.blue,
           ),
         ],
-        title: "Vie Scolaire et Discipline — SG",
+        title: context.tr('schoolLifeDiscipline'),
         activities: [
           context.tr('morningAttendance'),
           context.tr('absenceSlipProcessing'),
@@ -858,7 +957,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           _statCard(
             context.tr('role'),
-            widget.currentUser.displayRole,
+            _displayUserRole(),
             Icons.badge,
             Colors.green,
           ),
@@ -869,7 +968,7 @@ class _DashboardPageState extends State<DashboardPage> {
             Colors.orange,
           ),
         ],
-        title: "${context.tr('dashboard')} - ${widget.currentUser.displayRole}",
+        title: "${context.tr('dashboard')} - ${_displayUserRole()}",
         activities: [
           context.tr('auto_consulter_vos_informations'),
           context.tr('contactSchool'),

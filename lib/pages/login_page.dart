@@ -128,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
                 icon: Icons.mail_outline,
                 hintText: _isLogin
                     ? context.tr('emailOrPhone')
-                    : 'Email (facultatif)',
+                    : context.tr('emailOptional'),
               ),
               SizedBox(height: 20),
               MyTextfield(
@@ -137,8 +137,32 @@ class _LoginPageState extends State<LoginPage> {
                 hintText: loc.translate('passwordHint'),
                 obscureText: true,
               ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        context.tr('passwordCharacteristics'),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-              SizedBox(height: 40),
+              const SizedBox(height: 32),
 
               SizedBox(
                 width: double.infinity,
@@ -207,6 +231,12 @@ class _LoginPageState extends State<LoginPage> {
       );
       return;
     }
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('passwordTooShort'))),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -235,7 +265,7 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              result['message']?.toString() ?? 'Connexion impossible',
+              result['message']?.toString() ?? context.tr('loginFailed'),
             ),
           ),
         );
@@ -252,10 +282,15 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleRegister() async {
     if (_nameController.text.trim().isEmpty ||
         (_emailController.text.trim().isEmpty &&
-            _phoneController.text.trim().isEmpty) ||
-        _passwordController.text.length < 6) {
+            _phoneController.text.trim().isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(context.tr('signupFormDescription'))),
+      );
+      return;
+    }
+    if (_passwordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('passwordTooShort'))),
       );
       return;
     }
@@ -342,7 +377,7 @@ class _LoginPageState extends State<LoginPage> {
                 }
               }
             },
-            child: Text('Envoyer le code'),
+            child: Text(context.tr('sendCode')),
           ),
         ],
       ),

@@ -8,12 +8,15 @@ import 'package:edugest/pages/school_selection_page.dart';
 import 'package:edugest/service/api_service.dart';
 import 'package:edugest/service/auth_session_service.dart';
 import 'package:edugest/components/app_theme.dart';
+import 'package:edugest/components/network_status_banner.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:edugest/service/push_notification_service.dart';
+import 'package:edugest/service/network_status_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await NetworkStatusService.initialize();
   await PushNotificationService.initialize();
 
   await appLocale.loadSavedLocale();
@@ -66,6 +69,7 @@ class MyApp extends StatelessWidget {
       valueListenable: appLocale,
       builder: (context, locale, _) {
         return MaterialApp(
+          navigatorKey: rootNavigatorKey,
           debugShowCheckedModeBanner: false,
           title: 'EduGest',
           locale: locale,
@@ -77,6 +81,8 @@ class MyApp extends StatelessWidget {
             GlobalCupertinoLocalizations.delegate,
           ],
           theme: AppTheme.light,
+          builder: (context, child) =>
+              NetworkStatusBanner(child: child ?? const SizedBox.shrink()),
           home: _AppSessionGate(
             initialUser: initialUser,
             initialSchoolId: initialSchoolId,

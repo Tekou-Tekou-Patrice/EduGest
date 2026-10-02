@@ -33,6 +33,27 @@ public class BackupController {
                 .body(data);
     }
 
+    @GetMapping(value = "/export-archive", produces = "application/gzip")
+    public ResponseEntity<byte[]> exportCompressedArchive(
+            @RequestParam(required = false) Long schoolId) {
+        byte[] compressed = backupService.getCompressedSchoolData(schoolId);
+        String filename = "edugest_sauvegarde_" + LocalDate.now() + ".json.gz";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, "application/gzip")
+                .body(compressed);
+    }
+
+    @GetMapping(value = "/export-year/{yearId}/archive", produces = "application/gzip")
+    public ResponseEntity<byte[]> exportAcademicYearArchive(@PathVariable Long yearId) {
+        byte[] compressed = backupService.getCompressedAcademicYearData(null, yearId);
+        String filename = "edugest_annee_" + yearId + "_" + LocalDate.now() + ".json.gz";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .header(HttpHeaders.CONTENT_TYPE, "application/gzip")
+                .body(compressed);
+    }
+
     @PostMapping("/import")
     public ResponseEntity<Map<String, Object>> importBackup(
             @RequestParam(required = false) Long schoolId,

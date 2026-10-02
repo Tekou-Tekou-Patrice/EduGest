@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -80,13 +81,50 @@ public class UserService {
     public LoginResponse login(LoginRequest request) {
         String login = request.getUsername() != null ? request.getUsername().trim() : "";
 
-        User user = userRepository.findByUsername(login)
-                .or(() -> userRepository.findByEmail(login))
-                .or(() -> findByPhoneCandidates(login))
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+        User directMatch = userRepository.findByUsername(login)
+                .or(() -> userRepository.findByEmailIgnoreCase(login))
+                .orElse(null);
+        User user = null;
+        if (login.contains("@")) {
+            if (directMatch != null
+                    && passwordEncoder.matches(request.getPassword(), directMatch.getPassword())) {
+                user = directMatch;
+            }
+        } else {
+            LinkedHashMap<Long, User> phoneMatches = new LinkedHashMap<>();
+            for (String candidate : phoneNumberService.lookupCandidates(login)) {
+                for (User candidateUser : userRepository.findByPhone(candidate)) {
+                    phoneMatches.putIfAbsent(candidateUser.getId(), candidateUser);
+                }
+            }
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("Mot de passe incorrect");
+            LinkedHashMap<Long, User> matchingPassword = phoneMatches.values().stream()
+                    .filter(candidate -> passwordEncoder.matches(
+                            request.getPassword(), candidate.getPassword()))
+                    .collect(Collectors.toMap(
+                            User::getId,
+                            candidate -> candidate,
+                            (first, ignored) -> first,
+                            LinkedHashMap::new));
+            if (directMatch != null
+                    && passwordEncoder.matches(request.getPassword(), directMatch.getPassword())) {
+                matchingPassword.putIfAbsent(directMatch.getId(), directMatch);
+            }
+            if (matchingPassword.size() == 1) {
+                user = matchingPassword.values().iterator().next();
+            } else if (matchingPassword.size() > 1) {
+                throw new IllegalArgumentException(
+                        "Plusieurs comptes utilisent ce numéro. Connectez-vous avec l'adresse e-mail de votre compte.");
+            } else if (!phoneMatches.isEmpty() || directMatch != null) {
+                throw new RuntimeException("Mot de passe incorrect");
+            }
+        }
+
+        if (user == null) {
+            if (directMatch != null) {
+                throw new RuntimeException("Mot de passe incorrect");
+            }
+            throw new RuntimeException("Utilisateur non trouvé");
         }
 
         if (!user.isActive()) {

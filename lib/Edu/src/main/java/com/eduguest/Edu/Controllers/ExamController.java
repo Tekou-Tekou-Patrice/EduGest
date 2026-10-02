@@ -72,9 +72,15 @@ public class ExamController {
     }
 
     @PutMapping("/grades/{id}")
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.ENSEIGNANT})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE, UserRole.ENSEIGNANT})
     public ResponseEntity<GradeDto> updateGrade(@PathVariable Long id, @RequestBody GradeDto dto) {
         return ResponseEntity.ok(examService.updateGrade(id, dto));
+    }
+
+    @PutMapping("/grades/batch")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE, UserRole.ENSEIGNANT})
+    public ResponseEntity<List<GradeDto>> updateGrades(@RequestBody List<GradeDto> grades) {
+        return ResponseEntity.ok(examService.updateGrades(grades));
     }
 
     @DeleteMapping("/grades/{id}")

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
+import '../components/export_language_dialog.dart';
 import '../components/my_button.dart';
 import '../models/student.dart';
 import '../models/app_user.dart';
@@ -180,19 +181,29 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
             ),
             IconButton(
               icon: Icon(Icons.picture_as_pdf, color: Colors.red),
-              onPressed: () => ExportService.generatePdf(
-                exam: exam,
-                grades: grades,
-                students: students,
-              ),
+              onPressed: () async {
+                final languageCode = await ExportLanguageDialog.show(context);
+                if (languageCode == null || !mounted) return;
+                await ExportService.generatePdf(
+                  exam: exam,
+                  grades: grades,
+                  students: students,
+                  languageCode: languageCode,
+                );
+              },
             ),
             IconButton(
               icon: Icon(Icons.table_view, color: Colors.green),
-              onPressed: () => ExportService.generateExcel(
-                exam: exam,
-                grades: grades,
-                students: students,
-              ),
+              onPressed: () async {
+                final languageCode = await ExportLanguageDialog.show(context);
+                if (languageCode == null || !mounted) return;
+                await ExportService.generateExcel(
+                  exam: exam,
+                  grades: grades,
+                  students: students,
+                  languageCode: languageCode,
+                );
+              },
             ),
           ],
         ),
@@ -360,7 +371,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Gestion des Notes",
+          context.tr('notesManagement'),
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -374,8 +385,8 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
           unselectedLabelColor: AppColors.textMuted,
           indicatorColor: AppColors.primary,
           tabs: [
-            Tab(text: "Saisie"),
-            Tab(text: "Historique"),
+            Tab(text: context.tr('entryTab')),
+            Tab(text: context.tr('myPosts')),
           ],
         ),
         SizedBox(height: 25),
@@ -432,7 +443,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
                     ),
                     onPressed: () => _editGrades(exam),
                     tooltip: exam.editable
-                        ? "Modifier (7 jours)"
+                        ? context.tr('editWithinDays')
                         : context.tr('lockedEditing'),
                   ),
                 IconButton(
@@ -592,7 +603,7 @@ class _NotesState extends State<Notes> with SingleTickerProviderStateMixin {
               width: double.infinity,
               child: MyButton(
                 icon: Icons.send,
-                text: "Valider et Envoyer",
+                text: context.tr('validateAndSend'),
                 onTap: _submitGrades,
               ),
             ),

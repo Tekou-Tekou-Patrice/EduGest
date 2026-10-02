@@ -2,16 +2,22 @@ package com.eduguest.Edu.Service;
 
 import com.eduguest.Edu.Entity.*;
 import com.eduguest.Edu.Repository.*;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 @Service
 public class BackupService {
@@ -32,6 +38,10 @@ public class BackupService {
     private final ExpenseRepository expenseRepository;
     private final BulletinPublicationRepository publicationRepository;
     private final AuditLogRepository auditLogRepository;
+    private final AcademicYearRepository academicYearRepository;
+    private final EventRepository eventRepository;
+    private final AppNotificationRepository appNotificationRepository;
+    private final DailyAttendanceQrRepository dailyAttendanceQrRepository;
     private final SchoolContextService schoolContextService;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
@@ -54,6 +64,10 @@ public class BackupService {
                          ExpenseRepository expenseRepository,
                          BulletinPublicationRepository publicationRepository,
                          AuditLogRepository auditLogRepository,
+                         AcademicYearRepository academicYearRepository,
+                         EventRepository eventRepository,
+                         AppNotificationRepository appNotificationRepository,
+                         DailyAttendanceQrRepository dailyAttendanceQrRepository,
                          SchoolContextService schoolContextService,
                          AuditLogService auditLogService,
                          ObjectMapper objectMapper) {
@@ -73,6 +87,10 @@ public class BackupService {
         this.expenseRepository = expenseRepository;
         this.publicationRepository = publicationRepository;
         this.auditLogRepository = auditLogRepository;
+        this.academicYearRepository = academicYearRepository;
+        this.eventRepository = eventRepository;
+        this.appNotificationRepository = appNotificationRepository;
+        this.dailyAttendanceQrRepository = dailyAttendanceQrRepository;
         this.schoolContextService = schoolContextService;
         this.auditLogService = auditLogService;
         this.objectMapper = objectMapper;
@@ -100,6 +118,7 @@ public class BackupService {
         schoolInfoRepository.findAll().stream().findFirst().ifPresent(info -> dump.put("schoolInfo", info));
 
         // Entités associées
+        dump.put("academicYears", schoolContextService.scope(academicYearRepository.findAll()));
         dump.put("classes", schoolContextService.scope(classroomRepository.findAll()));
         dump.put("subjects", schoolContextService.scope(subjectRepository.findAll()));
         dump.put("teachers", schoolContextService.scope(teacherRepository.findAll()));
@@ -113,6 +132,9 @@ public class BackupService {
         dump.put("payments", schoolContextService.scope(paymentRepository.findAll()));
         dump.put("expenses", schoolContextService.scope(expenseRepository.findAll()));
         dump.put("publications", schoolContextService.scope(publicationRepository.findAll()));
+        dump.put("events", schoolContextService.scope(eventRepository.findAll()));
+        dump.put("notifications", schoolContextService.scope(appNotificationRepository.findAll()));
+        dump.put("dailyAttendanceQrs", schoolContextService.scope(dailyAttendanceQrRepository.findAll()));
         dump.put("auditLogs", schoolContextService.scope(auditLogRepository.findAllByOrderByTimestampDesc()));
 
         try {
@@ -140,6 +162,18 @@ public class BackupService {
 
         School school = schoolRepository.findById(schoolId)
                 .orElseThrow(() -> new IllegalArgumentException("École introuvable"));
+
+        if (payload != null && payload.containsKey("compressedData")) {
+            String b64 = payload.get("compressedData").toString();
+            try {
+                byte[] compressed = Base64.getDecoder().decode(b64);
+                try (GZIPInputStream gzis = new GZIPInputStream(new ByteArrayInputStream(compressed))) {
+                    payload = objectMapper.readValue(gzis, new TypeReference<Map<String, Object>>() {});
+                }
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("Impossible de décompresser les données de sauvegarde : " + ex.getMessage());
+            }
+        }
 
         int restoredEntities = 0;
 
@@ -275,17 +309,122 @@ public class BackupService {
             File dir = new File("./backups");
             if (!dir.exists()) dir.mkdirs();
 
-            File file = new File(dir, "auto_backup_school_" + schoolId + ".json");
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(dump).getBytes(StandardCharsets.UTF_8));
+            // Compression GZIP systématique des données avant la sauvegarde pour réduire l'empreinte disque
+            File compressedFile = new File(dir, "auto_backup_school_" + schoolId + ".json.gz");
+            byte[] jsonBytes = objectMapper.writeValueAsString(dump).getBytes(StandardCharsets.UTF_8);
+            try (FileOutputStream fos = new FileOutputStream(compressedFile);
+                 GZIPOutputStream gzos = new GZIPOutputStream(fos)) {
+                gzos.write(jsonBytes);
+                gzos.finish();
             }
+
+            // Nettoyage de l'ancienne version non compressée le cas échéant
+            File legacyFile = new File(dir, "auto_backup_school_" + schoolId + ".json");
+            if (legacyFile.exists()) {
+                legacyFile.delete();
+            }
+
             lastAutoBackupTime = LocalDateTime.now();
         } catch (Exception ignored) {}
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getCompressedSchoolData(Long schoolId) {
+        Map<String, Object> dump = exportSchoolData(schoolId);
+        return compress(dump);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getCompressedAcademicYearData(Long schoolId, Long yearId) {
+        if (schoolId == null) {
+            schoolId = schoolContextService.currentSchoolId();
+        }
+        if (schoolId == null || yearId == null || yearId <= 0) {
+            throw new IllegalArgumentException("Une école et une année scolaire valides sont requises.");
+        }
+        final Long scopedSchoolId = schoolId;
+        AcademicYear year = academicYearRepository.findById(yearId)
+                .filter(candidate -> candidate.getSchool() != null
+                        && scopedSchoolId.equals(candidate.getSchool().getId()))
+                .filter(candidate -> !candidate.isActive())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Année clôturée introuvable pour cette école."));
+
+        Map<String, Object> dump = exportSchoolData(scopedSchoolId);
+        dump.put("archiveType", "academic-year");
+        dump.put("academicYearId", yearId);
+        Map<String, Object> yearMetadata = new LinkedHashMap<>();
+        yearMetadata.put("id", year.getId());
+        yearMetadata.put("label", year.getLabel());
+        yearMetadata.put("active", year.isActive());
+        yearMetadata.put("startDate", year.getStartDate() == null ? null : year.getStartDate().toString());
+        yearMetadata.put("endDate", year.getEndDate() == null ? null : year.getEndDate().toString());
+        yearMetadata.put("totalRevenue", year.getTotalRevenue());
+        yearMetadata.put("totalExpenses", year.getTotalExpenses());
+        yearMetadata.put("examCount", year.getExamCount());
+        yearMetadata.put("lessonCount", year.getLessonCount());
+        yearMetadata.put("absenceCount", year.getAbsenceCount());
+        yearMetadata.put("sanctionCount", year.getSanctionCount());
+        yearMetadata.put("schoolName", year.getSchoolName());
+        dump.put("academicYears", List.of(yearMetadata));
+        for (String collection : List.of(
+                "exams", "grades", "absences", "sanctions", "lessons", "events",
+                "notifications", "payments", "expenses", "publications")) {
+            dump.put(collection, matchingYearRecords(dump.get(collection), yearId, false));
+        }
+        dump.put("schedules", matchingYearRecords(dump.get("schedules"), yearId, false));
+        dump.put("dailyAttendanceQrs", matchingAttendanceQrs(
+                dump.get("dailyAttendanceQrs"), year.getStartDate(), year.getEndDate()));
+        dump.remove("auditLogs");
+        return compress(dump);
+    }
+
+    private List<com.fasterxml.jackson.databind.JsonNode> matchingYearRecords(
+            Object rawRecords, Long yearId, boolean includeUntagged) {
+        if (!(rawRecords instanceof List<?> records)) return List.of();
+        return records.stream()
+                .map(record -> objectMapper.<com.fasterxml.jackson.databind.JsonNode>valueToTree(record))
+                .filter(record -> {
+                    long recordYearId = record.path("academicYearId").asLong(-1);
+                    return recordYearId == yearId || (includeUntagged && recordYearId < 0);
+                })
+                .toList();
+    }
+
+    private List<com.fasterxml.jackson.databind.JsonNode> matchingAttendanceQrs(
+            Object rawRecords, LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null || !(rawRecords instanceof List<?> records)) {
+            return List.of();
+        }
+        return records.stream()
+                .map(record -> objectMapper.<com.fasterxml.jackson.databind.JsonNode>valueToTree(record))
+                .filter(record -> {
+                    String dateText = record.path("attendanceDate").asText("");
+                    if (dateText.isBlank()) return false;
+                    LocalDate date = LocalDate.parse(dateText);
+                    return !date.isBefore(startDate) && !date.isAfter(endDate);
+                })
+                .toList();
+    }
+
+    private byte[] compress(Map<String, Object> dump) {
+        try {
+            byte[] rawBytes = objectMapper.writeValueAsString(dump).getBytes(StandardCharsets.UTF_8);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
+                gzos.write(rawBytes);
+                gzos.finish();
+            }
+            return baos.toByteArray();
+        } catch (Exception ex) {
+            throw new RuntimeException("Erreur lors de la compression de la sauvegarde : " + ex.getMessage(), ex);
+        }
     }
 
     public Map<String, Object> getBackupStatus() {
         Map<String, Object> status = new LinkedHashMap<>();
         status.put("autoBackupEnabled", true);
+        status.put("compression", "GZIP");
         status.put("schedule", "Quotidien automatique (02h00)");
         status.put("lastAutoBackup", lastAutoBackupTime != null
                 ? lastAutoBackupTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))

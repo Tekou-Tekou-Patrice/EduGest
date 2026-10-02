@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
 import 'package:intl/intl.dart';
 import '../components/app_colors.dart';
+import '../components/export_language_dialog.dart';
 import '../components/responsive_layout.dart';
 import '../models/absence.dart';
 import '../models/app_user.dart';
@@ -14,6 +15,7 @@ import '../models/bulletin_publication.dart';
 import '../service/api_service.dart';
 import '../service/export_service.dart';
 import '../service/school_notifier.dart';
+import '../localization/locale_notifier.dart';
 
 class BulletinsPage extends StatefulWidget {
   final AppUser currentUser;
@@ -47,11 +49,73 @@ class _BulletinsPageState extends State<BulletinsPage> {
   String _searchQuery = '';
   BulletinPublication? _classPublication;
   bool _isPublishing = false;
+  String _publicationLanguageCode = appLocale.value.languageCode;
 
   bool get _canPublishBulletins =>
       widget.currentUser.role == UserRole.fondateur ||
       widget.currentUser.role == UserRole.proviseur ||
       widget.currentUser.role == UserRole.secretaire;
+
+  SchoolClass? get _selectedClassConfig {
+    for (final classroom in _classes) {
+      if (classroom.name == _selectedClass) return classroom;
+    }
+    return null;
+  }
+
+  double get _promotionThreshold =>
+      _selectedClassConfig?.promotionThreshold ?? 10;
+
+  double get _gradeStatusThreshold =>
+      _selectedPeriod == 'Bilan Annuel' ? _promotionThreshold : 10;
+
+  String? get _promotionTargetClassName {
+    final targetId = _selectedClassConfig?.promotionTargetClassId;
+    if (targetId == null) return null;
+    for (final classroom in _classes) {
+      if (classroom.id == targetId) return classroom.name;
+    }
+    return null;
+  }
+
+  Widget _buildAnnualPromotionStatus(double average) {
+    if (_selectedPeriod != 'Bilan Annuel') return SizedBox.shrink();
+    final targetId = _selectedClassConfig?.promotionTargetClassId;
+    if (targetId == null) return SizedBox.shrink();
+    SchoolClass? destination;
+    for (final classroom in _classes) {
+      if (classroom.id == targetId) {
+        destination = classroom;
+        break;
+      }
+    }
+    if (destination == null) return SizedBox.shrink();
+
+    final passed = average >= _promotionThreshold;
+    return Padding(
+      padding: EdgeInsets.only(top: 8),
+      child: Text(
+        passed
+            ? context
+                  .tr('promotionAdmitted')
+                  .replaceAll('{class}', destination.name)
+                  .replaceAll(
+                    '{threshold}',
+                    _promotionThreshold.toStringAsFixed(2),
+                  )
+            : context
+                  .tr('promotionRepeating')
+                  .replaceAll(
+                    '{threshold}',
+                    _promotionThreshold.toStringAsFixed(2),
+                  ),
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: passed ? Colors.green.shade800 : Colors.red.shade800,
+        ),
+      ),
+    );
+  }
 
   Map<String, double> get _subjectCoefficients => {
     for (final subject in _subjects)
@@ -74,6 +138,28 @@ class _BulletinsPageState extends State<BulletinsPage> {
     "Séquence 6",
     "Bilan Annuel",
   ];
+
+  String _periodLabel(String period) {
+    return AppLocalizations.of(context).translateAcademicPeriod(period);
+  }
+
+  String _rankLabel(int rank) {
+    if (Localizations.localeOf(context).languageCode == 'en') {
+      final lastTwoDigits = rank % 100;
+      final suffix = lastTwoDigits >= 11 && lastTwoDigits <= 13
+          ? 'th'
+          : switch (rank % 10) {
+              1 => 'st',
+              2 => 'nd',
+              3 => 'rd',
+              _ => 'th',
+            };
+      return '$rank$suffix';
+    }
+    return rank == 1
+        ? context.tr('rankFirst')
+        : '$rank${context.tr('rankSuffix')}';
+  }
 
   @override
   void initState() {
@@ -220,7 +306,13 @@ class _BulletinsPageState extends State<BulletinsPage> {
       className: _selectedClass!,
       period: _selectedPeriod,
     );
-    if (mounted) setState(() => _classPublication = publication);
+    if (mounted) {
+      setState(() {
+        _classPublication = publication;
+        _publicationLanguageCode =
+            publication?.languageCode ?? appLocale.value.languageCode;
+      });
+    }
   }
 
   Future<void> _toggleClassPublication() async {
@@ -317,6 +409,12 @@ class _BulletinsPageState extends State<BulletinsPage> {
                     '✓ ${context.tr('parentsNotifiedBulletin')}',
                     style: TextStyle(fontSize: 13, color: Colors.black87),
                   ),
+                  SizedBox(height: 10),
+                  Text(
+                    '${context.tr('bulletinLanguage')}: '
+                    '${context.tr(_publicationLanguageCode == 'en' ? 'languageEnglish' : 'languageFrench')}',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
                 ],
               ),
               actions: [
@@ -347,6 +445,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
           period: _selectedPeriod,
           publishedBy: widget.currentUser.name,
           publishedByRole: widget.currentUser.displayRole,
+          languageCode: _publicationLanguageCode,
         );
       } else {
         // Demande de confirmation pour retirer la publication
@@ -400,7 +499,12 @@ class _BulletinsPageState extends State<BulletinsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.tr('publicationUpdateError')} $e')),
+          SnackBar(
+            content: Text(
+              '${context.tr('publicationUpdateError')} '
+              '${ApiService.friendlyErrorMessage(e)}',
+            ),
+          ),
         );
       }
     } finally {
@@ -448,6 +552,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
 
   Future<void> _handlePrintAll() async {
     if (_students.isEmpty) return;
+    final languageCode = await ExportLanguageDialog.show(
+      context,
+      initialLanguageCode: appLocale.value.languageCode,
+    );
+    if (languageCode == null || !mounted) return;
     setState(() => _isExportingAll = true);
     try {
       await ExportService.generateAllClassBulletinsPdf(
@@ -459,12 +568,18 @@ class _BulletinsPageState extends State<BulletinsPage> {
         schoolInfo: currentSchoolNotifier.value,
         period: _selectedPeriod,
         subjects: _subjects,
+        promotionThreshold: _promotionThreshold,
+        promotionTargetClassName: _promotionTargetClassName,
+        languageCode: languageCode,
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${context.tr('bulletinGenerationError')} $e'),
+            content: Text(
+              '${context.tr('bulletinGenerationError')} '
+              '${ApiService.friendlyErrorMessage(e)}',
+            ),
           ),
         );
       }
@@ -474,6 +589,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
   }
 
   Future<void> _handlePrintSingle(Student student) async {
+    final languageCode = await ExportLanguageDialog.show(
+      context,
+      initialLanguageCode: appLocale.value.languageCode,
+    );
+    if (languageCode == null || !mounted) return;
     try {
       await ExportService.generateBulletinPdf(
         student: student,
@@ -488,11 +608,20 @@ class _BulletinsPageState extends State<BulletinsPage> {
         classMin: _classMinAvg,
         classMax: _classMaxAvg,
         classAvg: _classGeneralAvg,
+        promotionThreshold: _promotionThreshold,
+        promotionTargetClassName: _promotionTargetClassName,
+        reportClassName: _selectedClass,
+        languageCode: languageCode,
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur impression bulletin: $e")),
+          SnackBar(
+            content: Text(
+              "${context.tr('printBulletinError')}: "
+              '${ApiService.friendlyErrorMessage(e)}',
+            ),
+          ),
         );
       }
     }
@@ -634,7 +763,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Classe : ",
+                "${context.tr('classLabel')} : ",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               SizedBox(width: 8),
@@ -648,7 +777,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _selectedClass,
-                    hint: Text("Choisir"),
+                    hint: Text(context.tr('choose')),
                     items: _classes
                         .map(
                           (c) => DropdownMenuItem(
@@ -672,12 +801,41 @@ class _BulletinsPageState extends State<BulletinsPage> {
             ],
           ),
 
+          if (_canPublishBulletins && _selectedClass != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "${context.tr('bulletinLanguage')}: ",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                DropdownButton<String>(
+                  value: _publicationLanguageCode,
+                  items: [
+                    DropdownMenuItem(
+                      value: 'fr',
+                      child: Text(context.tr('languageFrench')),
+                    ),
+                    DropdownMenuItem(
+                      value: 'en',
+                      child: Text(context.tr('languageEnglish')),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _publicationLanguageCode = value);
+                    }
+                  },
+                ),
+              ],
+            ),
+
           // Sélecteur de Période / Trimestre
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Période : ",
+                "${context.tr('periodLabel')} : ",
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               SizedBox(width: 8),
@@ -692,7 +850,12 @@ class _BulletinsPageState extends State<BulletinsPage> {
                   child: DropdownButton<String>(
                     value: _selectedPeriod,
                     items: _periods
-                        .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                        .map(
+                          (p) => DropdownMenuItem(
+                            value: p,
+                            child: Text(_periodLabel(p)),
+                          ),
+                        )
                         .toList(),
                     onChanged: (val) {
                       if (val != null) {
@@ -961,7 +1124,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               SizedBox(height: 2),
                               Text(
                                 "${context.tr('studentId')} : ${student.id} • "
-                                "${context.tr('rank')} : ${rank == 1 ? '1er' : '$rankème'} / ${_students.length}",
+                                "${context.tr('rank')} : ${_rankLabel(rank)} / ${_students.length}",
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textMuted,
@@ -984,22 +1147,22 @@ class _BulletinsPageState extends State<BulletinsPage> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: avg >= 10
+                            color: avg >= _gradeStatusThreshold
                                 ? Colors.green.shade50
                                 : Colors.red.shade50,
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
-                              color: avg >= 10
+                              color: avg >= _gradeStatusThreshold
                                   ? Colors.green.shade300
                                   : Colors.red.shade300,
                             ),
                           ),
                           child: Text(
-                            "Moyenne : ${avg.toStringAsFixed(2)} / 20",
+                            "${context.tr('classAverageLabel')} : ${avg.toStringAsFixed(2)} / 20",
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: avg >= 10
+                              color: avg >= _gradeStatusThreshold
                                   ? Colors.green.shade800
                                   : Colors.red.shade800,
                             ),
@@ -1033,7 +1196,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               ),
                               SizedBox(width: 4),
                               Text(
-                                "$absenceHours h d'absence",
+                                "$absenceHours ${context.tr('hours')} ${context.tr('absence').toLowerCase()}",
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -1082,7 +1245,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               color: Colors.white,
                             ),
                             label: Text(
-                              "Bulletin PDF",
+                              context.tr('pdfReportCard'),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 12,
@@ -1138,7 +1301,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         SizedBox(height: 3),
                         Text(
                           "${context.tr('studentId')} : ${student.id} • "
-                          "${context.tr('rank')} : ${rank == 1 ? '1er' : '$rankème'} / ${_students.length}",
+                          "${context.tr('rank')} : ${_rankLabel(rank)} / ${_students.length}",
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textMuted,
@@ -1154,22 +1317,22 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: avg >= 10
+                                color: avg >= _gradeStatusThreshold
                                     ? Colors.green.shade50
                                     : Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: avg >= 10
+                                  color: avg >= _gradeStatusThreshold
                                       ? Colors.green.shade300
                                       : Colors.red.shade300,
                                 ),
                               ),
                               child: Text(
-                                "Moyenne : ${avg.toStringAsFixed(2)} / 20",
+                                "${context.tr('classAverageLabel')} : ${avg.toStringAsFixed(2)} / 20",
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  color: avg >= 10
+                                  color: avg >= _gradeStatusThreshold
                                       ? Colors.green.shade800
                                       : Colors.red.shade800,
                                 ),
@@ -1203,7 +1366,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                   ),
                                   SizedBox(width: 4),
                                   Text(
-                                    "$absenceHours h d'absence",
+                                    "$absenceHours ${context.tr('hours')} ${context.tr('absence').toLowerCase()}",
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -1243,7 +1406,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         onPressed: () => _handlePrintSingle(student),
                         icon: Icon(Icons.print, size: 16, color: Colors.white),
                         label: Text(
-                          "Bulletin PDF",
+                          context.tr('reportCardPdf'),
                           style: TextStyle(color: Colors.white),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -1385,7 +1548,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              "BULLETIN DE NOTES",
+                              context.tr('reportCardTitle').toUpperCase(),
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -1393,7 +1556,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                               ),
                             ),
                             Text(
-                              "Session $currentYear • $_selectedPeriod",
+                              "${context.tr('session')} $currentYear • ${_periodLabel(_selectedPeriod)}",
                               style: TextStyle(
                                 fontSize: 11,
                                 color: AppColors.text,
@@ -1501,7 +1664,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         Padding(
                           padding: EdgeInsets.all(8),
                           child: Text(
-                            "Coeff",
+                            context.tr('coefficientShort'),
                             textAlign: TextAlign.center,
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
@@ -1509,7 +1672,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         Padding(
                           padding: EdgeInsets.all(8),
                           child: Text(
-                            "Note / 20",
+                            context.tr('gradeOutOfTwenty'),
                             textAlign: TextAlign.center,
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
@@ -1517,7 +1680,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         Padding(
                           padding: EdgeInsets.all(8),
                           child: Text(
-                            "Total Pts",
+                            context.tr('totalPoints'),
                             textAlign: TextAlign.center,
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
@@ -1604,7 +1767,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                             child: Text(
                               hasGrade
                                   ? _getAppreciation(g.score)
-                                  : "En attente",
+                                  : context.tr('pending'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: hasGrade
@@ -1666,16 +1829,17 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
-                                  color: avg >= 10
+                                  color: avg >= _gradeStatusThreshold
                                       ? Colors.green.shade800
                                       : Colors.red.shade800,
                                 ),
                               ),
                             ],
                           ),
+                          _buildAnnualPromotionStatus(avg),
                           SizedBox(height: 4),
                           Text(
-                            "${context.tr('classRank')} : $rank${rank == 1 ? 'er' : 'ème'} "
+                            "${context.tr('classRank')} : ${_rankLabel(rank)} "
                             "${context.tr('outOf')} ${_students.length} ${context.tr('students').toLowerCase()}",
                             style: TextStyle(
                               fontSize: 12,
@@ -1683,7 +1847,20 @@ class _BulletinsPageState extends State<BulletinsPage> {
                             ),
                           ),
                           Text(
-                            "Moyenne de classe : ${_classGeneralAvg.toStringAsFixed(2)} | Min : ${_classMinAvg.toStringAsFixed(2)} | Max : ${_classMaxAvg.toStringAsFixed(2)}",
+                            context
+                                .tr('classAverageMinMax')
+                                .replaceAll(
+                                  '{average}',
+                                  _classGeneralAvg.toStringAsFixed(2),
+                                )
+                                .replaceAll(
+                                  '{min}',
+                                  _classMinAvg.toStringAsFixed(2),
+                                )
+                                .replaceAll(
+                                  '{max}',
+                                  _classMaxAvg.toStringAsFixed(2),
+                                ),
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.textMuted,
@@ -1712,7 +1889,7 @@ class _BulletinsPageState extends State<BulletinsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "VIE SCOLAIRE & ABSENCES",
+                            context.tr('schoolLifeAbsences'),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -1810,16 +1987,17 @@ class _BulletinsPageState extends State<BulletinsPage> {
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: avg >= 10
+                                    color: avg >= _gradeStatusThreshold
                                         ? Colors.green.shade800
                                         : Colors.red.shade800,
                                   ),
                                 ),
                               ],
                             ),
+                            _buildAnnualPromotionStatus(avg),
                             SizedBox(height: 4),
                             Text(
-                              "${context.tr('classRank')} : $rank${rank == 1 ? 'er' : 'ème'} "
+                              "${context.tr('classRank')} : ${_rankLabel(rank)} "
                               "${context.tr('outOf')} ${_students.length} ${context.tr('students').toLowerCase()}",
                               style: TextStyle(
                                 fontSize: 12,
@@ -1953,11 +2131,11 @@ class _BulletinsPageState extends State<BulletinsPage> {
   }
 
   String _getAppreciation(double score) {
-    if (score >= 16) return "Excellent";
-    if (score >= 14) return "Très Bien";
-    if (score >= 12) return "Bien";
-    if (score >= 10) return "Passable";
-    if (score >= 8) return "Médiocre";
-    return "Insuffisant";
+    if (score >= 16) return context.tr('ratingExcellent');
+    if (score >= 14) return context.tr('ratingVeryGood');
+    if (score >= 12) return context.tr('ratingGood');
+    if (score >= 10) return context.tr('ratingPassable');
+    if (score >= 8) return context.tr('ratingMediocre');
+    return context.tr('ratingInsufficient');
   }
 }

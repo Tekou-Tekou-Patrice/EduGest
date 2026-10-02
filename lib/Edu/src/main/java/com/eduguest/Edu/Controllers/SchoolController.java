@@ -167,4 +167,14 @@ public class SchoolController {
         schoolService.updateCode(userId, schoolId, code);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{schoolId}/regenerate-code")
+    @RequireRoles(UserRole.FONDATEUR)
+    public ResponseEntity<com.eduguest.Edu.DTO.SchoolDto> regenerateCode(@PathVariable Long schoolId,
+                                                                         @RequestParam Long userId) {
+        if (!userId.equals(securityContextService.getCurrentUserId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Action non autorisée.");
+        }
+        return ResponseEntity.ok(schoolService.regenerateCode(userId, schoolId));
+    }
 }

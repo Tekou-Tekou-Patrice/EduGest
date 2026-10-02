@@ -46,7 +46,15 @@ class AppUser {
     );
   }
 
-  String get displayRole => _roleToString(role);
+  String get displayRole => displayRoleForSchoolLevel(null);
+
+  String displayRoleForSchoolLevel(String? schoolLevel) {
+    return roleLabel(role, schoolLevel: schoolLevel);
+  }
+
+  static String roleLabel(UserRole role, {String? schoolLevel}) {
+    return _roleToString(role, schoolLevel: schoolLevel);
+  }
 
   String get initials {
     final parts = name.split(' ').where((part) => part.isNotEmpty).toList();
@@ -88,7 +96,12 @@ class AppUser {
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser.fromMap(json);
 
-  static String _roleToString(UserRole role) {
+  static String _roleToString(UserRole role, {String? schoolLevel}) {
+    if (role == UserRole.proviseur &&
+        (schoolLevel ?? '').toUpperCase() == 'PRIMARY') {
+      return 'Directeur/Directrice';
+    }
+
     switch (role) {
       case UserRole.membre:
         return 'Membre';
@@ -136,6 +149,7 @@ class AppUser {
       case 'ENSEIGNANT':
         return UserRole.enseignant;
       case 'FONDATEUR':
+      case 'FOUNDER':
         return UserRole.fondateur;
       case 'SURVEILLANT':
         return UserRole.surveillant;

@@ -102,7 +102,7 @@ class _GestionMatieresState extends State<GestionMatieres> {
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Erreur lors de l'enregistrement")),
+                    SnackBar(content: Text(context.tr('saveError'))),
                   );
                 }
               }
@@ -168,7 +168,9 @@ class _GestionMatieresState extends State<GestionMatieres> {
                     s.name,
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text("Coefficient: ${s.coefficient}"),
+                  subtitle: Text(
+                    "${context.tr('coefficientLabel')}: ${s.coefficient}",
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

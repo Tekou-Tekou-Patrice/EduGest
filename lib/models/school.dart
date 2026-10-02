@@ -16,32 +16,8 @@ class School {
   });
 
   String get roleLabel {
-    switch (role) {
-      case UserRole.membre:
-        return 'Membre';
-      case UserRole.proviseur:
-        return 'Proviseur';
-      case UserRole.censeur:
-        return 'Censeur';
-      case UserRole.secretaire:
-        return 'Secrétaire';
-      case UserRole.comptable:
-        return 'Comptable';
-      case UserRole.enseignant:
-        return 'Enseignant';
-      case UserRole.fondateur:
-        return 'Fondateur';
-      case UserRole.surveillant:
-        return 'Surveillant';
-      case UserRole.surveillantGeneral:
-        return 'Surveillant Général';
-      case UserRole.parent:
-        return 'Parent';
-      case UserRole.eleve:
-        return 'Élève';
-      case null:
-        return 'Rôle non défini';
-    }
+    if (role == null) return 'Rôle non défini';
+    return AppUser.roleLabel(role!, schoolLevel: schoolLevel);
   }
 
   factory School.fromMap(Map<String, dynamic> map) {

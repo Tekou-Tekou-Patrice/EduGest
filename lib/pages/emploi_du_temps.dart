@@ -33,6 +33,19 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
     'Samedi',
   ];
 
+  String _localizedDay(String day) {
+    const dayKeys = {
+      'Lundi': 'weekdayMonday',
+      'Mardi': 'weekdayTuesday',
+      'Mercredi': 'weekdayWednesday',
+      'Jeudi': 'weekdayThursday',
+      'Vendredi': 'weekdayFriday',
+      'Samedi': 'weekdaySaturday',
+    };
+    final key = dayKeys[day];
+    return key == null ? day : context.tr(key);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -66,10 +79,9 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
 
   Future<void> _fetchSchedule() async {
     try {
-      final role = widget.currentUser.displayRole;
       List<ScheduleItem> data;
 
-      if (role == 'Enseignant') {
+      if (widget.currentUser.role == UserRole.enseignant) {
         data = await ApiService.getSchedule(
           day: selectedDay,
           teacherName: widget.currentUser.name,
@@ -85,13 +97,9 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Erreur lors de la récupération de l'emploi du temps",
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('errorLoading'))));
       }
     }
   }
@@ -127,7 +135,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
     String? currentClass = _allClasses.isNotEmpty
         ? _allClasses.first.name
         : null;
-    String? currentTeacher = widget.currentUser.displayRole == 'Enseignant'
+    String? currentTeacher = widget.currentUser.role == UserRole.enseignant
         ? widget.currentUser.name
         : (_allTeachers.isNotEmpty ? _allTeachers.first.fullName : null);
     String? currentSubject = _allSubjects.isNotEmpty
@@ -320,7 +328,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
           runSpacing: 10,
           children: [
             Text(
-              "Planning Hebdomadaire",
+              context.tr('weeklySchedule'),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -330,7 +338,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.currentUser.displayRole != 'Enseignant')
+                if (widget.currentUser.role != UserRole.enseignant)
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
@@ -382,7 +390,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
                     ),
                   ),
                   child: Text(
-                    day,
+                    _localizedDay(day),
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppColors.text,
                       fontWeight: FontWeight.bold,
@@ -489,7 +497,7 @@ class _EmploiDuTempsState extends State<EmploiDuTemps> {
                                 ],
                               ),
                             ),
-                            if (widget.currentUser.displayRole != 'Enseignant')
+                            if (widget.currentUser.role != UserRole.enseignant)
                               IconButton(
                                 icon: Icon(
                                   Icons.delete_outline,

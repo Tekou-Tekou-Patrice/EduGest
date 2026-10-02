@@ -82,7 +82,9 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(
-            teacher == null ? "Recruter Enseignant" : "Modifier Enseignant",
+            teacher == null
+                ? context.tr('recruitTeacher')
+                : context.tr('editTeacher'),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -232,7 +234,7 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
             ),
             MyButton(
               icon: Icons.person_add_alt_1,
-              text: "Recruter",
+              text: context.tr('recruit'),
               onTap: () => _showTeacherDialog(),
             ),
           ],
@@ -278,7 +280,7 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                     ),
                   ),
                   child: Text(
-                    subjectName,
+                    subjectName == 'Tous' ? context.tr('all') : subjectName,
                     style: TextStyle(
                       color: isSelected ? Colors.white : AppColors.text,
                       fontSize: 12,
@@ -345,9 +347,7 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                             context: context,
                             builder: (ctx) => AlertDialog(
                               title: Text(context.tr('delete')),
-                              content: Text(
-                                "Voulez-vous vraiment supprimer cet enseignant et son compte ?",
-                              ),
+                              content: Text(context.tr('removeTeacherConfirm')),
                               actions: [
                                 TextButton(
                                   onPressed: () => Navigator.pop(ctx, false),
@@ -361,8 +361,25 @@ class _ListeEnseignantState extends State<ListeEnseignant> {
                             ),
                           );
                           if (confirm == true) {
-                            await ApiService.deleteTeacher(teacher.id);
-                            _fetchTeachers();
+                            try {
+                              await ApiService.deleteTeacher(teacher.id);
+                              await _fetchTeachers();
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(context.tr('teacherRemoved')),
+                                ),
+                              );
+                            } catch (error) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    ApiService.friendlyErrorMessage(error),
+                                  ),
+                                ),
+                              );
+                            }
                           }
                         },
                       ),

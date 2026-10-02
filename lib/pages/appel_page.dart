@@ -381,7 +381,7 @@ class _AppelPageState extends State<AppelPage> with WidgetsBindingObserver {
           SizedBox(
             width: double.infinity,
             child: MyButton(
-              text: "Valider l'appel",
+              text: context.tr('validateAttendance'),
               icon: Icons.send,
               onTap: _envoyerAppel,
             ),

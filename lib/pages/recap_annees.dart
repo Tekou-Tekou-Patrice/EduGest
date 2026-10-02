@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:printing/printing.dart';
 import '../localization/app_localizations.dart';
 import '../components/app_colors.dart';
+import '../components/export_language_dialog.dart';
 import '../components/responsive_layout.dart';
 import '../models/academic_year_recap.dart';
 import '../models/app_user.dart';
@@ -8,6 +10,7 @@ import '../models/school_info.dart';
 import '../service/api_service.dart';
 import '../service/export_service.dart';
 import '../service/school_notifier.dart';
+import '../service/year_archive_service.dart';
 
 class RecapAnnees extends StatefulWidget {
   final AppUser currentUser;
@@ -18,16 +21,22 @@ class RecapAnnees extends StatefulWidget {
 }
 
 class _RecapAnneesState extends State<RecapAnnees> {
-  bool _isLoading = true;
+  bool _isLoading = false;
   List<AcademicYearRecap> _recaps = [];
   String _searchQuery = '';
   SchoolInfo? _schoolInfo;
+  final Set<int> _purgedYearIds = {};
+  final Set<int> _processingYearIds = {};
 
   @override
   void initState() {
     super.initState();
     _fetchData();
   }
+
+  bool get _canManageArchives =>
+      widget.currentUser.role == UserRole.fondateur ||
+      widget.currentUser.role == UserRole.proviseur;
 
   Future<void> _fetchData() async {
     setState(() => _isLoading = true);
@@ -46,7 +55,16 @@ class _RecapAnneesState extends State<RecapAnnees> {
       }
     } catch (e) {
       debugPrint("Erreur récupération récaps: $e");
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${context.tr('errorPrefix')} ${ApiService.friendlyErrorMessage(e)}',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -85,8 +103,6 @@ class _RecapAnneesState extends State<RecapAnnees> {
             _buildGlobalKpis(isMobile, isTablet),
             SizedBox(height: 25),
           ],
-          _buildSearchBar(),
-          SizedBox(height: 20),
           if (_isLoading)
             Center(
               child: Padding(
@@ -94,10 +110,14 @@ class _RecapAnneesState extends State<RecapAnnees> {
                 child: CircularProgressIndicator(),
               ),
             )
-          else if (_filteredRecaps.isEmpty)
-            _buildEmptyState()
-          else
-            _buildRecapsList(isMobile),
+          else ...[
+            _buildSearchBar(),
+            SizedBox(height: 20),
+            if (_filteredRecaps.isEmpty)
+              _buildEmptyState()
+            else
+              _buildRecapsList(isMobile),
+          ],
           SizedBox(height: 40),
         ],
       ),
@@ -147,7 +167,7 @@ class _RecapAnneesState extends State<RecapAnnees> {
             ),
           ),
           IconButton(
-            onPressed: _fetchData,
+            onPressed: _isLoading ? null : _fetchData,
             tooltip: context.tr('refreshArchives'),
             icon: Icon(Icons.refresh, color: AppColors.primary),
           ),
@@ -512,11 +532,56 @@ class _RecapAnneesState extends State<RecapAnnees> {
                     ),
                   ),
                 ),
+                OutlinedButton.icon(
+                  onPressed: () => _showYearArchivesDialog(recap),
+                  icon: Icon(Icons.folder_open, size: 16),
+                  label: Text(context.tr('yearArchiveDocuments')),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                if (_canManageArchives && recap.id != null)
+                  FilledButton.icon(
+                    onPressed:
+                        _processingYearIds.contains(recap.id) ||
+                            _purgedYearIds.contains(recap.id)
+                        ? null
+                        : () => _archiveAndDeleteYearData(recap),
+                    icon: _processingYearIds.contains(recap.id)
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(Icons.delete_forever_outlined),
+                    label: Text(
+                      context.tr(
+                        _purgedYearIds.contains(recap.id)
+                            ? 'yearDataAlreadyDeleted'
+                            : 'archiveAndDeleteYearData',
+                      ),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _purgedYearIds.contains(recap.id)
+                          ? Colors.grey
+                          : Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
                 ElevatedButton.icon(
                   onPressed: () async {
+                    final languageCode = await ExportLanguageDialog.show(
+                      context,
+                    );
+                    if (languageCode == null || !mounted) return;
                     await ExportService.generateYearRecapPdf(
                       yearRecap: recap,
                       schoolInfo: _schoolInfo,
+                      languageCode: languageCode,
                     );
                   },
                   icon: Icon(
@@ -539,6 +604,208 @@ class _RecapAnneesState extends State<RecapAnnees> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _archiveAndDeleteYearData(AcademicYearRecap recap) async {
+    final yearId = recap.id;
+    if (yearId == null || !_canManageArchives) return;
+    try {
+      final currentArchives = await ApiService.getAcademicYearArchives(
+        yearId: yearId,
+      );
+      if (currentArchives.contains('data_purged')) {
+        if (!mounted) return;
+        setState(() => _purgedYearIds.add(yearId));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.tr('yearDataAlreadyDeleted'))),
+        );
+        return;
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${context.tr('errorPrefix')} ${ApiService.friendlyErrorMessage(e)}',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (confirmContext) => AlertDialog(
+        title: Text(confirmContext.tr('confirmDeleteYearDataTitle')),
+        content: Text(confirmContext.tr('confirmDeleteYearDataMessage')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(confirmContext, false),
+            child: Text(confirmContext.tr('cancel')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(confirmContext, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(confirmContext.tr('deleteOnce')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final languageCode = await ExportLanguageDialog.show(context);
+    if (languageCode == null || !mounted) return;
+
+    setState(() => _processingYearIds.add(yearId));
+    try {
+      final updated = await YearArchiveService.archiveAndPurge(
+        year: recap,
+        schoolInfo: _schoolInfo,
+        languageCode: languageCode,
+      );
+      if (!mounted) return;
+      setState(() {
+        _processingYearIds.remove(yearId);
+        if (updated.contains('data_purged')) _purgedYearIds.add(yearId);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.tr('yearArchivedSuccess'))),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _processingYearIds.remove(yearId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${context.tr('archiveCreationError')} ${ApiService.friendlyErrorMessage(e)}',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showYearArchivesDialog(AcademicYearRecap recap) async {
+    if (recap.id == null) return;
+    late final Set<String> archives;
+    try {
+      archives = await ApiService.getAcademicYearArchives(yearId: recap.id!);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${context.tr('errorPrefix')} ${ApiService.friendlyErrorMessage(e)}',
+          ),
+        ),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    const archiveTypes = {
+      'year_recap': 'yearRecapPdf',
+      'bulletins': 'annualBulletinsPdf',
+      'receipts': 'paymentReceiptsPdf',
+      'year_data': 'completeCompressedArchive',
+    };
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('${context.tr('yearArchiveDocuments')} — ${recap.label}'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('archiveDocumentsMissing'),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+                SizedBox(height: 12),
+                if (archives.contains('data_purged'))
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      context.tr('yearDataAlreadyDeleted'),
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                for (final entry in archiveTypes.entries)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      entry.key == 'year_data'
+                          ? Icons.inventory_2_outlined
+                          : archives.contains(entry.key)
+                          ? Icons.picture_as_pdf
+                          : Icons.picture_as_pdf_outlined,
+                      color: entry.key == 'year_data'
+                          ? Colors.indigo
+                          : archives.contains(entry.key)
+                          ? Colors.red
+                          : AppColors.textMuted,
+                    ),
+                    title: Text(context.tr(entry.value)),
+                    subtitle:
+                        entry.key == 'year_data' && archives.contains(entry.key)
+                        ? Text(context.tr('compressedArchiveStored'))
+                        : null,
+                    trailing: entry.key == 'year_data'
+                        ? (archives.contains(entry.key)
+                              ? Icon(
+                                  Icons.check_circle_outline,
+                                  color: Colors.green,
+                                )
+                              : Icon(Icons.pending_outlined))
+                        : archives.contains(entry.key)
+                        ? IconButton(
+                            tooltip: context.tr('downloadArchivedPdf'),
+                            icon: Icon(Icons.download),
+                            onPressed: () async {
+                              try {
+                                final bytes =
+                                    await ApiService.downloadAcademicYearArchive(
+                                      yearId: recap.id!,
+                                      type: entry.key,
+                                    );
+                                await Printing.sharePdf(
+                                  bytes: bytes,
+                                  filename: '${recap.label}_${entry.key}.pdf',
+                                );
+                              } catch (e) {
+                                if (dialogContext.mounted) {
+                                  ScaffoldMessenger.of(
+                                    dialogContext,
+                                  ).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${dialogContext.tr('errorPrefix')} ${ApiService.friendlyErrorMessage(e)}',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          )
+                        : Icon(Icons.pending_outlined),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(context.tr('close')),
+          ),
+        ],
       ),
     );
   }
@@ -708,10 +975,13 @@ class _RecapAnneesState extends State<RecapAnnees> {
             ),
             ElevatedButton.icon(
               onPressed: () async {
+                final languageCode = await ExportLanguageDialog.show(context);
+                if (languageCode == null || !context.mounted) return;
                 Navigator.pop(context);
                 await ExportService.generateYearRecapPdf(
                   yearRecap: recap,
                   schoolInfo: _schoolInfo,
+                  languageCode: languageCode,
                 );
               },
               icon: Icon(Icons.print, size: 16, color: Colors.white),

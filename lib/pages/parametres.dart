@@ -49,16 +49,8 @@ class _ParametresState extends State<Parametres> {
     _nameController = TextEditingController(text: widget.currentUser.name);
     _emailController = TextEditingController(text: widget.currentUser.email);
 
-    if (widget.currentUser.displayRole == 'Fondateur' ||
-        widget.currentUser.displayRole == 'Proviseur' ||
-        widget.currentUser.displayRole == 'SecrÃ©taire' ||
-        widget.currentUser.displayRole == 'Comptable') {
-      _fetchSchoolInfo();
-    }
-    if (widget.currentUser.displayRole == 'Fondateur' ||
-        widget.currentUser.displayRole == 'Comptable') {
-      _loadSubscriptionPaymentDetails();
-    }
+    _fetchSchoolInfo();
+    _loadSubscriptionPaymentDetails();
     _loadNotificationPreference();
   }
 
@@ -67,7 +59,7 @@ class _ParametresState extends State<Parametres> {
       final settings = await ApiService.getSaasSettings();
       if (mounted) setState(() => _paymentSettings = settings);
     } catch (error) {
-      debugPrint('Erreur chargement moyens de paiement: $error');
+      debugPrint('Payment settings loading error: $error');
     }
   }
 
@@ -95,7 +87,7 @@ class _ParametresState extends State<Parametres> {
         });
       }
     } catch (e) {
-      debugPrint("Erreur chargement infos Ã©cole: $e");
+      debugPrint("School information loading error: $e");
     } finally {
       if (mounted) setState(() => _isLoadingSchool = false);
     }
@@ -151,8 +143,8 @@ class _ParametresState extends State<Parametres> {
     setState(() => _isSaving = true);
 
     try {
-      if (widget.currentUser.displayRole == 'Fondateur' ||
-          widget.currentUser.displayRole == 'Proviseur') {
+      if (widget.currentUser.role == UserRole.fondateur ||
+          widget.currentUser.role == UserRole.proviseur) {
         final updatedSchool = SchoolInfo(
           id: _currentSchool?.id ?? 'SCHOOL_1',
           name: _schoolNameCtrl.text.trim(),
@@ -188,7 +180,12 @@ class _ParametresState extends State<Parametres> {
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('${context.tr('saveErrorPrefix')} $e')),
+          SnackBar(
+            content: Text(
+              '${context.tr('saveErrorPrefix')} '
+              '${ApiService.friendlyErrorMessage(e)}',
+            ),
+          ),
         );
       }
     } finally {
@@ -254,7 +251,7 @@ class _ParametresState extends State<Parametres> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${context.tr('yearArchivedSuccess')} ${recap.label} !',
+              '${context.tr('yearClosedRecordsKept')} ${recap.label} !',
             ),
             backgroundColor: Colors.green,
           ),
@@ -263,7 +260,12 @@ class _ParametresState extends State<Parametres> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.tr('errorPrefix')} $e')),
+          SnackBar(
+            content: Text(
+              '${context.tr('archiveCreationError')} '
+              '${ApiService.friendlyErrorMessage(e)}',
+            ),
+          ),
         );
       }
     } finally {
@@ -413,7 +415,12 @@ class _ParametresState extends State<Parametres> {
                   } catch (e) {
                     if (mounted) {
                       messenger.showSnackBar(
-                        SnackBar(content: Text("Erreur: $e")),
+                        SnackBar(
+                          content: Text(
+                            "${context.tr('errorPrefix')} "
+                            '${ApiService.friendlyErrorMessage(e)}',
+                          ),
+                        ),
                       );
                     }
                   } finally {
@@ -438,11 +445,9 @@ class _ParametresState extends State<Parametres> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final bool canEditSchool = widget.currentUser.displayRole == 'Fondateur';
-    final bool canViewSchool =
-        canEditSchool ||
-        widget.currentUser.displayRole == 'Proviseur' ||
-        widget.currentUser.displayRole == 'SecrÃ©taire';
+    // This widget is only opened from the founder dashboard. Keep the page
+    // content visible while school data is loading or the role label changes.
+    const bool canViewSchool = true;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -477,11 +482,8 @@ class _ParametresState extends State<Parametres> {
 
             if (canViewSchool) ...[_buildSchoolSection(), SizedBox(height: 25)],
 
-            if (widget.currentUser.displayRole == 'Fondateur' ||
-                widget.currentUser.displayRole == 'Comptable') ...[
-              _buildSubscriptionPaymentSection(),
-              SizedBox(height: 25),
-            ],
+            _buildSubscriptionPaymentSection(),
+            SizedBox(height: 25),
 
             _buildSectionTitle(loc.translate('preferences')),
             SizedBox(height: 16),
@@ -508,7 +510,7 @@ class _ParametresState extends State<Parametres> {
               child: MyButton(
                 icon: _isSaving ? Icons.hourglass_top : Icons.save,
                 text: _isSaving
-                    ? "Sauvegarde en cours..."
+                    ? loc.translate('saveInProgress')
                     : loc.translate('savePreferences'),
                 onTap: _isSaving ? null : _saveAll,
               ),
@@ -1007,7 +1009,10 @@ class _ParametresState extends State<Parametres> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  widget.currentUser.displayRole,
+                  context.trRole(
+                    widget.currentUser.role.name,
+                    schoolLevel: currentSchoolNotifier.value?.schoolLevel,
+                  ),
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,

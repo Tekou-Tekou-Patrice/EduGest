@@ -40,7 +40,7 @@ public class ScolariteController {
     }
 
     @DeleteMapping("/teachers/{id}")
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
     public ResponseEntity<Void> deleteTeacher(@PathVariable Long id) {
         scolariteService.deleteTeacher(id);
         return ResponseEntity.noContent().build();
@@ -94,13 +94,21 @@ public class ScolariteController {
     }
 
     @PostMapping({"/classrooms", "/classes"})
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
     public ResponseEntity<ClassroomDto> createClassroom(@Valid @RequestBody ClassroomDto dto) {
         return ResponseEntity.ok(scolariteService.createClassroom(dto));
     }
 
+    @PutMapping("/classrooms/{id}/promotion")
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.SECRETAIRE})
+    public ResponseEntity<ClassroomDto> savePromotionSettings(
+            @PathVariable Long id,
+            @RequestBody ClassroomDto dto) {
+        return ResponseEntity.ok(scolariteService.savePromotionSettings(id, dto));
+    }
+
     @DeleteMapping({"/classrooms/{id}", "/classes/{id}"})
-    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR})
+    @RequireRoles({UserRole.FONDATEUR, UserRole.PROVISEUR, UserRole.CENSEUR, UserRole.SECRETAIRE})
     public ResponseEntity<Void> deleteClassroom(@PathVariable Long id) {
         scolariteService.deleteClassroom(id);
         return ResponseEntity.noContent().build();

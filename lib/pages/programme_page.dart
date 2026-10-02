@@ -59,7 +59,12 @@ class _ProgrammePageState extends State<ProgrammePage> {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Impossible de charger le programme : $error')),
+        SnackBar(
+          content: Text(
+            '${context.tr('loadProgramFailed')}: '
+            '${ApiService.friendlyErrorMessage(error)}',
+          ),
+        ),
       );
     }
   }
@@ -160,7 +165,7 @@ class _ProgrammePageState extends State<ProgrammePage> {
                       ),
                       validator: (value) =>
                           value == null || value.trim().isEmpty
-                          ? 'Le grand chapitre est obligatoire'
+                          ? context.tr('required')
                           : null,
                     ),
                     TextFormField(
@@ -201,7 +206,10 @@ class _ProgrammePageState extends State<ProgrammePage> {
                         if (!dialogContext.mounted) return;
                         ScaffoldMessenger.of(dialogContext).showSnackBar(
                           SnackBar(
-                            content: Text('Enregistrement impossible : $error'),
+                            content: Text(
+                              '${context.tr('saveFailed')}: '
+                              '${ApiService.friendlyErrorMessage(error)}',
+                            ),
                           ),
                         );
                       } finally {
@@ -228,7 +236,12 @@ class _ProgrammePageState extends State<ProgrammePage> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${context.tr('updateImpossible')} $error')),
+          SnackBar(
+            content: Text(
+              '${context.tr('updateImpossible')} '
+              '${ApiService.friendlyErrorMessage(error)}',
+            ),
+          ),
         );
       }
     }

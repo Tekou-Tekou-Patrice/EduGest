@@ -18,16 +18,21 @@ public class SchoolInfoService {
     private final AcademicYearService academicYearService;
     private final SchoolContextService schoolContextService;
     private final UserSecurityContextService userSecurityContextService;
-
+    private final com.eduguest.Edu.Repository.SchoolRepository schoolRepository;
+    private final SchoolService schoolService;
 
     public SchoolInfoService(SchoolInfoRepository schoolInfoRepository,
                              AcademicYearService academicYearService,
                              SchoolContextService schoolContextService,
-                             UserSecurityContextService userSecurityContextService) {
+                             UserSecurityContextService userSecurityContextService,
+                             com.eduguest.Edu.Repository.SchoolRepository schoolRepository,
+                             SchoolService schoolService) {
         this.schoolContextService = schoolContextService;
         this.schoolInfoRepository = schoolInfoRepository;
         this.academicYearService = academicYearService;
         this.userSecurityContextService = userSecurityContextService;
+        this.schoolRepository = schoolRepository;
+        this.schoolService = schoolService;
     }
 
     @Transactional
@@ -63,12 +68,10 @@ public class SchoolInfoService {
         if (dto.getPhone() != null) entity.setPhone(dto.getPhone());
         entity.setEmail(dto.getEmail());
         entity.setLogoUrl(dto.getLogoUrl());
-        if (dto.getCode() != null && !dto.getCode().isBlank()
-                && userSecurityContextService.getCurrentRole() == UserRole.FONDATEUR) {
-            School school = schoolContextService.currentSchool();
-            if (school != null) {
-                school.setCode(dto.getCode().trim().toUpperCase());
-            }
+        School school = schoolContextService.currentSchool();
+        if (school != null && (school.getCode() == null || school.getCode().isBlank())) {
+            school.setCode(schoolService.generateUniqueSchoolCode());
+            schoolRepository.save(school);
         }
 
         String yearLabel = dto.getCurrentYearId() != null ? dto.getCurrentYearId().trim() : entity.getCurrentYearId();
@@ -106,7 +109,16 @@ public class SchoolInfoService {
         dto.setName(entity.getName());
         School currentSchool = schoolContextService.currentSchool();
         if (currentSchool != null) {
-            dto.setCode(currentSchool.getCode());
+            if (currentSchool.getCode() == null || currentSchool.getCode().isBlank()) {
+                currentSchool.setCode(schoolService.generateUniqueSchoolCode());
+                currentSchool = schoolRepository.save(currentSchool);
+            }
+            UserRole currentRole = userSecurityContextService.getCurrentRole();
+            if (currentRole == UserRole.FONDATEUR
+                    || currentRole == UserRole.PROVISEUR
+                    || currentRole == UserRole.SECRETAIRE) {
+                dto.setCode(currentSchool.getCode());
+            }
             dto.setSchoolLevel(normalizeSchoolLevel(currentSchool.getSchoolLevel()));
             dto.setSubscriptionStatus(currentSchool.getSubscriptionStatus());
             dto.setSubscriptionExpiresAt(currentSchool.getSubscriptionExpiresAt());

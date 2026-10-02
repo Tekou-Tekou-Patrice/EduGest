@@ -36,8 +36,9 @@ public class BulletinPublicationController {
     @GetMapping
     public ResponseEntity<List<BulletinPublicationDto>> getPublications(
             @RequestParam(required = false) String className,
-            @RequestParam(required = false) String period) {
-        return ResponseEntity.ok(service.getPublications(className, period));
+            @RequestParam(required = false) String period,
+            @RequestParam(required = false) String studentId) {
+        return ResponseEntity.ok(service.getPublications(className, period, studentId));
     }
 
     @GetMapping("/readiness")
@@ -56,8 +57,9 @@ public class BulletinPublicationController {
         String studentId = payload.get("studentId") != null ? payload.get("studentId").toString() : null;
         String publishedBy = payload.get("publishedBy") != null ? payload.get("publishedBy").toString() : "Direction";
         String publishedByRole = payload.get("publishedByRole") != null ? payload.get("publishedByRole").toString() : "Direction";
+        String languageCode = payload.get("languageCode") != null ? payload.get("languageCode").toString() : "fr";
 
-        return ResponseEntity.ok(service.publish(className, period, studentId, publishedBy, publishedByRole));
+        return ResponseEntity.ok(service.publish(className, period, studentId, publishedBy, publishedByRole, languageCode));
     }
 
     @PostMapping("/unpublish")

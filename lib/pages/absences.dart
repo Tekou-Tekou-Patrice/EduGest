@@ -46,13 +46,20 @@ class _AbsencesState extends State<Absences> {
     final nameCtrl = TextEditingController();
     final classCtrl = TextEditingController();
     final reasonCtrl = TextEditingController();
-    String period = context.tr('fullDay');
+    String period = 'Journée complète';
     bool justified = false;
-    final periods = [
-      context.tr('morning'),
-      context.tr('afternoon'),
-      context.tr('fullDay'),
-    ];
+    const periods = ['Matin', 'Après-midi', 'Journée complète'];
+
+    String periodLabel(String value) {
+      switch (value) {
+        case 'Matin':
+          return context.tr('morning');
+        case 'Après-midi':
+          return context.tr('afternoon');
+        default:
+          return context.tr('fullDay');
+      }
+    }
 
     showDialog(
       context: context,
@@ -87,7 +94,12 @@ class _AbsencesState extends State<Absences> {
                     ),
                   ),
                   items: periods
-                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                      .map(
+                        (p) => DropdownMenuItem(
+                          value: p,
+                          child: Text(periodLabel(p)),
+                        ),
+                      )
                       .toList(),
                   onChanged: (v) => setDialogState(() => period = v!),
                 ),
@@ -171,7 +183,7 @@ class _AbsencesState extends State<Absences> {
           runSpacing: 10,
           children: [
             Text(
-              "Suivi des Absences",
+              context.tr('absenceTracking'),
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -240,7 +252,7 @@ class _AbsencesState extends State<Absences> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            "${a.className} • ${a.period} • ${DateFormat('dd/MM/yyyy').format(a.date)}",
+                            "${a.className} • ${AppLocalizations.of(context).translateAbsencePeriod(a.period)} • ${DateFormat('dd/MM/yyyy').format(a.date)}",
                             style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 12,

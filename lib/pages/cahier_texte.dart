@@ -82,11 +82,7 @@ class _CahierTexteState extends State<CahierTexte>
   Future<void> _publishLesson() async {
     if (!_canWriteNotebook) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Seuls les enseignants peuvent publier un cahier de texte.',
-          ),
-        ),
+        SnackBar(content: Text(context.tr('teacherOnlyLessonBook'))),
       );
       return;
     }

@@ -32,6 +32,7 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/.vercel/
 
 # Local service-account credentials
 /secrets/

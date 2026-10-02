@@ -67,6 +67,18 @@ public class Student implements SchoolScoped {
     @Column(name = "validated_at")
     private LocalDateTime validatedAt;
 
+    @Column(name = "last_annual_deliberation_year_id")
+    private Long lastAnnualDeliberationYearId;
+
+    @Column(name = "last_annual_deliberation_class_id")
+    private Long lastAnnualDeliberationClassId;
+
+    @Column(name = "annual_promotion_from_class_id")
+    private Long annualPromotionFromClassId;
+
+    @Column(name = "annual_promotion_to_class_id")
+    private Long annualPromotionToClassId;
+
     @PrePersist
     protected void onCreate() {
         registrationDate = LocalDateTime.now();

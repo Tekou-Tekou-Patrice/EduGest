@@ -21,13 +21,13 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
   final TextEditingController _searchController = TextEditingController();
 
   final List<Map<String, String>> _categories = [
-    {'key': 'TOUS', 'label': 'Toutes les actions'},
-    {'key': 'NOTE', 'label': 'Notes'},
-    {'key': 'CAHIER_TEXTE', 'label': 'Cahier de texte'},
-    {'key': 'PAIEMENT', 'label': 'Paiements'},
-    {'key': 'BULLETIN', 'label': 'Bulletins'},
-    {'key': 'EVALUATION', 'label': 'Évaluations'},
-    {'key': 'DEPENSE', 'label': 'Dépenses'},
+    {'key': 'TOUS'},
+    {'key': 'NOTE'},
+    {'key': 'CAHIER_TEXTE'},
+    {'key': 'PAIEMENT'},
+    {'key': 'BULLETIN'},
+    {'key': 'EVALUATION'},
+    {'key': 'DEPENSE'},
   ];
 
   @override
@@ -60,7 +60,12 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
       if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${context.tr('auditLogLoadError')} $e')),
+        SnackBar(
+          content: Text(
+            '${context.tr('auditLogLoadError')}: '
+            '${ApiService.friendlyErrorMessage(e)}',
+          ),
+        ),
       );
     }
   }
@@ -355,7 +360,7 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                           const Spacer(),
                           Text(
                             DateFormat(
-                              'dd/MM/yyyy à HH:mm:ss',
+                              'dd/MM/yyyy HH:mm:ss',
                             ).format(log.timestamp),
                             style: TextStyle(
                               color: AppColors.textMuted,
@@ -423,8 +428,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      "Ancienne valeur : ",
+                                    Text(
+                                      "${context.tr('oldValue')} : ",
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
@@ -451,8 +456,8 @@ class _AuditLogsPageState extends State<AuditLogsPage> {
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
-                                      "Nouvelle valeur : ",
+                                    Text(
+                                      "${context.tr('newValue')} : ",
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,

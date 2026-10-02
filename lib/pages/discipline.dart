@@ -2,6 +2,7 @@ import 'package:edugest/models/sanction.dart';
 import 'package:edugest/models/app_user.dart';
 import 'package:edugest/models/student.dart';
 import 'package:edugest/service/api_service.dart';
+import 'package:edugest/service/school_notifier.dart';
 import 'package:edugest/components/my_button.dart';
 import 'package:flutter/material.dart';
 import '../localization/app_localizations.dart';
@@ -19,12 +20,17 @@ class Discipline extends StatefulWidget {
 class _DisciplineState extends State<Discipline> {
   bool get _canManageSanctions {
     final role = widget.currentUser?.role;
+    final isPrimary = currentSchoolNotifier.value?.schoolLevel == 'PRIMARY';
+    final isPrimaryAdmin =
+        isPrimary &&
+        (role == UserRole.proviseur || role == UserRole.secretaire);
     return role == null ||
         role == UserRole.fondateur ||
         role == UserRole.proviseur ||
         role == UserRole.censeur ||
         role == UserRole.surveillant ||
-        role == UserRole.surveillantGeneral;
+        role == UserRole.surveillantGeneral ||
+        isPrimaryAdmin;
   }
 
   late Future<List<Sanction>> _sanctionsFuture;
@@ -37,6 +43,21 @@ class _DisciplineState extends State<Discipline> {
     'Exclusion',
     'Corvée',
   ];
+
+  String _sanctionTypeLabel(String type) {
+    switch (type) {
+      case 'Avertissement':
+        return context.tr('category_warning');
+      case 'Blâme':
+        return context.tr('category_reprimand');
+      case 'Exclusion':
+        return context.tr('category_exclusion');
+      case 'Corvée':
+        return context.tr('category_communityService');
+      default:
+        return type;
+    }
+  }
 
   @override
   void initState() {
@@ -69,7 +90,9 @@ class _DisciplineState extends State<Discipline> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(
-            sanction == null ? "Nouvelle Sanction" : "Modifier la Sanction",
+            sanction == null
+                ? context.tr('newSanction')
+                : context.tr('editSanction'),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -151,7 +174,12 @@ class _DisciplineState extends State<Discipline> {
                     ),
                   ),
                   items: _sanctionTypes
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t,
+                          child: Text(_sanctionTypeLabel(t)),
+                        ),
+                      )
                       .toList(),
                   onChanged: (val) =>
                       setDialogState(() => _selectedType = val!),
@@ -238,7 +266,7 @@ class _DisciplineState extends State<Discipline> {
           runSpacing: 10,
           children: [
             Text(
-              "Suivi Disciplinaire",
+              context.tr('disciplineTracking'),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -250,7 +278,7 @@ class _DisciplineState extends State<Discipline> {
                 width: 160,
                 child: MyButton(
                   icon: Icons.gavel,
-                  text: "Sanctionner",
+                  text: context.tr('sanction'),
                   onTap: () => _showSanctionDialog(),
                 ),
               ),
@@ -270,7 +298,12 @@ class _DisciplineState extends State<Discipline> {
               );
             }
             if (snapshot.hasError)
-              return Center(child: Text('Erreur: ${snapshot.error}'));
+              return Center(
+                child: Text(
+                  '${context.tr('errorPrefix')} '
+                  '${ApiService.friendlyErrorMessage(snapshot.error!)}',
+                ),
+              );
             if (!snapshot.hasData || snapshot.data!.isEmpty)
               return Center(
                 child: Padding(
