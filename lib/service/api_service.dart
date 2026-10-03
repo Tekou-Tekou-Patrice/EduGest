@@ -41,9 +41,7 @@ class ApiService {
     final configuredUrl = _apiBaseUrl.trim();
     final baseUrl = configuredUrl.isNotEmpty
         ? configuredUrl
-        : kIsWeb
-        ? 'https://edugest.duckdns.org/'
-        : 'http://51.178.53.56:8003/';
+        : 'https://edugest.duckdns.org/';
     return baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';
   }
 

@@ -6,12 +6,11 @@ Vercel ne compile donc pas Flutter lui-même.
 
 ## API EduGest sur le VPS
 
-Le certificat HTTPS a été émis pour `https://edugest.duckdns.org/`. L’application
-Flutter Web utilise maintenant cette adresse par défaut ; l’application
-Android conserve son URL actuelle. `vercel.json` transmet également cette
-adresse à la compilation Vercel. La variable Vercel facultative
-`EDUGEST_API_BASE_URL` permet de remplacer cette valeur, mais doit commencer
-par `https://`.
+Le certificat HTTPS a été émis pour `https://edugest.duckdns.org/`. Les
+applications Flutter Web et Android utilisent cette adresse HTTPS par défaut.
+`vercel.json` transmet également cette adresse à la compilation Vercel. La
+variable facultative `EDUGEST_API_BASE_URL` permet de remplacer cette valeur,
+mais doit commencer par `https://`.
 
 Le certificat seul ne garantit pas que Nginx transmet les requêtes à
 l’application Java : vérifie que le bloc `server` pour `edugest.duckdns.org`
