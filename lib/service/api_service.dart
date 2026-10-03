@@ -39,7 +39,9 @@ class ApiService {
 
   static String get _localBaseUrl {
     final configuredUrl = _apiBaseUrl.trim();
-    final baseUrl = configuredUrl.isNotEmpty
+    final baseUrl = kIsWeb
+        ? Uri.base.origin
+        : configuredUrl.isNotEmpty
         ? configuredUrl
         : 'https://edugest.duckdns.org/';
     return baseUrl.endsWith('/') ? baseUrl : '$baseUrl/';

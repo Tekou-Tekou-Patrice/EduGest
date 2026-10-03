@@ -6,11 +6,13 @@ Vercel ne compile donc pas Flutter lui-même.
 
 ## API EduGest sur le VPS
 
-Le certificat HTTPS a été émis pour `https://edugest.duckdns.org/`. Les
-applications Flutter Web et Android utilisent cette adresse HTTPS par défaut.
-`vercel.json` transmet également cette adresse à la compilation Vercel. La
-variable facultative `EDUGEST_API_BASE_URL` permet de remplacer cette valeur,
-mais doit commencer par `https://`.
+Le certificat HTTPS de l’API est valide pour `https://edugest.duckdns.org/`.
+La PWA Flutter envoie ses appels à `/api/...` sur son propre domaine Vercel ;
+la réécriture `/api/:path*` de `vercel.json` les relaie ensuite en HTTPS au VPS.
+Le navigateur n’a donc pas besoin de résoudre `edugest.duckdns.org`. Android
+et les applications de bureau utilisent directement cette URL HTTPS par
+défaut. `EDUGEST_API_BASE_URL` reste disponible pour configurer ces clients
+hors Web ; elle ne doit pas être configurée dans Vercel pour la PWA.
 
 Le certificat seul ne garantit pas que Nginx transmet les requêtes à
 l’application Java : vérifie que le bloc `server` pour `edugest.duckdns.org`
@@ -27,12 +29,13 @@ VPS : ne remplace pas sa racine, ne fais pas pointer le domaine administrateur
 vers Vercel et ne remplace pas son `proxy_pass`.
 
 La PWA Flutter est un déploiement Vercel distinct, accessible par le domaine
-`*.vercel.app` fourni au projet. Elle appelle en HTTPS l’API du VPS à
-`https://edugest.duckdns.org/`. Ainsi, le portail administrateur garde son URL
-et son hébergement actuels, tandis que les utilisateurs ouvrent l’URL Vercel
-pour la PWA. Pour utiliser plus tard un domaine personnalisé pour la PWA, il
-faudra un nom d’hôte distinct et le configurer séparément dans Vercel ; ne
-réutilise pas le nom d’hôte du portail administrateur.
+`*.vercel.app` fourni au projet. Les requêtes `/api/...` sont relayées par
+Vercel vers `https://edugest.duckdns.org/api/...`. Ainsi, le portail
+administrateur garde son URL et son hébergement actuels, tandis que les
+utilisateurs ouvrent l’URL Vercel pour la PWA. Pour utiliser plus tard un
+domaine personnalisé pour la PWA, il faudra un nom d’hôte distinct et le
+configurer séparément dans Vercel ; ne réutilise pas le nom d’hôte du portail
+administrateur.
 
 Le backend contient déjà une configuration CORS qui accepte les origines, les
 méthodes et les en-têtes des requêtes du navigateur, notamment les requêtes
@@ -51,11 +54,10 @@ données.
    vercel link
    ```
 
-2. Facultatif : dans **Vercel > Project Settings > Environment Variables**,
-   ajoutez `EDUGEST_API_BASE_URL` si vous souhaitez utiliser une autre URL
-   HTTPS que `https://edugest.duckdns.org/`. Cette adresse est intégrée au
-   code JavaScript livré aux navigateurs ; n’y placez aucun secret ni clé
-   privée.
+2. Ne configurez pas `EDUGEST_API_BASE_URL` dans Vercel : la PWA utilise son
+   domaine Vercel et la réécriture `/api/...` relaie ses appels au VPS. La
+   variable reste utilisable pour les builds Android et desktop, et doit
+   contenir une URL HTTPS.
 
 3. Dans le fichier `.vercel/project.json` créé par `vercel link`, récupérez
    `orgId` et `projectId`. Dans **GitHub > Settings > Secrets and variables >

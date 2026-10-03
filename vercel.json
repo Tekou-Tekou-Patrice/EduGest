@@ -2,9 +2,13 @@
   "version": 2,
   "framework": null,
   "installCommand": "flutter pub get",
-  "buildCommand": "API_BASE_URL=\"${EDUGEST_API_BASE_URL:-https://edugest.duckdns.org/}\"; case \"$API_BASE_URL\" in https://*) ;; *) echo \"EDUGEST_API_BASE_URL must use HTTPS\"; exit 1 ;; esac; flutter build web --release --dart-define=EDUGEST_API_BASE_URL=\"$API_BASE_URL\"",
+  "buildCommand": "flutter build web --release",
   "outputDirectory": "build/web",
   "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://edugest.duckdns.org/api/:path*"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
